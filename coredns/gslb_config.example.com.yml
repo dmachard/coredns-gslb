@@ -1,0 +1,54 @@
+records:
+  # Define a GSLB record for webapp.gslb.example.com with failover mode 
+  # between wepapp1 and webapp2 with HTTP health checks
+  webapp.gslb.example.com.:
+    owner: "admin"  # Record owner
+    description: "Dynamic DNS responses based on backend status"
+    mode: "failover"  # Failover mode ensures traffic is routed to the highest priority available backend
+    record_ttl: 30  # Time-to-live for the DNS record
+    scrape_interval: 10s  # Interval for health checks
+    scrape_retries: 1  # Number of retries for health checks
+    scrape_timeout: 5s  # Timeout for health check responses
+    backends:
+    - address: "172.16.0.10"
+      description: "webapp eu-west-1"  # Description of the backend location or purpose
+      enable: true  # Indicates whether this backend is enabled
+      priority: 1  # Priority level (lower number = higher priority)
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"  # URI to request
+            method: "GET"  # HTTP method
+            host: "localhost"  # Host header for the request
+            headers:  # Additional HTTP headers (can add headers as key-value pairs if needed)
+            timeout: 5s  # Timeout for the HTTP request
+            expected_code: 200  # Expected HTTP status code
+            expected_body: ""  # Expected response body (empty means no body validation)
+            enable_tls: true  # Use TLS for the health check
+            skip_tls_verify: true  # Skip TLS certificate validation
+    - address: "172.16.0.11"
+      description: "webapp eu-west-2"  # Description of the backend location or purpose
+      enable: true  # Indicates whether this backend is enabled
+      priority: 2  # Priority level (lower number = higher priority)
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"  # URI to request
+            method: "GET"  # HTTP method
+            host: "localhost"  # Host header for the request
+            headers:  # Additional HTTP headers (can add headers as key-value pairs if needed)
+            timeout: 5s  # Timeout for the HTTP request
+            expected_code: 200  # Expected HTTP status code
+            expected_body: ""  # Expected response body (empty means no body validation)
+            enable_tls: true  # Use TLS for the health check
+            skip_tls_verify: true  # Skip TLS certificate validation
+        - type: icmp
+          params:
+            timeout: 2s  # Timeout for the ICMP request
+            count:  3  # Number of ICMP requests to send
+        - type: tcp
+          params:
+            port: 3306
+            timeout: 3s

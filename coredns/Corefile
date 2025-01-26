@@ -1,0 +1,16 @@
+. {
+    # To log healthcheck results
+    debug
+
+    # Load SOA zone from a file
+    file db.gslb.example.com gslb.example.com
+
+    # Configure the GSLB plugin with the specified parameters
+    gslb gslb_config.example.com.yml gslb.example.com {
+        # geoip_db GeoLite2-City.mmdb
+        use_edns_csubnet
+        max_stagger_start 120s # Maximum delay for staggered start
+        resolution_idle_timeout 3600s # Idle timeout for resolution
+        batch_size_start 100 # Number of records to start on each batch
+    }
+}
