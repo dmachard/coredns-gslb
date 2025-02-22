@@ -284,9 +284,11 @@ func TestGSLB_PickBackendWithRandom_IPv4(t *testing.T) {
 	// Perform the random selection multiple times
 	selectedIPs := make(map[string]bool)
 	for i := 0; i < 10; i++ {
-		ip, err := g.pickBackendWithRandom(record, dns.TypeA)
+		ipAddresses, err := g.pickBackendWithRandom(record, dns.TypeA)
 		assert.NoError(t, err, "Expected pickBackendWithRandom to succeed")
-		selectedIPs[ip[0]] = true
+		for _, ip := range ipAddresses {
+			selectedIPs[ip] = true
+		}
 	}
 
 	// Assert that the IPs are from the healthy backends
