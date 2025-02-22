@@ -48,7 +48,3 @@ records:
           params:
             timeout: 2s  # Timeout for the ICMP request
             count:  3  # Number of ICMP requests to send
-        - type: tcp
-          params:
-            port: 3306
-            timeout: 3s

@@ -27,11 +27,11 @@ func TestGSLB_PickBackendWithFailover_IPv4(t *testing.T) {
 	g := &GSLB{}
 
 	// Test the pickFailoverBackend method
-	ip, err := g.pickBackendWithFailover(record, dns.TypeA)
+	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeA)
 
 	// Assert the results
 	assert.NoError(t, err, "Expected pickFailoverBackend to succeed")
-	assert.Equal(t, "192.168.1.1", ip, "Expected the healthy backend to be selected")
+	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the healthy backend to be selected")
 }
 
 func TestGSLB_PickBackendWithFailover_IPv6(t *testing.T) {
@@ -54,11 +54,11 @@ func TestGSLB_PickBackendWithFailover_IPv6(t *testing.T) {
 	g := &GSLB{}
 
 	// Test the pickFailoverBackend method
-	ip, err := g.pickBackendWithFailover(record, dns.TypeAAAA)
+	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeAAAA)
 
 	// Assert the results
 	assert.NoError(t, err, "Expected pickFailoverBackend to succeed")
-	assert.Equal(t, "2001:db8::1", ip, "Expected the healthy backend to be selected")
+	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the healthy backend to be selected")
 }
 
 func TestGSLB_PickAllAddresses_IPv4(t *testing.T) {
@@ -198,24 +198,24 @@ func TestGSLB_PickBackendWithRoundRobin_IPv4(t *testing.T) {
 	g := &GSLB{}
 
 	// Perform the first selection; index should be 0
-	ip, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
+	ipAddresses, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.1", ip, "Expected the first backend to be selected")
+	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the first backend to be selected")
 
 	// Perform the second selection; index should be 1
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.2", ip, "Expected the second backend to be selected")
+	assert.Equal(t, "192.168.1.2", ipAddresses[0], "Expected the second backend to be selected")
 
 	// Perform the third selection; index should be 2
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.3", ip, "Expected the third backend to be selected")
+	assert.Equal(t, "192.168.1.3", ipAddresses[0], "Expected the third backend to be selected")
 
 	// Perform the fourth selection; index should wrap back to 0
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.1", ip, "Expected the first backend to be selected again")
+	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the first backend to be selected again")
 }
 
 func TestGSLB_PickBackendWithRoundRobin_IPv6(t *testing.T) {
@@ -240,24 +240,24 @@ func TestGSLB_PickBackendWithRoundRobin_IPv6(t *testing.T) {
 	g := &GSLB{}
 
 	// Perform the first selection; index should be 0
-	ip, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
+	ipAddresses, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::1", ip, "Expected the first IPv6 backend to be selected")
+	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the first IPv6 backend to be selected")
 
 	// Perform the second selection; index should be 1
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::2", ip, "Expected the second IPv6 backend to be selected")
+	assert.Equal(t, "2001:db8::2", ipAddresses[0], "Expected the second IPv6 backend to be selected")
 
 	// Perform the third selection; index should be 2
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::3", ip, "Expected the third IPv6 backend to be selected")
+	assert.Equal(t, "2001:db8::3", ipAddresses[0], "Expected the third IPv6 backend to be selected")
 
 	// Perform the fourth selection; index should wrap back to 0
-	ip, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
+	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
 	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::1", ip, "Expected the first IPv6 backend to be selected again")
+	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the first IPv6 backend to be selected again")
 }
 
 func TestGSLB_PickBackendWithRandom_IPv4(t *testing.T) {
@@ -286,7 +286,7 @@ func TestGSLB_PickBackendWithRandom_IPv4(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		ip, err := g.pickBackendWithRandom(record, dns.TypeA)
 		assert.NoError(t, err, "Expected pickBackendWithRandom to succeed")
-		selectedIPs[ip] = true
+		selectedIPs[ip[0]] = true
 	}
 
 	// Assert that the IPs are from the healthy backends

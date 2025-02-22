@@ -139,7 +139,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
 	}
 
-	return g.sendAddressRecordResponse(w, r, domain, []string{ip}, record.RecordTTL, recordType)
+	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
 func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
@@ -272,7 +272,7 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 	return healthyIPs, nil
 }
 
-func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordType uint16) (string, error) {
+func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordType uint16) ([]string, error) {
 	g.Mutex.Lock()
 	defer g.Mutex.Unlock()
 
@@ -294,13 +294,13 @@ func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordTy
 	}
 
 	if len(healthyBackends) == 0 {
-		return "", fmt.Errorf("no healthy backends in round-robin mode for type %d", recordType)
+		return nil, fmt.Errorf("no healthy backends in round-robin mode for type %d", recordType)
 	}
 
 	selectedBackend := healthyBackends[index%len(healthyBackends)]
 	g.RoundRobinIndex.Store(domain, (index+1)%len(healthyBackends))
 
-	return selectedBackend.GetAddress(), nil
+	return []string{selectedBackend.GetAddress()}, nil
 }
 
 func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]string, error) {
