@@ -10,7 +10,7 @@ require (
 	github.com/creasty/defaults v1.8.0
 	github.com/miekg/dns v1.1.62
 	github.com/prometheus-community/pro-bing v0.6.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/yaml.v3 v3.0.1
 )
