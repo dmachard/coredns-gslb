@@ -8,7 +8,7 @@ require (
 	github.com/coredns/caddy v1.1.2-0.20241029205200-8de985351a98
 	github.com/coredns/coredns v1.12.0
 	github.com/creasty/defaults v1.8.0
-	github.com/miekg/dns v1.1.64
+	github.com/miekg/dns v1.1.65
 	github.com/prometheus-community/pro-bing v0.6.1
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/fsnotify.v1 v1.4.7
