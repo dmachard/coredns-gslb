@@ -53,8 +53,8 @@ github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/prometheus-community/pro-bing v0.6.1 h1:EQukUOma9YFZRPe4DGSscxUf9LH07rpqwisNWjSZrgU=
-github.com/prometheus-community/pro-bing v0.6.1/go.mod h1:jNCOI3D7pmTCeaoF41cNS6uaxeFY/Gmc3ffwbuJVzAQ=
+github.com/prometheus-community/pro-bing v0.7.0 h1:KFYFbxC2f2Fp6c+TyxbCOEarf7rbnzr9Gw8eIb0RfZA=
+github.com/prometheus-community/pro-bing v0.7.0/go.mod h1:Moob9dvlY50Bfq6i88xIwfyw7xLFHH69LUgx9n5zqCE=
 github.com/prometheus/client_golang v1.20.5 h1:cxppBPuYhUnsO6yo/aoRol4L7q7UFfdm+bR9r+8l63Y=
 github.com/prometheus/client_golang v1.20.5/go.mod h1:PIEt8X02hGcP8JWbeHyeZ53Y/jReSnHgO035n//V5WE=
 github.com/prometheus/client_model v0.6.1 h1:ZKSh/rekM+n3CeS952MLRAdFwIKqeY8b62p8ais2e9E=
