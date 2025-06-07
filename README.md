@@ -48,7 +48,7 @@ Load the `gslb.example.com` zone from `db.gslb.example.com` and enable GSLB reco
 ~~~ corefile
 . {
     file db.gslb.example.com
-    gslb gslb_config.example.com.yml db.gslb.example.com {
+    gslb gslb_config.example.com.yml gslb.example.com {
         max_stagger_start "120s"
         resolution_idle_timeout "3600s"
         batch_size_start 100
