@@ -2,12 +2,14 @@
 
 ## Name
 
-*gslb* - A plugin for managing Global Server Load Balancing (GSLB) functionality in CoreDNS.
+*gslb* - A plugin for managing Global Server Load Balancing (GSLB) functionality in CoreDNS. 
 
 ## Description
 
 This plugin provides support for GSLB, enabling advanced load balancing and failover mechanisms based on backend health checks and policies. 
 It is particularly useful for managing geographically distributed services or for ensuring high availability and resilience.
+
+Unlike many existing solutions, this plugin is designed for non-Kubernetes infrastructures — including virtual machines, bare metal servers, and hybrid environments.
 
 ### Features:
 - IPv4 and IPv6 support
