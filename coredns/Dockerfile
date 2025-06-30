@@ -9,7 +9,7 @@ COPY . /go/src/gslb/
 # Build CoreDNS with the GSLB plugin
 RUN git clone https://github.com/coredns/coredns.git /coredns && \
     cd /coredns && \
-    git checkout v1.12.0 && \
+    git checkout v1.12.2 && \
     sed -i '/file:file/i gslb:github.com/dmachard/coredns-gslb' plugin.cfg && \
     go mod edit -replace github.com/dmachard/coredns-gslb=/go/src/gslb && \
     go get github.com/dmachard/coredns-gslb && \
