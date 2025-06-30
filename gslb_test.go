@@ -297,3 +297,29 @@ func TestGSLB_PickBackendWithRandom_IPv4(t *testing.T) {
 	assert.Contains(t, selectedIPs, "192.168.1.2", "Expected IP 192.168.1.2 to be selected")
 	assert.Contains(t, selectedIPs, "192.168.1.3", "Expected IP 192.168.1.3 to be selected")
 }
+
+func TestGSLB_PickBackendWithFailover_MultipleSamePriority(t *testing.T) {
+	// Deux backends healthy, même priorité
+	backendHealthy1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
+	backendHealthy2 := &MockBackend{Backend: &Backend{Address: "192.168.1.2", Enable: true, Priority: 10}}
+	backendUnhealthy := &MockBackend{Backend: &Backend{Address: "192.168.1.3", Enable: true, Priority: 20}}
+
+	backendHealthy1.On("IsHealthy").Return(true)
+	backendHealthy2.On("IsHealthy").Return(true)
+	backendUnhealthy.On("IsHealthy").Return(false)
+
+	record := &Record{
+		Fqdn:     "example.com.",
+		Mode:     "failover",
+		Backends: []BackendInterface{backendHealthy1, backendHealthy2, backendUnhealthy},
+	}
+
+	g := &GSLB{}
+
+	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeA)
+
+	assert.NoError(t, err, "Expected pickBackendWithFailover to succeed")
+	assert.Len(t, ipAddresses, 2, "Expected two healthy backends of same priority to be returned")
+	assert.Contains(t, ipAddresses, "192.168.1.1")
+	assert.Contains(t, ipAddresses, "192.168.1.2")
+}

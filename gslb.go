@@ -253,14 +253,21 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 		return sortedBackends[i].GetPriority() < sortedBackends[j].GetPriority()
 	})
 
+	minPriority := -1
 	var healthyIPs []string
 	for _, backend := range sortedBackends {
 		if backend.IsHealthy() {
 			ip := backend.GetAddress()
 			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
 				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
-				healthyIPs = append(healthyIPs, ip)
-				break
+				if minPriority == -1 {
+					minPriority = backend.GetPriority()
+				}
+				if backend.GetPriority() == minPriority {
+					healthyIPs = append(healthyIPs, ip)
+				} else {
+					break // stop at first higher priority
+				}
 			}
 		}
 	}
