@@ -1,6 +1,7 @@
 package gslb
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"time"
@@ -20,15 +21,20 @@ func (c *CustomHealthCheck) SetDefault() {
 func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
 	c.SetDefault()
 	for i := 0; i < maxRetries; i++ {
-		cmd := exec.Command("/bin/sh", "-c", c.Script)
+		ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", c.Script)
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_ADDRESS=%s", backend.Address))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_FQDN=%s", fqdn))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_PRIORITY=%d", backend.Priority))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_ENABLE=%t", backend.Enable))
 
-		err := runWithTimeout(cmd, c.Timeout)
+		err := cmd.Run()
 		if err == nil {
 			return true
+		}
+		if ctx.Err() == context.DeadlineExceeded {
+			return false
 		}
 	}
 	return false
@@ -44,18 +50,4 @@ func (c *CustomHealthCheck) Equals(other GenericHealthCheck) bool {
 		return false
 	}
 	return c.Script == otherC.Script && c.Timeout == otherC.Timeout
-}
-
-func runWithTimeout(cmd *exec.Cmd, timeout time.Duration) error {
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Run()
-	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(timeout):
-		_ = cmd.Process.Kill()
-		return fmt.Errorf("custom healthcheck timeout after %s", timeout)
-	}
 }
