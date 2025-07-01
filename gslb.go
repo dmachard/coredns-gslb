@@ -475,16 +475,3 @@ func (g *GSLB) GetResolutionIdleTimeout() time.Duration {
 	}
 	return d
 }
-
-// Helper function to generate a random index
-// func randomIndex(max int) (int, error) {
-// 	// Use crypto/rand for secure random number generation
-// 	randomBytes := make([]byte, 1)
-// 	_, err := rand.Read(randomBytes)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-
-// 	// Map the random byte to the range [0, max)
-// 	return int(randomBytes[0]) % max, nil
-// }
