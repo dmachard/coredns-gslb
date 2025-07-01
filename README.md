@@ -24,7 +24,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-- **OpenMetrics**:
+- **Metrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
 ## Syntax
@@ -119,7 +119,7 @@ Environment variables available:
 
 Timeout for the script is 5s.
 
-## OpenMetrics
+## Metrics
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
@@ -153,76 +153,7 @@ The GSLB plugin automatically adapts the healthcheck interval for each DNS recor
 
 This feature helps optimize resource usage and backend load in large or dynamic environments.
 
-## Compilation
+## 👥 Contributions
 
-The `GSLB` plugin must be integrated into CoreDNS during compilation.
-
-1. Add the following line to plugin.cfg before the file plugin. It is recommended to put this plugin right before **file:file**
-
-~~~ text
-gslb:github.com/dmachard/coredns-gslb
-~~~
-
-2. Recompile CoreDNS:
-
-~~~ bash
-go generate
-make
-~~~
-
-## Compilation with Docker compose
-
-Build CoreDNS with the plugin
-
-~~~ bash
-sudo docker compose --progress=plain build
-~~~
-
-Start the stack (CoreDNS + webapps)
-
-~~~ bash
-sudo docker compose up -d 
-~~~
-
-Wait some seconds and test the DNS resolution
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.10
-~~~
-
-### Simulate Failover
-
-Stop the webapp 1
-
-~~~ bash
-sudo docker compose stop webapp10
-~~~
-
-Wait 30 seconds, then resolve again:
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.11
-~~~
-
-Restart Webapp 1:
-
-~~~ bash
-sudo docker compose start webapp10
-~~~
-
-Wait a few seconds, then resolve again to observe traffic switching back to Webapp 1:
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.10
-~~~
-
-## Testing
-
-Run a specific test
-
-~~~ bash
-go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
-~~~
+Contributions are welcome!
+Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.
