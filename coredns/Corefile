@@ -2,6 +2,9 @@
     # To log healthcheck results
     debug
 
+    # Expose Prometheus metrics on /metrics (default port 9153)
+    prometheus :9153
+
     # Load SOA zone from a file
     file db.gslb.example.com gslb.example.com
 

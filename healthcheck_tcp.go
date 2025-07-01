@@ -26,17 +26,25 @@ func (h *TCPHealthCheck) GetType() string {
 
 // PerformCheck implements the health check logic for TCP connections.
 func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
+	typeStr := h.GetType()
+	address := backend.Address
+	start := time.Now()
+	result := false
+	defer func() {
+		ObserveHealthcheck(typeStr, address, start, result)
+	}()
+
 	timeout, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[%s] invalid timeout format: %v", fqdn, err)
 		return false
 	}
 
-	address := fmt.Sprintf("%s:%d", backend.Address, h.Port)
+	addressPort := fmt.Sprintf("%s:%d", backend.Address, h.Port)
 	for retry := 0; retry <= maxRetries; retry++ {
-		log.Debugf("[%s] Attempting TCP health check on %s", fqdn, address)
+		log.Debugf("[%s] Attempting TCP health check on %s", fqdn, addressPort)
 
-		conn, err := net.DialTimeout("tcp", address, timeout)
+		conn, err := net.DialTimeout("tcp", addressPort, timeout)
 		if err != nil {
 			log.Debugf("[%s] TCP health check failed (retries=%d/%d): %v", fqdn, retry, maxRetries, err)
 			if retry == maxRetries {
@@ -47,7 +55,8 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 
 		// Successfully connected
 		conn.Close()
-		log.Debugf("[%s] TCP health check successful for %s", fqdn, address)
+		log.Debugf("[%s] TCP health check successful for %s", fqdn, addressPort)
+		result = true
 		return true
 	}
 

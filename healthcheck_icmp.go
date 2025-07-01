@@ -25,6 +25,14 @@ func (h *ICMPHealthCheck) GetType() string {
 
 // PerformCheck executes the ICMP health check for a backend.
 func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
+	typeStr := h.GetType()
+	address := backend.Address
+	start := time.Now()
+	result := false
+	defer func() {
+		ObserveHealthcheck(typeStr, address, start, result)
+	}()
+
 	timeout, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[%s] invalid timeout format: %v", fqdn, err)
@@ -55,12 +63,8 @@ func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		stats := pinger.Statistics()
 		if stats.PacketsRecv > 0 {
 			log.Debugf("[%s] ICMP health check successful: %s received %d/%d packets", fqdn, backend.Address, stats.PacketsRecv, stats.PacketsSent)
+			result = true
 			return true
-		}
-
-		log.Debugf("[%s] ICMP health check failed: no packets received from %s", fqdn, backend.Address)
-		if retry == maxRetries {
-			return false
 		}
 	}
 

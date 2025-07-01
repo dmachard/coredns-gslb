@@ -1,4 +1,4 @@
-FROM golang:1.22 AS builder
+FROM golang:1.23 AS builder
 
 # Set the GOPATH and create directories for CoreDNS and the GSLB plugin
 WORKDIR /go/src

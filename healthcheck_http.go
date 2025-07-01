@@ -110,6 +110,14 @@ func (h *HTTPHealthCheck) checkExpectedBody(body io.ReadCloser, fqdn string) err
 
 // PerformCheck implements the HealthCheck interface for HTTP health checks
 func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
+	typeStr := h.GetType()
+	address := backend.Address
+	start := time.Now()
+	result := false
+	defer func() {
+		ObserveHealthcheck(typeStr, address, start, result)
+	}()
+
 	scheme := "http"
 	if h.EnableTLS {
 		scheme = "https"
@@ -147,6 +155,7 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	defer resp.Body.Close()
 
 	log.Debugf("[%s] HTTP healthcheck success [backend=%s:%d scheme:%s uri:%s method:%s host:%s]", fqdn, backend.Address, h.Port, scheme, h.URI, h.Method, h.Host)
+	result = true
 	return true
 }
 

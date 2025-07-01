@@ -20,6 +20,8 @@ func init() { plugin.Register("gslb", setup) }
 
 // setup is the function that gets called when the config parser see the token "gslb".
 func setup(c *caddy.Controller) error {
+	RegisterMetrics()
+
 	config := dnsserver.GetConfig(c)
 
 	// Create a GSLB instance with empty domains and backends
