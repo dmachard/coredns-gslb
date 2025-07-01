@@ -13,17 +13,18 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 
 ### Features:
 - **IPv4 and IPv6 support**
+- **EDNS Client Subnet support** to get the real client IP
+- **Adaptive healthcheck intervals**: healthcheck frequency is automatically reduced for records that are not frequently resolved, minimizing unnecessary backend load
 - **Health Checks**:
   - HTTP(S): checks HTTP(S) endpoint health.
   - TCP: checks if a TCP connection can be established.
   - ICMP: checks if the backend responds to ICMP echo (ping).
   - Custom script: executes a custom shell script
 - **Selection Modes**:
-  - **Failover**: Routes traffic to the highest-priority available backend (returns all healthy endpoints of the same priority)
+  - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-- **Prometheus/OpenMetrics**:
-  - Native exposure of metrics at `/metrics` (via CoreDNS prometheus block)
+- **Metrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
 ## Syntax
@@ -109,17 +110,34 @@ records:
 
 A complete example with all parameters is available in the folder coredns
 
-## Custom Health Check
+
+## Monitoring & Health Checks
+
+### Custom Health Check
 
 The script should return exit code 0 for healthy, non-zero for unhealthy.
 Environment variables available:
   - BACKEND_ADDRESS
-  - BACKEND_FQDN
   - BACKEND_PRIORITY
-  - BACKEND_ENABLE
+
 Timeout for the script is 5s.
 
-## Metrics (Prometheus/OpenMetrics)
+### Adaptive Healthcheck Intervals
+
+The GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
+
+- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by 10 (slowed down).
+- As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
+- This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
+
+**Example:**
+- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`
+- If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
+- When a query is received, healthchecks resume every 10s.
+
+This feature helps optimize resource usage and backend load in large or dynamic environments.
+
+### Metrics
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
@@ -137,76 +155,8 @@ Example Corefile block:
 
 You can then scrape metrics at http://localhost:9153/metrics
 
-## Compilation
 
-The `GSLB` plugin must be integrated into CoreDNS during compilation.
+## Contributions
 
-1. Add the following line to plugin.cfg before the file plugin. It is recommended to put this plugin right before **file:file**
-
-~~~ text
-gslb:github.com/dmachard/coredns-gslb
-~~~
-
-2. Recompile CoreDNS:
-
-~~~ bash
-go generate
-make
-~~~
-
-## Compilation with Docker compose
-
-Build CoreDNS with the plugin
-
-~~~ bash
-sudo docker compose --progress=plain build
-~~~
-
-Start the stack (CoreDNS + webapps)
-
-~~~ bash
-sudo docker compose up -d 
-~~~
-
-Wait some seconds and test the DNS resolution
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.10
-~~~
-
-### Simulate Failover
-
-Stop the webapp 1
-
-~~~ bash
-sudo docker compose stop webapp10
-~~~
-
-Wait 30 seconds, then resolve again:
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.11
-~~~
-
-Restart Webapp 1:
-
-~~~ bash
-sudo docker compose start webapp10
-~~~
-
-Wait a few seconds, then resolve again to observe traffic switching back to Webapp 1:
-
-~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
-172.16.0.10
-~~~
-
-## Testing
-
-Run a specific test
-
-~~~ bash
-go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
-~~~
+Contributions are welcome!
+Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.

@@ -35,9 +35,7 @@ func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetri
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", c.Script)
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_ADDRESS=%s", backend.Address))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_FQDN=%s", fqdn))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_PRIORITY=%d", backend.Priority))
-		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_ENABLE=%t", backend.Enable))
 
 		log.Debugf("[custom] Executing script for backend %s (attempt %d/%d)", address, i+1, maxRetries)
 		err := cmd.Run()
