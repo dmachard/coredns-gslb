@@ -15,6 +15,7 @@ services:
     ports:
       - "8053:53/udp"
       - "8053:53/tcp"
+      - "9153:9153/tcp"
     volumes:
       - ./coredns/Corefile:/Corefile
       - ./coredns/db.gslb.example.com:/db.gslb.example.com

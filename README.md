@@ -12,17 +12,19 @@ It is particularly useful for managing geographically distributed services or fo
 Unlike many existing solutions, this plugin is designed for non-Kubernetes infrastructures — including virtual machines, bare metal servers, and hybrid environments.
 
 ### Features:
-- IPv4 and IPv6 support
+- **IPv4 and IPv6 support**
 - **Health Checks**:
-  - HTTPS
+  - HTTP(S)
   - TCP
   - ICMP
   - Custom Script
 - **Selection Modes**:
-  - **Failover**: Routes traffic to the highest-priority available backend.
-  - **Random**: Distributes traffic randomly across backends.
-  - **Round Robin**: Cycles through backends in sequence.
-
+  - **Failover**: Routes traffic to the highest-priority available backend (returns all healthy endpoints of the same priority)
+  - **Random**: Distributes traffic randomly across backends
+  - **Round Robin**: Cycles through backends in sequence
+- **Prometheus/OpenMetrics**:
+  - Native exposure of metrics at `/metrics` (via CoreDNS prometheus block)
+  - Counters and histograms for all healthchecks (success, failure, duration)
 
 ## Syntax
 
@@ -138,6 +140,24 @@ records:
 
 The script should return exit code 0 for healthy, non-zero for unhealthy. Example above checks the backend address.
 
+## Metrics (Prometheus/OpenMetrics)
+
+If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
+
+- `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type (http, tcp, icmp, custom), backend address, and result (success/fail).
+- `gslb_healthcheck_duration_seconds{type, address}`: Duration of healthchecks in seconds, labeled by type and backend address.
+
+Example Corefile block:
+
+~~~
+. {
+    prometheus
+    ...
+}
+~~~
+
+You can then scrape metrics at http://localhost:9153/metrics
+
 ## Compilation
 
 The `GSLB` plugin must be integrated into CoreDNS during compilation.
@@ -169,7 +189,7 @@ Start the stack (CoreDNS + webapps)
 sudo docker compose up -d 
 ~~~
 
-Test DNS resolution
+Wait some seconds and test the DNS resolution
 
 ~~~ bash
 $ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short

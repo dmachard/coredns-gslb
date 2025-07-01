@@ -20,6 +20,14 @@ func (c *CustomHealthCheck) SetDefault() {
 
 func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
 	c.SetDefault()
+	typeStr := c.GetType()
+	address := backend.Address
+	start := time.Now()
+	result := false
+	defer func() {
+		ObserveHealthcheck(typeStr, address, start, result)
+	}()
+
 	for i := 0; i < maxRetries; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 		defer cancel()
@@ -31,6 +39,7 @@ func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetri
 
 		err := cmd.Run()
 		if err == nil {
+			result = true
 			return true
 		}
 		if ctx.Err() == context.DeadlineExceeded {
