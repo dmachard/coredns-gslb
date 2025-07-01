@@ -1,0 +1,5 @@
+subnets:
+  - subnet: "10.1.0.0/16"
+    location: "paris"
+  - subnet: "10.2.0.0/16"
+    location: "london"
