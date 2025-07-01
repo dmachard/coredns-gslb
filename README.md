@@ -13,17 +13,17 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 
 ### Features:
 - **IPv4 and IPv6 support**
+- **EDNS Client Subnet support** to get the real client IP
 - **Health Checks**:
   - HTTP(S): checks HTTP(S) endpoint health.
   - TCP: checks if a TCP connection can be established.
   - ICMP: checks if the backend responds to ICMP echo (ping).
   - Custom script: executes a custom shell script
 - **Selection Modes**:
-  - **Failover**: Routes traffic to the highest-priority available backend (returns all healthy endpoints of the same priority)
+  - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
 - **Prometheus/OpenMetrics**:
-  - Native exposure of metrics at `/metrics` (via CoreDNS prometheus block)
   - Counters and histograms for all healthchecks (success, failure, duration)
 
 ## Syntax
