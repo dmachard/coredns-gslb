@@ -14,10 +14,10 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 ### Features:
 - **IPv4 and IPv6 support**
 - **Health Checks**:
-  - HTTP(S)
-  - TCP
-  - ICMP
-  - Custom Script
+  - HTTP(S): checks HTTP(S) endpoint health.
+  - TCP: checks if a TCP connection can be established.
+  - ICMP: checks if the backend responds to ICMP echo (ping).
+  - Custom script: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend (returns all healthy endpoints of the same priority)
   - **Random**: Distributes traffic randomly across backends
@@ -107,38 +107,17 @@ records:
           enable_tls: true
 ~~~
 
-#### Health Check Types
+A complete example with all parameters is available in the folder coredns
 
-- **type: http**
-  - Checks HTTP(S) endpoint health.
-  - **params.port**: Port to connect (e.g. 80 or 443)
-  - **params.uri**: Path to request (e.g. "/")
-  - **params.host**: Host header to send
-  - **params.expected_code**: Expected HTTP status code (e.g. 200)
-  - **params.enable_tls**: Set to true for HTTPS
+## Custom Health Check
 
-- **type: tcp**
-  - Checks if a TCP connection can be established.
-  - **params.port**: Port to connect (e.g. 80, 443, 3306, etc.)
-
-- **type: icmp**
-  - Checks if the backend responds to ICMP echo (ping).
-  - No params required (uses backend address).
-
-- **type: custom**
-  - Executes a custom shell script (see above).
-
-#### Custom Health Check
-
-- **type: custom**
-- **params.script**: Shell script to execute. Environment variables available:
+The script should return exit code 0 for healthy, non-zero for unhealthy.
+Environment variables available:
   - BACKEND_ADDRESS
   - BACKEND_FQDN
   - BACKEND_PRIORITY
   - BACKEND_ENABLE
-- **params.timeout**: (optional) Timeout for the script (default: 5s)
-
-The script should return exit code 0 for healthy, non-zero for unhealthy. Example above checks the backend address.
+Timeout for the script is 5s.
 
 ## Metrics (Prometheus/OpenMetrics)
 

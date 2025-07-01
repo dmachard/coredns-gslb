@@ -24,8 +24,10 @@ func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetri
 	address := backend.Address
 	start := time.Now()
 	result := false
+	log.Debugf("[custom] Starting custom healthcheck for backend: %s (script: %s, timeout: %s)", address, c.Script, c.Timeout)
 	defer func() {
 		ObserveHealthcheck(typeStr, address, start, result)
+		log.Debugf("[custom] Custom healthcheck for backend %s result: %v", address, result)
 	}()
 
 	for i := 0; i < maxRetries; i++ {
@@ -37,14 +39,18 @@ func (c *CustomHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetri
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_PRIORITY=%d", backend.Priority))
 		cmd.Env = append(cmd.Env, fmt.Sprintf("BACKEND_ENABLE=%t", backend.Enable))
 
+		log.Debugf("[custom] Executing script for backend %s (attempt %d/%d)", address, i+1, maxRetries)
 		err := cmd.Run()
 		if err == nil {
+			log.Debugf("[custom] Script succeeded for backend %s", address)
 			result = true
 			return true
 		}
 		if ctx.Err() == context.DeadlineExceeded {
+			log.Debugf("[custom] Script timeout for backend %s", address)
 			return false
 		}
+		log.Debugf("[custom] Script failed for backend %s: %v", address, err)
 	}
 	return false
 }
