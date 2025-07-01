@@ -110,7 +110,10 @@ records:
 
 A complete example with all parameters is available in the folder coredns
 
-## Custom Health Check
+
+## Monitoring & Health Checks
+
+### Custom Health Check
 
 The script should return exit code 0 for healthy, non-zero for unhealthy.
 Environment variables available:
@@ -119,7 +122,22 @@ Environment variables available:
 
 Timeout for the script is 5s.
 
-## Metrics
+### Adaptive Healthcheck Intervals
+
+The GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
+
+- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by 10 (slowed down).
+- As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
+- This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
+
+**Example:**
+- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`
+- If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
+- When a query is received, healthchecks resume every 10s.
+
+This feature helps optimize resource usage and backend load in large or dynamic environments.
+
+### Metrics
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
@@ -137,21 +155,6 @@ Example Corefile block:
 
 You can then scrape metrics at http://localhost:9153/metrics
 
-
-## Adaptive Healthcheck Intervals
-
-The GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
-
-- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by 10 (slowed down).
-- As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
-- This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
-
-**Example:**
-- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`
-- If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
-- When a query is received, healthchecks resume every 10s.
-
-This feature helps optimize resource usage and backend load in large or dynamic environments.
 
 ## Contributions
 
