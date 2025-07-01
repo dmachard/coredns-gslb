@@ -153,7 +153,7 @@ The GSLB plugin automatically adapts the healthcheck interval for each DNS recor
 
 This feature helps optimize resource usage and backend load in large or dynamic environments.
 
-## 👥 Contributions
+## Contributions
 
 Contributions are welcome!
 Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.

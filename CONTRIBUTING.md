@@ -1,10 +1,10 @@
-# 🛠️ Contributing
+# Contributing
 
 Contributions are welcome and appreciated! Whether it's fixing a bug, improving documentation, adding a feature, or enhancing tests
 
 Before opening a pull request, please read the following guidelines to ensure smooth collaboration.
 
-## ✅ Contribution Guidelines
+## Contribution Guidelines
 
 - Keep the project backward compatible and follow existing code conventions.
 - Add unit tests for any new features, bug fixes, or important logic changes.
@@ -12,7 +12,7 @@ Before opening a pull request, please read the following guidelines to ensure sm
 - Document any relevant changes
 - Use descriptive commit messages and clean up the history before submitting your PR.
 
-## 🐳 Running the Dev Environment with Docker compose
+## Running the Dev Environment with Docker compose
 
 Build CoreDNS with the plugin
 
@@ -78,7 +78,7 @@ go generate
 make
 ~~~
 
-## 🔬 Running Unit Tests
+## Running Unit Tests
 
 Run a specific test
 
