@@ -11,7 +11,8 @@ records:
     scrape_timeout: 5s  # Timeout for health check responses
     backends:
     - address: "172.16.0.10"
-      description: "webapp eu-west-1"  # Description of the backend location or purpose
+      description: "webapp1"  # Description of the backend location or purpose
+      location: "eu-west-1"
       enable: true  # Indicates whether this backend is enabled
       priority: 1  # Priority level (lower number = higher priority)
       healthchecks:
@@ -28,7 +29,8 @@ records:
             enable_tls: true  # Use TLS for the health check
             skip_tls_verify: true  # Skip TLS certificate validation
     - address: "172.16.0.11"
-      description: "webapp eu-west-2"  # Description of the backend location or purpose
+      description: "webapp1"  # Description of the backend location or purpose
+      location: "eu-west-2"
       enable: true  # Indicates whether this backend is enabled
       priority: 2  # Priority level (lower number = higher priority)
       healthchecks:
@@ -52,3 +54,50 @@ records:
           params:
             script: "/coredns/healthcheck_custom.sh"
             timeout: 5s
+  # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode 
+  # between Paris and London backends
+  webapp-geo.gslb.example.com.:
+    owner: "admin"
+    description: "GeoIP-based routing between Paris and London backends"
+    mode: "geoip"  # GeoIP mode: routes clients to the closest backend by location
+    record_ttl: 30
+    scrape_interval: 10s
+    scrape_retries: 1
+    scrape_timeout: 5s
+    backends:
+    - address: "172.16.0.10"
+      description: "webapp2"
+      location: "eu-west-1"
+      enable: true
+      priority: 1
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"
+            method: "GET"
+            host: "localhost"
+            headers:
+            timeout: 5s
+            expected_code: 200
+            expected_body: ""
+            enable_tls: true
+            skip_tls_verify: true
+    - address: "172.16.0.11"
+      description: "webapp2"
+      location: "eu-west-2"
+      enable: true
+      priority: 2
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"
+            method: "GET"
+            host: "localhost"
+            headers:
+            timeout: 5s
+            expected_code: 200
+            expected_body: ""
+            enable_tls: true
+            skip_tls_verify: true

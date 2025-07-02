@@ -20,6 +20,7 @@ type Backend struct {
 	HealthChecks []GenericHealthCheck
 	Timeout      string
 	Alive        bool
+	Location     string // Location (datacenter, region, etc.)
 	mutex        sync.RWMutex
 }
 
@@ -63,6 +64,10 @@ func (b *Backend) GetTimeout() string {
 	return b.Timeout
 }
 
+func (b *Backend) GetLocation() string {
+	return b.Location
+}
+
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
 		Description  string        `yaml:"description" default:""`
@@ -71,6 +76,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Enable       bool          `yaml:"enable" default:"true"`
 		Timeout      string        `yaml:"timeout" default:"5s"`
 		HealthChecks []HealthCheck `yaml:"healthchecks"`
+		Location     string        `yaml:"location" default:""`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -82,6 +88,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.Enable = raw.Enable
 	b.Timeout = raw.Timeout
 	b.Description = raw.Description
+	b.Location = raw.Location
 
 	for _, hc := range raw.HealthChecks {
 		specificHC, err := hc.ToSpecificHealthCheck()
@@ -196,6 +203,7 @@ type BackendInterface interface {
 	IsEnabled() bool
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
+	GetLocation() string
 	IsHealthy() bool
 	runHealthChecks(retries int, timeout time.Duration)
 	removeBackend()

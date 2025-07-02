@@ -1,0 +1,5 @@
+subnets:
+  - subnet: "10.1.0.0/16"
+    location: "eu-west-1"
+  - subnet: "10.2.0.0/16"
+    location: "eu-west-2"

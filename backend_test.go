@@ -13,6 +13,7 @@ func TestBackend_UnmarshalYAML(t *testing.T) {
 address: "127.0.0.1"
 priority: 10
 description: "helloworld"
+location: "eu-west-1"
 enable: true
 timeout: "10s"
 healthchecks:
@@ -29,6 +30,7 @@ healthchecks:
 	assert.Equal(t, true, backend.Enable)
 	assert.Equal(t, "10s", backend.Timeout)
 	assert.Equal(t, "helloworld", backend.Description)
+	assert.Equal(t, "eu-west-1", backend.Location)
 	assert.Len(t, backend.HealthChecks, 1)
 	assert.IsType(t, &HTTPHealthCheck{}, backend.HealthChecks[0])
 }
