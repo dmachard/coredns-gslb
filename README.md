@@ -1,5 +1,9 @@
 # GSLB - CoreDNS plugin
 
+<p align="center">
+  <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
+</p>
+
 ## Name
 
 *gslb* - A plugin for managing Global Server Load Balancing (GSLB) functionality in CoreDNS. 
@@ -36,7 +40,8 @@ gslb DB_YAML_FILE [ZONES...] {
     max_stagger_start "120s"
     resolution_idle_timeout "3600s"
     batch_size_start 100
-    geoip_custom_yaml location_map.yml
+    geoip_custom_db /coredns/location_map.yml
+    geoip_maxmind_db /coredns/GeoLite2-Country.mmdb
     use_edns_csubnet
 }
 ~~~
@@ -50,7 +55,8 @@ gslb DB_YAML_FILE [ZONES...] {
 * `max_stagger_start`: The maximum staggered delay for starting health checks (default: "120s").
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
-* `geoip_custom_yaml`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Required for `geoip` mode.
+* `geoip_custom_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Used for `geoip` mode (location-based routing).
+* `geoip_maxmind_db`: Path to a MaxMind GeoLite2-Country.mmdb file for country-based GeoIP backend selection. Used for `geoip` mode (country-based routing). If both `geoip_maxmind_db` and `geoip_custom_db` are set, country-based selection is attempted first, then location-based, then fallback.
 * `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging. Recommended for deployments behind DNS forwarders or public resolvers.
 
 ## Examples
@@ -157,9 +163,9 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   ```
 
 ### GeoIP
-- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping). Requires the `geoip_custom_yaml` option and a YAML map file.
-- **Use case:** Directs users to the nearest datacenter or region for lower latency.
-- **Example:**
+- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping) or by country using a MaxMind database. Requires the `geoip_custom_db` and/or `geoip_maxmind_db` option.
+- **Use case:** Directs users to the nearest datacenter, region, or country for lower latency.
+- **Example (custom-location-based):**
   ```yaml
   mode: "geoip"
   backends:
@@ -169,7 +175,7 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   And in your Corefile:
   ```
   gslb gslb_config.example.com.yml gslb.example.com {
-      geoip_custom_yaml location_map.yml
+      geoip_custom_db location_map.yml
   }
   ```
   And in `location_map.yml`:
@@ -180,8 +186,23 @@ The GSLB plugin supports several backend selection modes, configurable per recor
     - subnet: "192.168.1.0/24"
       location: "us-east"
   ```
+- **Example (country-based):**
+  ```yaml
+  mode: "geoip"
+  backends:
+    - address: "10.0.0.1"
+      country: "FR"
+    - address: "20.0.0.1"
+      country: "US"
+  ```
+  And in your Corefile:
+  ```
+  gslb gslb_config.example.com.yml gslb.example.com {
+      geoip_maxmind_db coredns/GeoLite2-Country.mmdb
+  }
+  ```
 
-If no healthy backend matches the client's location, the plugin falls back to failover mode.
+If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
 
 ## Monitoring & Health Checks
 

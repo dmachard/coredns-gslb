@@ -11,6 +11,7 @@ import (
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
+	"github.com/oschwald/geoip2-golang"
 	"gopkg.in/fsnotify.v1"
 	"gopkg.in/yaml.v3"
 )
@@ -49,6 +50,7 @@ func setup(c *caddy.Controller) error {
 			}
 
 			locationMapPath := ""
+			geoipMaxmindPath := ""
 			// Parse additional options
 			for c.NextBlock() {
 				switch c.Val() {
@@ -86,13 +88,25 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("invalid value for resolution_idle_timeout, expected duration format: %v", c.Val())
 					}
 					g.ResolutionIdleTimeout = c.Val()
-				case "geoip_custom_yaml":
+				case "geoip_custom_db":
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
 					locationMapPath = c.Val()
 					if err := g.loadLocationMap(locationMapPath); err != nil {
 						return fmt.Errorf("failed to load location map: %v", err)
+					}
+				case "geoip_maxmind_db":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					geoipMaxmindPath = c.Val()
+					if geoipMaxmindPath != "" {
+						geoipDB, err := geoip2.Open(geoipMaxmindPath)
+						if err != nil {
+							return fmt.Errorf("failed to open MaxMind DB: %v", err)
+						}
+						g.GeoIPMaxmindDB = geoipDB
 					}
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
