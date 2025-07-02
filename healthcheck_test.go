@@ -19,3 +19,16 @@ func TestToSpecificHealthCheck_Unsupported(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "unsupported healthcheck type: unsupported_type", err.Error())
 }
+
+// Test that all known healthcheck types are handled in ToSpecificHealthCheck
+func TestToSpecificHealthCheck_AllTypesHandled(t *testing.T) {
+	types := []string{"http", "icmp", "tcp", "custom", "mysql", "grpc"}
+	for _, typ := range types {
+		hc := &HealthCheck{
+			Type:   typ,
+			Params: map[string]interface{}{},
+		}
+		_, err := hc.ToSpecificHealthCheck()
+		assert.NoErrorf(t, err, "Type '%s' should be handled in ToSpecificHealthCheck", typ)
+	}
+}

@@ -11,7 +11,7 @@ records:
     scrape_timeout: 5s  # Timeout for health check responses
     backends:
     - address: "172.16.0.10"
-      description: "webapp1"  # Description of the backend location or purpose
+      description: "webapp10"  # Description of the backend location or purpose
       location: "eu-west-1"
       enable: true  # Indicates whether this backend is enabled
       priority: 1  # Priority level (lower number = higher priority)
@@ -29,7 +29,7 @@ records:
             enable_tls: true  # Use TLS for the health check
             skip_tls_verify: true  # Skip TLS certificate validation
     - address: "172.16.0.11"
-      description: "webapp1"  # Description of the backend location or purpose
+      description: "webapp11"  # Description of the backend location or purpose
       location: "eu-west-2"
       enable: true  # Indicates whether this backend is enabled
       priority: 2  # Priority level (lower number = higher priority)
@@ -56,8 +56,7 @@ records:
             timeout: 5s
   
   # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode 
-  # between Paris and London backends
-  webapp-geo-byregion.gslb.example.com.:
+  webapp-geoip-region.gslb.example.com.:
     owner: "admin"
     description: "GeoIP-based routing between Paris and London backends"
     mode: "geoip"  # GeoIP mode: routes clients to the closest backend by location
@@ -67,7 +66,7 @@ records:
     scrape_timeout: 5s
     backends:
     - address: "172.16.0.10"
-      description: "webapp2"
+      description: "webapp10"
       location: "eu-west-1"
       enable: true
       priority: 1
@@ -85,7 +84,7 @@ records:
             enable_tls: true
             skip_tls_verify: true
     - address: "172.16.0.11"
-      description: "webapp2"
+      description: "webapp11"
       location: "eu-west-2"
       enable: true
       priority: 2
@@ -104,18 +103,18 @@ records:
             skip_tls_verify: true
 
   # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode by country
-  webapp-geo-bycountry.gslb.example.com.:
+  webapp-geoip-country.gslb.example.com.:
     owner: "admin"
     description: "GeoIP-based routing by country (using MaxMind GeoLite2-Country.mmdb)"
-    mode: "geoip"  # GeoIP mode: routes clients to the backend matching the client country
+    mode: "geoip"
     record_ttl: 30
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
     backends:
     - address: "172.16.0.10"
-      description: "webapp2 France"
-      country: "FR"  # Route clients from France to this backend
+      description: "webapp10"
+      country: "FR"
       enable: true
       priority: 1
       healthchecks:
@@ -132,8 +131,8 @@ records:
             enable_tls: true
             skip_tls_verify: true
     - address: "172.16.0.11"
-      description: "webapp2 USA"
-      country: "US"  # Route clients from USA to this backend
+      description: "webapp11"
+      country: "US"
       enable: true
       priority: 2
       healthchecks:
@@ -149,3 +148,25 @@ records:
             expected_body: ""
             enable_tls: true
             skip_tls_verify: true
+
+  # Define a GSLB record for webapp-grpc.gslb.example.com
+  webapp-grpc.gslb.example.com.:
+    owner: "admin"
+    description: "gRPC health checks for webapp12"
+    mode: "geoip"
+    record_ttl: 30
+    scrape_interval: 10s
+    scrape_retries: 1
+    scrape_timeout: 5s
+    backends:
+    - address: "172.16.0.12"
+      description: "webapp12"
+      country: "FR"
+      enable: true
+      priority: 1
+      healthchecks:
+      - type: grpc
+        params:
+          port: 9090
+          service: ""
+          timeout: 5s 

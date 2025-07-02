@@ -108,6 +108,19 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		}
 		return &mysqlCheck, nil
 
+	case "grpc":
+		var grpcCheck GRPCHealthCheck
+		grpcCheck.SetDefault()
+		paramsYaml, err := yaml.Marshal(hc.Params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+		}
+		err = yaml.Unmarshal(paramsYaml, &grpcCheck)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode gRPC params: %v", err)
+		}
+		return &grpcCheck, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported healthcheck type: %s", hc.Type)
 	}
