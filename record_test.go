@@ -2,6 +2,7 @@ package gslb
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -97,18 +98,18 @@ func TestRecord_ScrapeBackends_Slowdown(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	cancel()
 
-	if backend.calls < 1 || backend.calls > 2 {
-		t.Errorf("expected 1 or 2 healthchecks, got %d", backend.calls)
+	if atomic.LoadInt32(&backend.calls) < 1 || atomic.LoadInt32(&backend.calls) > 2 {
+		t.Errorf("expected 1 or 2 healthchecks, got %d", atomic.LoadInt32(&backend.calls))
 	}
 }
 
 type callCounter struct {
 	Backend
-	calls int
+	calls int32 // use atomic for thread safety
 }
 
 func (b *callCounter) runHealthChecks(retries int, timeout time.Duration) {
-	b.calls++
+	atomic.AddInt32(&b.calls, 1)
 }
 func (b *callCounter) GetFqdn() string                           { return "test.example.com." }
 func (b *callCounter) SetFqdn(fqdn string)                       {}
