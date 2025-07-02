@@ -21,10 +21,11 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 - **Adaptive healthcheck intervals**: healthcheck frequency is automatically reduced for records that are not frequently resolved, minimizing unnecessary backend load
 - **Automatic configuration reload**: changes to the YAML configuration file are detected and applied live, without restarting CoreDNS
 - **Health Checks**:
-  - HTTP(S): checks HTTP(S) endpoint health.
-  - TCP: checks if a TCP connection can be established.
-  - ICMP: checks if the backend responds to ICMP echo (ping).
-  - Custom script: executes a custom shell script
+  - **HTTP(S)**: checks HTTP(S) endpoint health.
+  - **TCP**: checks if a TCP connection can be established.
+  - **ICMP**: checks if the backend responds to ICMP echo (ping).
+  - **MySQL**: checks database status
+  - **Custom script**: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
@@ -204,20 +205,11 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 
 If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
 
-## Monitoring & Health Checks
+## Health Checks
 
-### Custom Health Check
+The GSLB plugin supports several types of health checks for backends. Each type can be configured per backend in the YAML configuration file.
 
-The script should return exit code 0 for healthy, non-zero for unhealthy.
-Environment variables available:
-  - BACKEND_ADDRESS
-  - BACKEND_PRIORITY
-
-Timeout for the script is 5s.
-
-### Adaptive Healthcheck Intervals
-
-The GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
+Additionally, the GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
 
 - If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by 10 (slowed down).
 - As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
@@ -229,6 +221,85 @@ The GSLB plugin automatically adapts the healthcheck interval for each DNS recor
 - When a query is received, healthchecks resume every 10s.
 
 This feature helps optimize resource usage and backend load in large or dynamic environments.
+
+### HTTP(S)
+
+Checks the health of an HTTP or HTTPS endpoint by making a request and validating the response code and/or body.
+
+```yaml
+healthchecks:
+  - type: http
+    params:
+      port: 443                # Port to connect (443 for HTTPS, 80 for HTTP)
+      uri: "/"                 # URI to request
+      method: "GET"            # HTTP method
+      host: "localhost"        # Host header for the request
+      headers:                 # Additional HTTP headers (key-value pairs)
+      timeout: 5s              # Timeout for the HTTP request
+      expected_code: 200       # Expected HTTP status code
+      expected_body: ""        # Expected response body (empty means no body validation)
+      enable_tls: true         # Use TLS for the health check (HTTPS)
+      skip_tls_verify: true    # Skip TLS certificate validation
+```
+
+### TCP
+
+Checks if a TCP connection can be established to the backend on a given port.
+
+```yaml
+healthchecks:
+  - type: tcp
+    params:
+      port: 80         # TCP port to connect to
+      timeout: "3s"    # Connection timeout
+```
+
+### ICMP
+
+Checks if the backend responds to ICMP echo requests (ping).
+
+```yaml
+healthchecks:
+  - type: icmp
+    params:
+      timeout: 2s   # Timeout for the ICMP request
+      count:  3     # Number of ICMP requests to send
+```
+
+### MySQL
+
+Checks MySQL server health by connecting and executing a query.
+
+```yaml
+healthchecks:
+  - type: mysql
+    params:
+      host: "10.0.0.5"         # MySQL server address
+      port: 3306               # MySQL port
+      user: "gslbcheck"        # Username
+      password: "secret"       # Password
+      database: "test"         # Database to connect
+      timeout: "3s"            # Connection/query timeout
+      query: "SELECT 1"        # Query to execute (optional, default: SELECT 1)
+```
+
+### Custom Script
+
+Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
+
+```yaml
+healthchecks:
+  - type: custom
+    params:
+      script: "/coredns/healthcheck_custom.sh"  # Path to the script
+      timeout: 5s                                # Script timeout (default: 5s)
+```
+
+The following environment variables are available: 
+- `BACKEND_ADDRESS`
+- `BACKEND_PRIORITY`
+
+## Observability
 
 ### Metrics
 
