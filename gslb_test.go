@@ -352,7 +352,8 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	// Use a dummy client IP and prefix for TXT record test
 	clientIP := net.ParseIP("192.168.1.1")
 	clientPrefixLen := uint8(32)
-	code, err := g.handleTXTRecord(context.Background(), w, msg, "example.com.", clientIP, clientPrefixLen)
+	ctx := WithClientInfo(context.Background(), clientIP, clientPrefixLen)
+	code, err := g.handleTXTRecord(ctx, w, msg, "example.com.")
 	assert.NoError(t, err)
 	assert.Equal(t, dns.RcodeSuccess, code)
 	assert.NotEmpty(t, w.Msg.Answer)
@@ -399,33 +400,33 @@ func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 	}
 
 	// Test 1: Client IP from us-east region (192.168.1.0/24) should get us-east backend
-	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.50"), 24)
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.50"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
 
 	// Test 2: Client IP from eu-west region (10.0.0.0/24) should get eu-west backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.50"), 24)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.50"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
 
 	// Test 3: Another client IP from us-east region
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.100"), 24)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.100"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
 
 	// Test 4: Another client IP from eu-west region
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.200"), 24)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.200"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
 
 	// Test 5: Unmatched IP should fallback to lowest priority healthy backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"), 32)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
 
 	// Test 6: Remove location map to test fallback with no location
 	g.LocationMap = nil
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"), 32)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
 }
@@ -455,17 +456,17 @@ func TestGSLB_PickBackendWithGeoIP_MaxMind(t *testing.T) {
 	}
 
 	// Test with a US IP
-	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"), 24)
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"20.0.0.1"}, ips)
 
 	// Test with an AU IP, which should return AU backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("1.1.1.1"), 24)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("1.1.1.1"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"30.0.0.1"}, ips)
 
 	// Test with an IP that doesn't match any backend country
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("127.0.0.1"), 24)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("127.0.0.1"))
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"20.0.0.1"}, ips) // fallback to lowest priority (US backend)
 }

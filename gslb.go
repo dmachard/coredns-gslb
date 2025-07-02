@@ -58,6 +58,7 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 		log.Error("Failed to determine client IP, responding with SERVFAIL")
 		return dns.RcodeServerFailure, nil
 	}
+	ctx = WithClientInfo(ctx, clientIP, clientPrefixLen)
 
 	// Update the last resolution time for the domain
 	// This is used to track when the last resolution was made for a domain
@@ -65,11 +66,11 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 
 	switch q.Qtype {
 	case dns.TypeA:
-		return g.handleIPRecord(ctx, w, r, domain, dns.TypeA, clientIP, clientPrefixLen)
+		return g.handleIPRecord(ctx, w, r, domain, dns.TypeA)
 	case dns.TypeAAAA:
-		return g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA, clientIP, clientPrefixLen)
+		return g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA)
 	case dns.TypeTXT:
-		return g.handleTXTRecord(ctx, w, r, domain, clientIP, clientPrefixLen)
+		return g.handleTXTRecord(ctx, w, r, domain)
 	default:
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
@@ -122,14 +123,17 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 }
 
 // handleAddressRecord handles both A and AAAA record queries for the domain.
-func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16, clientIP net.IP, clientPrefixLen uint8) (int, error) {
+func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16) (int, error) {
 	record, exists := g.Records[domain]
 	if !exists {
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
-
-	// Try to get an appropriate response
-	ip, err := g.pickResponse(domain, recordType, clientIP, clientPrefixLen)
+	ci := GetClientInfo(ctx)
+	if ci == nil || ci.IP == nil {
+		log.Error("No client info in context")
+		return dns.RcodeServerFailure, nil
+	}
+	ip, err := g.pickResponse(domain, recordType, ci.IP)
 	if err != nil {
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
 
@@ -149,7 +153,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 // handleTXTRecord handles TXT record queries for the domain.
 // It returns a TXT record for each backend, summarizing its address, priority, health, and enabled status.
 // This is useful for debugging and monitoring: you can query the TXT record for a domain to see backend states.
-func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, clientIP net.IP, clientPrefixLen uint8) (int, error) {
+func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
 	record, exists := g.Records[domain]
 	if !exists {
 		// If the domain is not found in the records, pass the request to the next plugin
@@ -235,7 +239,7 @@ func (g *GSLB) pickAllAddresses(domain string, recordType uint16) ([]string, err
 	return ipAddresses, nil
 }
 
-func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP, clientPrefixLen uint8) ([]string, error) {
+func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP) ([]string, error) {
 	record, exists := g.Records[domain]
 	if !exists {
 		return nil, fmt.Errorf("domain not found: %s", domain)
@@ -249,7 +253,7 @@ func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP, c
 	case "random":
 		return g.pickBackendWithRandom(record, recordType)
 	case "geoip":
-		return g.pickBackendWithGeoIP(record, recordType, clientIP, clientPrefixLen)
+		return g.pickBackendWithGeoIP(record, recordType, clientIP)
 	default:
 		return nil, fmt.Errorf("unsupported mode: %s", record.Mode)
 	}
@@ -353,7 +357,7 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 	return addresses, nil
 }
 
-func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP net.IP, clientPrefixLen uint8) ([]string, error) {
+func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP net.IP) ([]string, error) {
 	// 1. If MaxMind DB is loaded and at least one backend has a country field, route by country
 	if g.GeoIPMaxmindDB != nil && clientIP != nil {
 		recordCountry, err := g.GeoIPMaxmindDB.Country(clientIP)
@@ -558,3 +562,5 @@ func (g *GSLB) loadLocationMap(path string) error {
 	g.LocationMap = m
 	return nil
 }
+
+// Context key for client info
