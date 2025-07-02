@@ -21,11 +21,11 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 - **Adaptive healthcheck intervals**: healthcheck frequency is automatically reduced for records that are not frequently resolved, minimizing unnecessary backend load
 - **Automatic configuration reload**: changes to the YAML configuration file are detected and applied live, without restarting CoreDNS
 - **Health Checks**:
-  - HTTP(S): checks HTTP(S) endpoint health.
-  - TCP: checks if a TCP connection can be established.
-  - ICMP: checks if the backend responds to ICMP echo (ping).
-  - MySQL: checks database status
-  - Custom script: executes a custom shell script
+  - **HTTP(S)**: checks HTTP(S) endpoint health.
+  - **TCP**: checks if a TCP connection can be established.
+  - **ICMP**: checks if the backend responds to ICMP echo (ping).
+  - **MySQL**: checks database status
+  - **Custom script**: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
