@@ -95,6 +95,19 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		}
 		return &customCheck, nil
 
+	case "mysql":
+		var mysqlCheck MySQLHealthCheck
+		mysqlCheck.SetDefault()
+		paramsYaml, err := yaml.Marshal(hc.Params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+		}
+		err = yaml.Unmarshal(paramsYaml, &mysqlCheck)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode MySQL params: %v", err)
+		}
+		return &mysqlCheck, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported healthcheck type: %s", hc.Type)
 	}
