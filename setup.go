@@ -86,7 +86,7 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("invalid value for resolution_idle_timeout, expected duration format: %v", c.Val())
 					}
 					g.ResolutionIdleTimeout = c.Val()
-				case "location_db":
+				case "geoip_custom_yaml":
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
@@ -115,7 +115,7 @@ func setup(c *caddy.Controller) error {
 
 			// Start a goroutine to watch for location map modification events
 			if locationMapPath != "" {
-				go watchLocationMap(g, locationMapPath)
+				go watchCustomLocationMap(g, locationMapPath)
 			}
 		}
 	}
@@ -216,17 +216,17 @@ func reloadConfig(g *GSLB, filePath string) error {
 	return nil
 }
 
-// Add a dedicated watcher for the location map
-func watchLocationMap(g *GSLB, locationMapPath string) {
+// Add a dedicated watcher for the custom location map
+func watchCustomLocationMap(g *GSLB, locationMapPath string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Errorf("failed to create watcher for location map: %v", err)
+		log.Errorf("failed to create watcher for custom location map: %v", err)
 		return
 	}
 	defer watcher.Close()
 
 	if err := watcher.Add(locationMapPath); err != nil {
-		log.Errorf("failed to add location map to watcher: %v", err)
+		log.Errorf("failed to add custom location map to watcher: %v", err)
 		return
 	}
 
@@ -240,17 +240,17 @@ func watchLocationMap(g *GSLB, locationMapPath string) {
 					reloadTimer.Stop()
 				}
 				reloadTimer = time.AfterFunc(500*time.Millisecond, func() {
-					log.Debugf("location map file modified: %s", locationMapPath)
+					log.Debugf("custom location map file modified: %s", locationMapPath)
 					if err := g.loadLocationMap(locationMapPath); err != nil {
-						log.Errorf("failed to reload location map: %v", err)
+						log.Errorf("failed to reload custom location map: %v", err)
 					} else {
-						log.Debug("location map reloaded successfully.")
+						log.Debug("custom location map reloaded successfully.")
 					}
 				})
 			}
 		case err := <-watcher.Errors:
 			if err != nil {
-				log.Errorf("Error in location map watcher: %v", err)
+				log.Errorf("Error in custom location map watcher: %v", err)
 			}
 		}
 	}

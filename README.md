@@ -25,7 +25,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-  - **GeoIP**: Routes clients to the closest backend by location (datacenter, region, etc.)
+  - **GeoIP**: Routes clients to the closest backend by location (country, region)
 - **Prometheus/OpenMetrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
@@ -36,7 +36,7 @@ gslb DB_YAML_FILE [ZONES...] {
     max_stagger_start "120s"
     resolution_idle_timeout "3600s"
     batch_size_start 100
-    location_db location_map.yml
+    geoip_custom_yaml location_map.yml
     use_edns_csubnet
 }
 ~~~
@@ -50,7 +50,7 @@ gslb DB_YAML_FILE [ZONES...] {
 * `max_stagger_start`: The maximum staggered delay for starting health checks (default: "120s").
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
-* `location_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Required for `geoip` mode.
+* `geoip_custom_yaml`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Required for `geoip` mode.
 * `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging. Recommended for deployments behind DNS forwarders or public resolvers.
 
 ## Examples
@@ -157,7 +157,7 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   ```
 
 ### GeoIP
-- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping). Requires the `location_db` option and a YAML map file.
+- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping). Requires the `geoip_custom_yaml` option and a YAML map file.
 - **Use case:** Directs users to the nearest datacenter or region for lower latency.
 - **Example:**
   ```yaml
@@ -169,7 +169,7 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   And in your Corefile:
   ```
   gslb gslb_config.example.com.yml gslb.example.com {
-      location_db location_map.yml
+      geoip_custom_yaml location_map.yml
   }
   ```
   And in `location_map.yml`:
