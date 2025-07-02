@@ -13,8 +13,9 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 
 ### Features:
 - **IPv4 and IPv6 support**
-- **EDNS Client Subnet support** to get the real client IP
+- **EDNS Client Subnet support** to get the real client IP through DNS
 - **Adaptive healthcheck intervals**: healthcheck frequency is automatically reduced for records that are not frequently resolved, minimizing unnecessary backend load
+- **Automatic configuration reload**: changes to the YAML configuration file are detected and applied live, without restarting CoreDNS
 - **Health Checks**:
   - HTTP(S): checks HTTP(S) endpoint health.
   - TCP: checks if a TCP connection can be established.
@@ -24,7 +25,8 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-- **Metrics**:
+  - **GeoIP**: Routes clients to the closest backend by location (datacenter, region, etc.)
+- **Prometheus/OpenMetrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
 ## Syntax

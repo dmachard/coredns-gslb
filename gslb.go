@@ -10,9 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"os"
+
 	"github.com/coredns/coredns/plugin"
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/miekg/dns"
+	"gopkg.in/yaml.v3"
 )
 
 // Define log to be a logger with the plugin name in it. T
@@ -30,6 +33,7 @@ type GSLB struct {
 	ResolutionIdleTimeout string
 	Mutex                 sync.RWMutex
 	UseEDNSCSubnet        bool
+	LocationMap           map[string]string
 }
 
 func (g *GSLB) Name() string { return "gslb" }
@@ -474,4 +478,34 @@ func (g *GSLB) GetResolutionIdleTimeout() time.Duration {
 		d, _ = time.ParseDuration("3600s")
 	}
 	return d
+}
+
+// loadLocationMap loads and parses the location map YAML file into the in-memory LocationMap.
+// This method is thread-safe.
+func (g *GSLB) loadLocationMap(path string) error {
+	g.Mutex.Lock()
+	defer g.Mutex.Unlock()
+	if path == "" {
+		g.LocationMap = nil
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read location map: %v", err)
+	}
+	var parsed struct {
+		Subnets []struct {
+			Subnet   string `yaml:"subnet"`
+			Location string `yaml:"location"`
+		} `yaml:"subnets"`
+	}
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return fmt.Errorf("failed to parse location map: %v", err)
+	}
+	m := make(map[string]string)
+	for _, s := range parsed.Subnets {
+		m[s.Subnet] = s.Location
+	}
+	g.LocationMap = m
+	return nil
 }

@@ -1,6 +1,7 @@
 package gslb
 
 import (
+	"os"
 	"testing"
 
 	"github.com/coredns/caddy"
@@ -99,5 +100,56 @@ func TestLoadConfigFile(t *testing.T) {
 				t.Fatalf("Expected no error, but got: %v for test: %v", err, test.name)
 			}
 		})
+	}
+}
+
+func TestLoadLocationMap(t *testing.T) {
+	// Create a temporary YAML file for the location map
+	tmpFile, err := os.CreateTemp("", "location_map_test_*.yml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	content := `subnets:
+  - subnet: "192.168.0.0/16"
+    location: "eu-west-1"
+  - subnet: "10.0.0.0/8"
+    location: "us-east-1"
+`
+	if _, err := tmpFile.Write([]byte(content)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	g := &GSLB{}
+	err = g.loadLocationMap(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if g.LocationMap["192.168.0.0/16"] != "eu-west-1" {
+		t.Errorf("Expected eu-west-1, got %v", g.LocationMap["192.168.0.0/16"])
+	}
+	if g.LocationMap["10.0.0.0/8"] != "us-east-1" {
+		t.Errorf("Expected us-east-1, got %v", g.LocationMap["10.0.0.0/8"])
+	}
+}
+
+func TestLoadLocationMap_FileNotFound(t *testing.T) {
+	g := &GSLB{}
+	err := g.loadLocationMap("/nonexistent/location_map.yml")
+	if err == nil {
+		t.Error("Expected error for missing file, got nil")
+	}
+}
+
+func TestLoadLocationMap_EmptyPath(t *testing.T) {
+	g := &GSLB{}
+	err := g.loadLocationMap("")
+	if err != nil {
+		t.Errorf("Expected no error for empty path, got: %v", err)
+	}
+	if g.LocationMap != nil {
+		t.Errorf("Expected LocationMap to be nil for empty path")
 	}
 }

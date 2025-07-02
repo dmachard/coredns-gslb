@@ -28,6 +28,7 @@ func setup(c *caddy.Controller) error {
 	g := &GSLB{
 		Zones:                 make(map[string]string),
 		Records:               make(map[string]*Record),
+		LocationMap:           make(map[string]string),
 		MaxStaggerStart:       "60s",   // Total time to start all records over time, in seconds
 		BatchSizeStart:        100,     // Number of record per group (batch)
 		ResolutionIdleTimeout: "3600s", // Max time before to slow down health check
@@ -47,6 +48,7 @@ func setup(c *caddy.Controller) error {
 				fileName = filepath.Join(config.Root, fileName)
 			}
 
+			locationMapPath := ""
 			// Parse additional options
 			for c.NextBlock() {
 				switch c.Val() {
@@ -84,6 +86,14 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("invalid value for resolution_idle_timeout, expected duration format: %v", c.Val())
 					}
 					g.ResolutionIdleTimeout = c.Val()
+				case "location_db":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					locationMapPath = c.Val()
+					if err := g.loadLocationMap(locationMapPath); err != nil {
+						return fmt.Errorf("failed to load location map: %v", err)
+					}
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
@@ -102,6 +112,11 @@ func setup(c *caddy.Controller) error {
 
 			// Start a goroutine to watch for file modification events
 			go startConfigWatcher(g, fileName)
+
+			// Start a goroutine to watch for location map modification events
+			if locationMapPath != "" {
+				go watchLocationMap(g, locationMapPath)
+			}
 		}
 	}
 
@@ -199,4 +214,44 @@ func reloadConfig(g *GSLB, filePath string) error {
 	g.updateRecords(context.Background(), newGSLB)
 
 	return nil
+}
+
+// Add a dedicated watcher for the location map
+func watchLocationMap(g *GSLB, locationMapPath string) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Errorf("failed to create watcher for location map: %v", err)
+		return
+	}
+	defer watcher.Close()
+
+	if err := watcher.Add(locationMapPath); err != nil {
+		log.Errorf("failed to add location map to watcher: %v", err)
+		return
+	}
+
+	var reloadTimer *time.Timer
+
+	for {
+		select {
+		case event := <-watcher.Events:
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				if reloadTimer != nil {
+					reloadTimer.Stop()
+				}
+				reloadTimer = time.AfterFunc(500*time.Millisecond, func() {
+					log.Debugf("location map file modified: %s", locationMapPath)
+					if err := g.loadLocationMap(locationMapPath); err != nil {
+						log.Errorf("failed to reload location map: %v", err)
+					} else {
+						log.Debug("location map reloaded successfully.")
+					}
+				})
+			}
+		case err := <-watcher.Errors:
+			if err != nil {
+				log.Errorf("Error in location map watcher: %v", err)
+			}
+		}
+	}
 }
