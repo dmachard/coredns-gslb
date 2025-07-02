@@ -1,6 +1,7 @@
 package gslb
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -71,3 +72,56 @@ func TestRecord_ScrapeTimeout(t *testing.T) {
 	timeout := record.GetScrapeTimeout()
 	assert.Equal(t, 5*time.Second, timeout)
 }
+
+func TestRecord_ScrapeBackends_Slowdown(t *testing.T) {
+	idleTimeout := "1s"
+	multiplier := 3
+
+	g := &GSLB{
+		ResolutionIdleTimeout:     idleTimeout,
+		HealthcheckIdleMultiplier: multiplier,
+	}
+	rec := &Record{
+		Fqdn:           "test.example.com.",
+		ScrapeInterval: "100ms",
+	}
+
+	backend := &callCounter{}
+	rec.Backends = []BackendInterface{backend}
+	g.LastResolution.Store(rec.Fqdn, time.Now().Add(-2*time.Second))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rec.scrapeBackends(ctx, g)
+
+	time.Sleep(500 * time.Millisecond)
+	cancel()
+
+	if backend.calls < 1 || backend.calls > 2 {
+		t.Errorf("expected 1 or 2 healthchecks, got %d", backend.calls)
+	}
+}
+
+type callCounter struct {
+	Backend
+	calls int
+}
+
+func (b *callCounter) runHealthChecks(retries int, timeout time.Duration) {
+	b.calls++
+}
+func (b *callCounter) GetFqdn() string                           { return "test.example.com." }
+func (b *callCounter) SetFqdn(fqdn string)                       {}
+func (b *callCounter) GetDescription() string                    { return "" }
+func (b *callCounter) GetAddress() string                        { return "127.0.0.1" }
+func (b *callCounter) GetPriority() int                          { return 1 }
+func (b *callCounter) IsEnabled() bool                           { return true }
+func (b *callCounter) GetHealthChecks() []GenericHealthCheck     { return nil }
+func (b *callCounter) GetTimeout() string                        { return "" }
+func (b *callCounter) GetLocation() string                       { return "" }
+func (b *callCounter) GetCountry() string                        { return "" }
+func (b *callCounter) IsHealthy() bool                           { return true }
+func (b *callCounter) removeBackend()                            {}
+func (b *callCounter) updateBackend(newBackend BackendInterface) {}
+func (b *callCounter) Lock()                                     {}
+func (b *callCounter) Unlock()                                   {}

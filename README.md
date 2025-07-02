@@ -39,7 +39,8 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 ~~~
 gslb DB_YAML_FILE [ZONES...] {
     max_stagger_start "120s"
-    resolution_idle_timeout "3600s"
+    resolution_idle_timeout "3600s"   # Duration before slow healthcheck (default: 3600s)
+    resolution_idle_multiplier 10      # Multiplier for slow healthcheck interval (default: 10)
     batch_size_start 100
     geoip_custom_db /coredns/location_map.yml
     geoip_maxmind_db /coredns/GeoLite2-Country.mmdb
@@ -55,6 +56,7 @@ gslb DB_YAML_FILE [ZONES...] {
 
 * `max_stagger_start`: The maximum staggered delay for starting health checks (default: "120s").
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
+* `resolution_idle_multiplier`: The multiplier for the healthcheck interval when a record is idle (default: 10).
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
 * `geoip_custom_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Used for `geoip` mode (location-based routing).
 * `geoip_maxmind_db`: Path to a MaxMind GeoLite2-Country.mmdb file for country-based GeoIP backend selection. Used for `geoip` mode (country-based routing). If both `geoip_maxmind_db` and `geoip_custom_db` are set, country-based selection is attempted first, then location-based, then fallback.
@@ -211,12 +213,12 @@ The GSLB plugin supports several types of health checks for backends. Each type 
 
 Additionally, the GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
 
-- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by 10 (slowed down).
+- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by `healthcheck_idle_multiplier` (default: 10, configurable in the Corefile).
 - As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
 - This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
 
 **Example:**
-- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`
+- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`, `healthcheck_idle_multiplier: 10`
 - If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
 - When a query is received, healthchecks resume every 10s.
 
