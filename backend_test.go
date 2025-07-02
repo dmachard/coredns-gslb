@@ -14,6 +14,7 @@ address: "127.0.0.1"
 priority: 10
 description: "helloworld"
 location: "eu-west-1"
+country: "FR"
 enable: true
 timeout: "10s"
 healthchecks:
@@ -31,6 +32,7 @@ healthchecks:
 	assert.Equal(t, "10s", backend.Timeout)
 	assert.Equal(t, "helloworld", backend.Description)
 	assert.Equal(t, "eu-west-1", backend.Location)
+	assert.Equal(t, "FR", backend.Country)
 	assert.Len(t, backend.HealthChecks, 1)
 	assert.IsType(t, &HTTPHealthCheck{}, backend.HealthChecks[0])
 }

@@ -54,9 +54,10 @@ records:
           params:
             script: "/coredns/healthcheck_custom.sh"
             timeout: 5s
+  
   # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode 
   # between Paris and London backends
-  webapp-geo.gslb.example.com.:
+  webapp-geo-byregion.gslb.example.com.:
     owner: "admin"
     description: "GeoIP-based routing between Paris and London backends"
     mode: "geoip"  # GeoIP mode: routes clients to the closest backend by location
@@ -86,6 +87,53 @@ records:
     - address: "172.16.0.11"
       description: "webapp2"
       location: "eu-west-2"
+      enable: true
+      priority: 2
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"
+            method: "GET"
+            host: "localhost"
+            headers:
+            timeout: 5s
+            expected_code: 200
+            expected_body: ""
+            enable_tls: true
+            skip_tls_verify: true
+
+  # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode by country
+  webapp-geo-bycountry.gslb.example.com.:
+    owner: "admin"
+    description: "GeoIP-based routing by country (using MaxMind GeoLite2-Country.mmdb)"
+    mode: "geoip"  # GeoIP mode: routes clients to the backend matching the client country
+    record_ttl: 30
+    scrape_interval: 10s
+    scrape_retries: 1
+    scrape_timeout: 5s
+    backends:
+    - address: "172.16.0.10"
+      description: "webapp2 France"
+      country: "FR"  # Route clients from France to this backend
+      enable: true
+      priority: 1
+      healthchecks:
+        - type: http
+          params:
+            port: 443
+            uri: "/"
+            method: "GET"
+            host: "localhost"
+            headers:
+            timeout: 5s
+            expected_code: 200
+            expected_body: ""
+            enable_tls: true
+            skip_tls_verify: true
+    - address: "172.16.0.11"
+      description: "webapp2 USA"
+      country: "US"  # Route clients from USA to this backend
       enable: true
       priority: 2
       healthchecks:

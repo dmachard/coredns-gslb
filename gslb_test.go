@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
+	"github.com/oschwald/geoip2-golang"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -348,7 +349,11 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	msg.SetQuestion("example.com.", dns.TypeTXT)
 	w := &TestResponseWriter{}
 
-	code, err := g.handleTXTRecord(context.Background(), w, msg, "example.com.")
+	// Use a dummy client IP and prefix for TXT record test
+	clientIP := net.ParseIP("192.168.1.1")
+	clientPrefixLen := uint8(32)
+	ctx := WithClientInfo(context.Background(), clientIP, clientPrefixLen)
+	code, err := g.handleTXTRecord(ctx, w, msg, "example.com.")
 	assert.NoError(t, err)
 	assert.Equal(t, dns.RcodeSuccess, code)
 	assert.NotEmpty(t, w.Msg.Answer)
@@ -369,17 +374,17 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	assert.True(t, found2, "Expected TXT record for backend2")
 }
 
-func TestGSLB_PickBackendWithGeoIP(t *testing.T) {
+func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 	// Simulate a location map with two subnets
 	locationMap := map[string]string{
 		"10.0.0.0/24":    "eu-west",
 		"192.168.1.0/24": "us-east",
 	}
 
-	// Create backends in different subnets
-	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10}}
-	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30}}
+	// Create backends in different subnets and set Location fields
+	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, Location: "eu-west"}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, Location: "us-east"}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, Location: "other"}}
 	backendEU.On("IsHealthy").Return(true)
 	backendUS.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -394,20 +399,80 @@ func TestGSLB_PickBackendWithGeoIP(t *testing.T) {
 		LocationMap: locationMap,
 	}
 
-	// Should match backendUS (192.168.1.42 in 192.168.1.0/24)
-	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA)
+	// Test 1: Client IP from us-east region (192.168.1.0/24) should get us-east backend
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.50"))
 	assert.NoError(t, err)
-	assert.Contains(t, ips, "192.168.1.42")
+	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
 
-	// Remove location map to test fallback
+	// Test 2: Client IP from eu-west region (10.0.0.0/24) should get eu-west backend
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.50"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
+
+	// Test 3: Another client IP from us-east region
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.100"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
+
+	// Test 4: Another client IP from eu-west region
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.200"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
+
+	// Test 5: Unmatched IP should fallback to lowest priority healthy backend
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
+
+	// Test 6: Remove location map to test fallback with no location
 	g.LocationMap = nil
-	_, err = g.pickBackendWithGeoIP(record, dns.TypeA)
-	assert.Error(t, err)
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
+}
+
+func TestGSLB_PickBackendWithGeoIP_MaxMind(t *testing.T) {
+	db, err := geoip2.Open("coredns/GeoLite2-Country.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-Country.mmdb not found, skipping real MaxMind test")
+	}
+	defer db.Close()
+
+	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Country: "US"}}
+	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Country: "AU"}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Country: "DE"}}
+	backendUS.On("IsHealthy").Return(true)
+	backendAU.On("IsHealthy").Return(true)
+	backendOther.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendUS, backendAU, backendOther},
+	}
+
+	g := &GSLB{
+		GeoIPMaxmindDB: db,
+	}
+
+	// Test with a US IP
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"20.0.0.1"}, ips)
+
+	// Test with an AU IP, which should return AU backend
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("1.1.1.1"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"30.0.0.1"}, ips)
+
+	// Test with an IP that doesn't match any backend country
+	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("127.0.0.1"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"20.0.0.1"}, ips) // fallback to lowest priority (US backend)
 }
 
 // TestResponseWriter is a mock dns.ResponseWriter for testing
 // It captures the DNS message sent by WriteMsg
-
 type TestResponseWriter struct {
 	Msg *dns.Msg
 }

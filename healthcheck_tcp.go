@@ -3,6 +3,7 @@ package gslb
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/creasty/defaults"
@@ -40,7 +41,7 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		return false
 	}
 
-	addressPort := fmt.Sprintf("%s:%d", backend.Address, h.Port)
+	addressPort := net.JoinHostPort(backend.Address, strconv.Itoa(h.Port))
 	for retry := 0; retry <= maxRetries; retry++ {
 		log.Debugf("[%s] Attempting TCP health check on %s", fqdn, addressPort)
 

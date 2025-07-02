@@ -10,8 +10,8 @@
 
     # Configure the GSLB plugin with the specified parameters
     gslb gslb_config.example.com.yml gslb.example.com {
-        # geoip_db GeoLite2-City.mmdb
-        location_db /coredns/location_map.yml
+        geoip_maxmind_db /coredns/GeoLite2-Country.mmdb # Enable GeoIP by country (MaxMind)
+        geoip_custom_db /coredns/location_map.yml # Enable GeoIP by region/subnet (YAML map)
         use_edns_csubnet
         max_stagger_start 120s # Maximum delay for staggered start
         resolution_idle_timeout 3600s # Idle timeout for resolution
