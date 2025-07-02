@@ -25,6 +25,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **TCP**: checks if a TCP connection can be established.
   - **ICMP**: checks if the backend responds to ICMP echo (ping).
   - **MySQL**: checks database status
+  - **gRPC**: checks gRPC health service
   - **Custom script**: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
@@ -285,9 +286,27 @@ healthchecks:
       query: "SELECT 1"        # Query to execute (optional, default: SELECT 1)
 ```
 
+### gRPC
+
+Checks the health of a gRPC service using the standard gRPC health checking protocol (`grpc.health.v1.Health/Check`).
+
+```yaml
+healthchecks:
+  - type: grpc
+    params:
+      port: 9090                # gRPC port to connect to
+      service: "grpc.health.v1.Health" # Service name (default: "")
+      timeout: 5s               # Timeout for the gRPC request
+```
+
+- `service` can be left empty to check the overall server health, or set to a specific service name.
+
 ### Custom Script
 
-Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
+Executes a custom shell script to determine backend health. 
+The script should return exit code 0 for healthy, non-zero for unhealthy.
+
+⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
 
 ```yaml
 healthchecks:
