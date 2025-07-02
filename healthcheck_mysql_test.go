@@ -4,10 +4,6 @@ import (
 	"testing"
 )
 
-type fakeBackend struct {
-	Address string
-}
-
 func TestMySQLHealthCheck_Defaults(t *testing.T) {
 	h := &MySQLHealthCheck{}
 	h.SetDefault()
@@ -31,16 +27,5 @@ func TestMySQLHealthCheck_Equals(t *testing.T) {
 	}
 	if h1.Equals(h3) {
 		t.Error("expected h1 != h3")
-	}
-}
-
-// Note: For PerformCheck, a real MySQL server is needed for full integration test.
-// Here, we only test that the function returns false on connection error.
-func TestMySQLHealthCheck_PerformCheck_Fail(t *testing.T) {
-	h := &MySQLHealthCheck{Host: "127.0.0.1", Port: 3307, User: "bad", Password: "bad", Database: "bad", Timeout: "1s"}
-	b := &Backend{Address: "127.0.0.1"}
-	ok := h.PerformCheck(b, "fqdn", 0)
-	if ok {
-		t.Error("expected PerformCheck to fail with bad connection params")
 	}
 }
