@@ -146,6 +146,9 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
+// handleTXTRecord handles TXT record queries for the domain.
+// It returns a TXT record for each backend, summarizing its address, priority, health, and enabled status.
+// This is useful for debugging and monitoring: you can query the TXT record for a domain to see backend states.
 func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
 	record, exists := g.Records[domain]
 	if !exists {
