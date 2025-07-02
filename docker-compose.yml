@@ -53,3 +53,16 @@ services:
     networks:
       gslb_net:
         ipv4_address: 172.16.0.11
+
+  # create webapp to simulate a third web application with gRPC health endpoint
+  webapp12:
+    build:
+      context: ./webapp
+    ports:
+      - "12990:9090"  # Expose gRPC port
+    environment:
+      - APP_NAME=WebApplication12
+      - ENABLE_GRPC_HEALTH=1  # Custom env to enable gRPC health endpoint in the app (implement in webapp if needed)
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.12

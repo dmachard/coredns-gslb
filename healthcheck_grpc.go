@@ -35,3 +35,38 @@ func (h *GRPCHealthCheck) Check() error {
 	}
 	return nil
 }
+
+func (h *GRPCHealthCheck) SetDefault() {
+	if h.Timeout == 0 {
+		h.Timeout = 5 * time.Second
+	}
+	if h.Service == "" {
+		h.Service = ""
+	}
+}
+
+func (h *GRPCHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
+	host := h.Host
+	if host == "" && backend != nil {
+		host = backend.Address
+	}
+	check := &GRPCHealthCheck{
+		Host:    host,
+		Port:    h.Port,
+		Service: h.Service,
+		Timeout: h.Timeout,
+	}
+	return check.Check() == nil
+}
+
+func (h *GRPCHealthCheck) GetType() string {
+	return "grpc"
+}
+
+func (h *GRPCHealthCheck) Equals(other GenericHealthCheck) bool {
+	otherGrpc, ok := other.(*GRPCHealthCheck)
+	if !ok {
+		return false
+	}
+	return h.Host == otherGrpc.Host && h.Port == otherGrpc.Port && h.Service == otherGrpc.Service && h.Timeout == otherGrpc.Timeout
+}
