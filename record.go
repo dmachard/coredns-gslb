@@ -194,7 +194,7 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 			// Adjust the scraping interval based on activity
 			newInterval := r.GetScrapeInterval()
 			if shouldSlowDown {
-				newInterval = r.GetScrapeInterval() * 10
+				newInterval = r.GetScrapeInterval() * time.Duration(g.HealthcheckIdleMultiplier)
 			}
 
 			// If the interval changes, reset the ticker

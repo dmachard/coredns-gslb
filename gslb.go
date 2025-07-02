@@ -24,18 +24,20 @@ import (
 var log = clog.NewWithPlugin("gslb")
 
 type GSLB struct {
-	Next                  plugin.Handler
-	Zones                 map[string]string  // List of authoritative domains
-	Records               map[string]*Record `yaml:"records"`
-	LastResolution        sync.Map           // key: domain (string), value: time.Time
-	RoundRobinIndex       sync.Map
-	MaxStaggerStart       string
-	BatchSizeStart        int
-	ResolutionIdleTimeout string
-	Mutex                 sync.RWMutex
-	UseEDNSCSubnet        bool
-	LocationMap           map[string]string
-	GeoIPMaxmindDB        *geoip2.Reader // Loaded MaxMind DB
+	Next                      plugin.Handler
+	Zones                     map[string]string  // List of authoritative domains
+	Records                   map[string]*Record `yaml:"records"`
+	LastResolution            sync.Map           // key: domain (string), value: time.Time
+	RoundRobinIndex           sync.Map
+	MaxStaggerStart           string
+	BatchSizeStart            int
+	ResolutionIdleTimeout     string
+	ResolutionIdleMultiplier  int // Multiplier for slow healthcheck interval
+	HealthcheckIdleMultiplier int // Multiplier for slow healthcheck interval
+	Mutex                     sync.RWMutex
+	UseEDNSCSubnet            bool
+	LocationMap               map[string]string
+	GeoIPMaxmindDB            *geoip2.Reader // Loaded MaxMind DB
 }
 
 func (g *GSLB) Name() string { return "gslb" }

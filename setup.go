@@ -27,13 +27,14 @@ func setup(c *caddy.Controller) error {
 
 	// Create a GSLB instance with empty domains and backends
 	g := &GSLB{
-		Zones:                 make(map[string]string),
-		Records:               make(map[string]*Record),
-		LocationMap:           make(map[string]string),
-		MaxStaggerStart:       "60s",   // Total time to start all records over time, in seconds
-		BatchSizeStart:        100,     // Number of record per group (batch)
-		ResolutionIdleTimeout: "3600s", // Max time before to slow down health check
-		UseEDNSCSubnet:        false,   // Default: disabled
+		Zones:                     make(map[string]string),
+		Records:                   make(map[string]*Record),
+		LocationMap:               make(map[string]string),
+		MaxStaggerStart:           "60s",   // Total time to start all records over time, in seconds
+		BatchSizeStart:            100,     // Number of record per group (batch)
+		ResolutionIdleTimeout:     "3600s", // Max time before to slow down health check
+		UseEDNSCSubnet:            false,   // Default: disabled
+		HealthcheckIdleMultiplier: 10,      // Default multiplier
 	}
 
 	for c.Next() {
@@ -108,6 +109,24 @@ func setup(c *caddy.Controller) error {
 						}
 						g.GeoIPMaxmindDB = geoipDB
 					}
+				case "resolution_idle_multiplier":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					mult, err := strconv.Atoi(c.Val())
+					if err != nil || mult < 1 {
+						return fmt.Errorf("invalid value for resolution_idle_multiplier: %v", c.Val())
+					}
+					g.ResolutionIdleMultiplier = mult
+				case "healthcheck_idle_multiplier":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					mult, err := strconv.Atoi(c.Val())
+					if err != nil || mult < 1 {
+						return fmt.Errorf("invalid value for healthcheck_idle_multiplier: %v", c.Val())
+					}
+					g.HealthcheckIdleMultiplier = mult
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
