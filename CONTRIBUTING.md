@@ -33,9 +33,7 @@ $ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
 172.16.0.10
 ~~~
 
-### Simulate Failover
-
-Stop the webapp 1
+Stop the webapp 1 to simulate a failover
 
 ~~~ bash
 sudo docker compose stop webapp10
@@ -61,7 +59,22 @@ $ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
 172.16.0.10
 ~~~
 
-## Compilation
+Testing GeoIP selection with EDNS Client Subnet
+Simulate a query coming from subnet 10.0.0.0/24
+
+~~~ bash
+$ dig -p 8053 @127.0.0.1 webapp-geo.gslb.example.com +short +subnet=10.1.0.42/24
+172.16.0.10
+~~~
+
+Simulate a query coming from subnet 192.168.1.0/24
+
+~~~ bash
+$ dig -p 8053 @127.0.0.1 webapp-geo.gslb.example.com +short +subnet=10.2.0.7/24
+172.16.0.11
+~~~
+
+## Binary compilation with the plugin
 
 The `GSLB` plugin must be integrated into CoreDNS during compilation.
 

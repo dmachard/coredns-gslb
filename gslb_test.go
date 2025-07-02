@@ -369,6 +369,42 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	assert.True(t, found2, "Expected TXT record for backend2")
 }
 
+func TestGSLB_PickBackendWithGeoIP(t *testing.T) {
+	// Simulate a location map with two subnets
+	locationMap := map[string]string{
+		"10.0.0.0/24":    "eu-west",
+		"192.168.1.0/24": "us-east",
+	}
+
+	// Create backends in different subnets
+	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30}}
+	backendEU.On("IsHealthy").Return(true)
+	backendUS.On("IsHealthy").Return(true)
+	backendOther.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendEU, backendUS, backendOther},
+	}
+
+	g := &GSLB{
+		LocationMap: locationMap,
+	}
+
+	// Should match backendUS (192.168.1.42 in 192.168.1.0/24)
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA)
+	assert.NoError(t, err)
+	assert.Contains(t, ips, "192.168.1.42")
+
+	// Remove location map to test fallback
+	g.LocationMap = nil
+	_, err = g.pickBackendWithGeoIP(record, dns.TypeA)
+	assert.Error(t, err)
+}
+
 // TestResponseWriter is a mock dns.ResponseWriter for testing
 // It captures the DNS message sent by WriteMsg
 

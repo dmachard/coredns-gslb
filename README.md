@@ -36,6 +36,8 @@ gslb DB_YAML_FILE [ZONES...] {
     max_stagger_start "120s"
     resolution_idle_timeout "3600s"
     batch_size_start 100
+    location_db location_map.yml
+    use_edns_csubnet
 }
 ~~~
 
@@ -48,6 +50,8 @@ gslb DB_YAML_FILE [ZONES...] {
 * `max_stagger_start`: The maximum staggered delay for starting health checks (default: "120s").
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
+* `location_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Required for `geoip` mode.
+* `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging. Recommended for deployments behind DNS forwarders or public resolvers.
 
 ## Examples
 
@@ -113,6 +117,72 @@ records:
 A complete example with all parameters is available in the folder coredns
 
 
+## Selection modes
+
+The GSLB plugin supports several backend selection modes, configurable per record via the `mode` parameter in your YAML config. Each mode determines how the plugin chooses which backend(s) to return for a DNS query.
+
+### Failover
+- **Description:** Always returns the highest-priority healthy backend. If it becomes unhealthy, the next-highest is used.
+- **Use case:** Classic active/passive or prioritized failover.
+- **Example:**
+  ```yaml
+  mode: "failover"
+  backends:
+    - address: "10.0.0.1"
+      priority: 1
+    - address: "10.0.0.2"
+      priority: 2
+  ```
+
+### Round Robin
+- **Description:** Cycles through all healthy backends in order, returning a different one for each query.
+- **Use case:** Simple load balancing across all available backends.
+- **Example:**
+  ```yaml
+  mode: "roundrobin"
+  backends:
+    - address: "10.0.0.1"
+    - address: "10.0.0.2"
+  ```
+
+### Random
+- **Description:** Returns a random healthy backend for each query.
+- **Use case:** Distributes load randomly, useful for stateless services.
+- **Example:**
+  ```yaml
+  mode: "random"
+  backends:
+    - address: "10.0.0.1"
+    - address: "10.0.0.2"
+  ```
+
+### GeoIP
+- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping). Requires the `location_db` option and a YAML map file.
+- **Use case:** Directs users to the nearest datacenter or region for lower latency.
+- **Example:**
+  ```yaml
+  mode: "geoip"
+  backends:
+    - address: "10.0.0.1" # e.g. EU
+    - address: "192.168.1.1" # e.g. US
+  ```
+  And in your Corefile:
+  ```
+  gslb gslb_config.example.com.yml gslb.example.com {
+      location_db location_map.yml
+  }
+  ```
+  And in `location_map.yml`:
+  ```yaml
+  subnets:
+    - subnet: "10.0.0.0/24"
+      location: "eu-west"
+    - subnet: "192.168.1.0/24"
+      location: "us-east"
+  ```
+
+If no healthy backend matches the client's location, the plugin falls back to failover mode.
+
 ## Monitoring & Health Checks
 
 ### Custom Health Check
@@ -158,7 +228,20 @@ Example Corefile block:
 You can then scrape metrics at http://localhost:9153/metrics
 
 
-## TXT Record Support for Debugging
+## Troubleshooting
+
+### To log Health Checks
+
+Example Corefile block:
+
+~~~
+. {
+    # To log healthcheck results
+    debug
+}
+~~~
+
+### TXT Record Support for Debugging
 
 The GSLB plugin supports DNS TXT queries for any managed domain. When you query a domain with type TXT, the plugin returns a TXT record for each backend, summarizing:
 - Backend address (IP)

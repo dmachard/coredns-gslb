@@ -56,7 +56,7 @@ records:
             timeout: 5s
   # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode 
   # between Paris and London backends
-  webapp2.gslb.example.com.:
+  webapp-geo.gslb.example.com.:
     owner: "admin"
     description: "GeoIP-based routing between Paris and London backends"
     mode: "geoip"  # GeoIP mode: routes clients to the closest backend by location

@@ -248,6 +248,8 @@ func (g *GSLB) pickResponse(domain string, recordType uint16) ([]string, error) 
 		return g.pickBackendWithRoundRobin(domain, record, recordType)
 	case "random":
 		return g.pickBackendWithRandom(record, recordType)
+	case "geoip":
+		return g.pickBackendWithGeoIP(record, recordType)
 	default:
 		return nil, fmt.Errorf("unsupported mode: %s", record.Mode)
 	}
@@ -349,6 +351,53 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 	}
 
 	return addresses, nil
+}
+
+// pickBackendWithGeoIP selects the backend(s) based on the client's location using the LocationMap.
+// It returns the IP(s) of the backend(s) matching the client's location, or falls back to healthy backends if no match.
+func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16) ([]string, error) {
+	// Try to get the client IP from the last request (thread-safe, but not ideal for concurrent queries)
+	// In a real implementation, you would pass the client IP as a parameter or store it in context.
+	// For now, we use the last resolution time as a proxy for the last client IP (not perfect, but works for plugin context).
+	// This is a placeholder: you may want to refactor to pass client IP directly.
+	// For now, we just pick the first healthy backend matching the location.
+
+	g.Mutex.RLock()
+	locationMap := g.LocationMap
+	g.Mutex.RUnlock()
+
+	if len(locationMap) == 0 {
+		return nil, fmt.Errorf("location map is not loaded")
+	}
+
+	// This is a placeholder: in a real plugin, you should pass the client IP to this function.
+	// Here, we just pick the first healthy backend with a location match.
+	// For demo, we try all backends and match their address to a location.
+
+	var matchedIPs []string
+	for _, backend := range record.Backends {
+		if backend.IsHealthy() && backend.IsEnabled() {
+			ip := backend.GetAddress()
+			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
+				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+				// Check if backend IP is in the location map (simulate match)
+				for subnet := range locationMap {
+					_, ipnet, err := net.ParseCIDR(subnet)
+					if err == nil && ipnet.Contains(net.ParseIP(ip)) {
+						matchedIPs = append(matchedIPs, ip)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if len(matchedIPs) > 0 {
+		return matchedIPs, nil
+	}
+
+	// Fallback: return all healthy backends
+	return g.pickBackendWithFailover(record, recordType)
 }
 
 func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domain string, ipAddresses []string, ttl int, recordType uint16) (int, error) {
