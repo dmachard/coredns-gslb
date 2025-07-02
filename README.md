@@ -24,8 +24,8 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - HTTP(S): checks HTTP(S) endpoint health.
   - TCP: checks if a TCP connection can be established.
   - ICMP: checks if the backend responds to ICMP echo (ping).
-  - Custom script: executes a custom shell script
   - MySQL: checks database status
+  - Custom script: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
@@ -266,22 +266,6 @@ healthchecks:
       count:  3     # Number of ICMP requests to send
 ```
 
-### Custom Script
-
-Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
-
-```yaml
-healthchecks:
-  - type: custom
-    params:
-      script: "/coredns/healthcheck_custom.sh"  # Path to the script
-      timeout: 5s                                # Script timeout (default: 5s)
-```
-
-The following environment variables are available: 
-- `BACKEND_ADDRESS`
-- `BACKEND_PRIORITY`
-
 ### MySQL
 
 Checks MySQL server health by connecting and executing a query.
@@ -298,6 +282,22 @@ healthchecks:
       timeout: "3s"            # Connection/query timeout
       query: "SELECT 1"        # Query to execute (optional, default: SELECT 1)
 ```
+
+### Custom Script
+
+Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
+
+```yaml
+healthchecks:
+  - type: custom
+    params:
+      script: "/coredns/healthcheck_custom.sh"  # Path to the script
+      timeout: 5s                                # Script timeout (default: 5s)
+```
+
+The following environment variables are available: 
+- `BACKEND_ADDRESS`
+- `BACKEND_PRIORITY`
 
 ## Observability
 
