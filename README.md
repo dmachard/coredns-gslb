@@ -27,7 +27,6 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **ICMP**: checks if the backend responds to ICMP echo (ping).
   - **MySQL**: checks database status
   - **gRPC**: checks gRPC health service
-  - **Custom script**: executes a custom shell script
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
@@ -360,12 +359,12 @@ healthchecks:
 
 - `service` can be left empty to check the overall server health, or set to a specific service name.
 
-### Custom Script
+### Additional: Custom Script
+
+⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
 
 Executes a custom shell script to determine backend health. 
 The script should return exit code 0 for healthy, non-zero for unhealthy.
-
-⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
 
 ```yaml
 healthchecks:
