@@ -67,7 +67,10 @@ records:
     backends:
     - address: "172.16.0.10"
       description: "webapp10"
-      location: "eu-west-1"
+      location_countries: [ ]
+      location_cities: [ ]
+      location_asns: [ ]
+      location_custom: ["eu-west-1"]
       enable: true
       priority: 1
       healthchecks:
@@ -85,7 +88,10 @@ records:
             skip_tls_verify: true
     - address: "172.16.0.11"
       description: "webapp11"
-      location: "eu-west-2"
+      location_countries: [ ]
+      location_cities: [ ]
+      location_asns: [ ]
+      location_custom: ["eu-west-2"]
       enable: true
       priority: 2
       healthchecks:
@@ -114,7 +120,10 @@ records:
     backends:
     - address: "172.16.0.10"
       description: "webapp10"
-      country: "FR"
+      location_countries: [ "FR" ]
+      location_cities: [ ]
+      location_asns: [ ]
+      location_custom: [ ]
       enable: true
       priority: 1
       healthchecks:
@@ -132,7 +141,10 @@ records:
             skip_tls_verify: true
     - address: "172.16.0.11"
       description: "webapp11"
-      country: "US"
+      location_countries: [ "US" ]
+      location_cities: [ ]
+      location_asns: [ ]
+      location_custom: [ ]
       enable: true
       priority: 2
       healthchecks:
@@ -161,7 +173,10 @@ records:
     backends:
     - address: "172.16.0.12"
       description: "webapp12"
-      country: "FR"
+      location_countries: [ ]
+      location_cities: [ ]
+      location_asns: [ ]
+      location_custom: [ ]
       enable: true
       priority: 1
       healthchecks:

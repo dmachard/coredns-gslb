@@ -375,16 +375,14 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
-	// Simulate a location map with two subnets
 	locationMap := map[string]string{
 		"10.0.0.0/24":    "eu-west",
 		"192.168.1.0/24": "us-east",
 	}
 
-	// Create backends in different subnets and set Location fields
-	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, Location: "eu-west"}}
-	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, Location: "us-east"}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, Location: "other"}}
+	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, CustomLocations: []string{"eu-west"}}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, CustomLocations: []string{"us-east"}}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, CustomLocations: []string{"other"}}}
 	backendEU.On("IsHealthy").Return(true)
 	backendUS.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -399,48 +397,45 @@ func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 		LocationMap: locationMap,
 	}
 
-	// Test 1: Client IP from us-east region (192.168.1.0/24) should get us-east backend
-	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.50"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
+	testCases := []struct {
+		name     string
+		clientIP string
+		expect   []string
+	}{
+		{"us-east subnet", "192.168.1.50", []string{"192.168.1.42"}},
+		{"eu-west subnet", "10.0.0.50", []string{"10.0.0.42"}},
+		{"us-east subnet 2", "192.168.1.100", []string{"192.168.1.42"}},
+		{"eu-west subnet 2", "10.0.0.200", []string{"10.0.0.42"}},
+		{"unmatched IP fallback", "8.8.8.8", []string{"10.0.0.42"}},
+	}
 
-	// Test 2: Client IP from eu-west region (10.0.0.0/24) should get eu-west backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.50"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, ips)
+		})
+	}
 
-	// Test 3: Another client IP from us-east region
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("192.168.1.100"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"192.168.1.42"}, ips) // Should return US backend (us-east)
-
-	// Test 4: Another client IP from eu-west region
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.200"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"10.0.0.42"}, ips) // Should return EU backend (eu-west)
-
-	// Test 5: Unmatched IP should fallback to lowest priority healthy backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
-
-	// Test 6: Remove location map to test fallback with no location
+	// Test fallback when LocationMap is nil
 	g.LocationMap = nil
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"10.0.0.42"}, ips) // Fallback to lowest priority (EU backend)
+	t.Run("fallback no location map", func(t *testing.T) {
+		ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"10.0.0.42"}, ips)
+	})
 }
 
-func TestGSLB_PickBackendWithGeoIP_MaxMind(t *testing.T) {
+func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
 	db, err := geoip2.Open("coredns/GeoLite2-Country.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-Country.mmdb not found, skipping real MaxMind test")
 	}
 	defer db.Close()
 
-	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Country: "US"}}
-	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Country: "AU"}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Country: "DE"}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Countries: []string{"US"}}}
+	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Countries: []string{"AU"}}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Countries: []string{"DE"}}}
 	backendUS.On("IsHealthy").Return(true)
 	backendAU.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -452,23 +447,112 @@ func TestGSLB_PickBackendWithGeoIP_MaxMind(t *testing.T) {
 	}
 
 	g := &GSLB{
-		GeoIPMaxmindDB: db,
+		GeoIPCountryDB: db,
 	}
 
-	// Test with a US IP
-	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"20.0.0.1"}, ips)
+	testCases := []struct {
+		name     string
+		clientIP string
+		expect   []string
+	}{
+		{"US IP", "8.8.8.8", []string{"20.0.0.1"}},
+		{"AU IP", "1.144.110.23", []string{"30.0.0.1"}},
+		{"Unknown country fallback", "127.0.0.1", []string{"20.0.0.1"}},
+	}
 
-	// Test with an AU IP, which should return AU backend
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("1.1.1.1"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"30.0.0.1"}, ips)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, ips)
+		})
+	}
+}
 
-	// Test with an IP that doesn't match any backend country
-	ips, err = g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("127.0.0.1"))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"20.0.0.1"}, ips) // fallback to lowest priority (US backend)
+func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
+	db, err := geoip2.Open("coredns/GeoLite2-City.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-City.mmdb not found, skipping real MaxMind city test")
+	}
+	defer db.Close()
+
+	backendParis := &MockBackend{Backend: &Backend{Address: "10.10.10.1", Enable: true, Priority: 10, Cities: []string{"Paris"}}}
+	backendBerlin := &MockBackend{Backend: &Backend{Address: "20.20.20.1", Enable: true, Priority: 20, Cities: []string{"Berlin"}}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "30.30.30.1", Enable: true, Priority: 30, Cities: []string{"OtherCity"}}}
+	backendParis.On("IsHealthy").Return(true)
+	backendBerlin.On("IsHealthy").Return(true)
+	backendOther.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendParis, backendBerlin, backendOther},
+	}
+
+	g := &GSLB{
+		GeoIPCityDB: db,
+	}
+
+	testCases := []struct {
+		name     string
+		clientIP string
+		expect   []string
+	}{
+		{"Paris IP", "81.185.159.80", []string{"10.10.10.1"}},        // IP in Paris
+		{"Berlin IP", "141.20.20.1", []string{"20.20.20.1"}},         // IP in Berlin
+		{"Unknown city fallback", "8.8.8.8", []string{"10.10.10.1"}}, // fallback to lowest priority
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, ips)
+		})
+	}
+}
+
+func TestGSLB_PickBackendWithGeoIP_ASN_MaxMind(t *testing.T) {
+	db, err := geoip2.Open("coredns/GeoLite2-ASN.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-ASN.mmdb not found, skipping real MaxMind ASN test")
+	}
+	defer db.Close()
+
+	backendGoogle := &MockBackend{Backend: &Backend{Address: "8.8.8.8", Enable: true, Priority: 10, ASNs: []uint{15169}}}     // Google ASN
+	backendCloudflare := &MockBackend{Backend: &Backend{Address: "1.1.1.1", Enable: true, Priority: 20, ASNs: []uint{13335}}} // Cloudflare ASN
+	backendOther := &MockBackend{Backend: &Backend{Address: "9.9.9.9", Enable: true, Priority: 30, ASNs: []uint{0}}}
+	backendGoogle.On("IsHealthy").Return(true)
+	backendCloudflare.On("IsHealthy").Return(true)
+	backendOther.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendGoogle, backendCloudflare, backendOther},
+	}
+
+	g := &GSLB{
+		GeoIPASNDB: db,
+	}
+
+	testCases := []struct {
+		name     string
+		clientIP string
+		expect   []string
+	}{
+		{"Google ASN IP", "8.8.8.8", []string{"8.8.8.8"}},
+		{"Cloudflare ASN IP", "1.1.1.1", []string{"1.1.1.1"}},
+		{"Unknown ASN fallback", "9.9.9.9", []string{"8.8.8.8"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expect, ips)
+		})
+	}
 }
 
 // TestResponseWriter is a mock dns.ResponseWriter for testing

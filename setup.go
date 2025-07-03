@@ -51,7 +51,6 @@ func setup(c *caddy.Controller) error {
 			}
 
 			locationMapPath := ""
-			geoipMaxmindPath := ""
 			// Parse additional options
 			for c.NextBlock() {
 				switch c.Val() {
@@ -94,30 +93,45 @@ func setup(c *caddy.Controller) error {
 						return c.ArgErr()
 					}
 					locationMapPath = c.Val()
-					if err := g.loadLocationMap(locationMapPath); err != nil {
+					if err := g.loadCustomLocationsMap(locationMapPath); err != nil {
 						return fmt.Errorf("failed to load location map: %v", err)
 					}
-				case "geoip_maxmind_db":
+				case "geoip_country_maxmind_db":
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
-					geoipMaxmindPath = c.Val()
-					if geoipMaxmindPath != "" {
-						geoipDB, err := geoip2.Open(geoipMaxmindPath)
+					countryPath := c.Val()
+					if countryPath != "" {
+						countryDB, err := geoip2.Open(countryPath)
 						if err != nil {
-							return fmt.Errorf("failed to open MaxMind DB: %v", err)
+							return fmt.Errorf("failed to open country MaxMind DB: %v", err)
 						}
-						g.GeoIPMaxmindDB = geoipDB
+						g.GeoIPCountryDB = countryDB
 					}
-				case "resolution_idle_multiplier":
+				case "geoip_city_maxmind_db":
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
-					mult, err := strconv.Atoi(c.Val())
-					if err != nil || mult < 1 {
-						return fmt.Errorf("invalid value for resolution_idle_multiplier: %v", c.Val())
+					cityPath := c.Val()
+					if cityPath != "" {
+						cityDB, err := geoip2.Open(cityPath)
+						if err != nil {
+							return fmt.Errorf("failed to open city MaxMind DB: %v", err)
+						}
+						g.GeoIPCityDB = cityDB
 					}
-					g.ResolutionIdleMultiplier = mult
+				case "geoip_asn_maxmind_db":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					asnPath := c.Val()
+					if asnPath != "" {
+						asnDB, err := geoip2.Open(asnPath)
+						if err != nil {
+							return fmt.Errorf("failed to open ASN MaxMind DB: %v", err)
+						}
+						g.GeoIPASNDB = asnDB
+					}
 				case "healthcheck_idle_multiplier":
 					if !c.NextArg() {
 						return c.ArgErr()
@@ -274,7 +288,7 @@ func watchCustomLocationMap(g *GSLB, locationMapPath string) {
 				}
 				reloadTimer = time.AfterFunc(500*time.Millisecond, func() {
 					log.Debugf("custom location map file modified: %s", locationMapPath)
-					if err := g.loadLocationMap(locationMapPath); err != nil {
+					if err := g.loadCustomLocationsMap(locationMapPath); err != nil {
 						log.Errorf("failed to reload custom location map: %v", err)
 					} else {
 						log.Debug("custom location map reloaded successfully.")
