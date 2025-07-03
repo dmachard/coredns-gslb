@@ -7,22 +7,23 @@ import (
 	"time"
 
 	"github.com/creasty/defaults"
-	"github.com/stretchr/testify/mock"
 )
 
 // Backend represents an individual backend with health check settings.
 type Backend struct {
-	Fqdn         string
-	Description  string
-	Address      string
-	Priority     int
-	Enable       bool
-	HealthChecks []GenericHealthCheck
-	Timeout      string
-	Alive        bool
-	Location     string // Location (datacenter, region, etc.)
-	Country      string // Country code (for GeoIP by country)
-	mutex        sync.RWMutex
+	Fqdn            string               // Fully qualified domain name
+	Description     string               // Description of the backend
+	Address         string               // IP address or hostname
+	Priority        int                  // Priority for load balancing
+	Enable          bool                 // Enable or disable the backend
+	HealthChecks    []GenericHealthCheck // Health check configurations
+	Timeout         string               // Timeout for requests
+	Alive           bool                 // Indicates if the backend is alive
+	Countries       []string             // List of country codes for GeoIP
+	Cities          []string             // List of city names for GeoIP
+	ASNs            []uint               // List of ASNs for GeoIP
+	CustomLocations []string             // List of custom location strings
+	mutex           sync.RWMutex
 }
 
 func (b *Backend) Lock() {
@@ -65,24 +66,48 @@ func (b *Backend) GetTimeout() string {
 	return b.Timeout
 }
 
-func (b *Backend) GetLocation() string {
-	return b.Location
+func (b *Backend) GetCountries() []string {
+	return b.Countries
+}
+
+func (b *Backend) GetCities() []string {
+	return b.Cities
+}
+
+func (b *Backend) GetASNs() []uint {
+	return b.ASNs
+}
+
+func (b *Backend) GetCustomLocations() []string {
+	return b.CustomLocations
 }
 
 func (b *Backend) GetCountry() string {
-	return b.Country
+	if len(b.Countries) > 0 {
+		return b.Countries[0]
+	}
+	return ""
+}
+
+func (b *Backend) GetLocation() string {
+	if len(b.CustomLocations) > 0 {
+		return b.CustomLocations[0]
+	}
+	return ""
 }
 
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Description  string        `yaml:"description" default:""`
-		Address      string        `yaml:"address" default:"127.0.0.1"`
-		Priority     int           `yaml:"priority" default:"0"`
-		Enable       bool          `yaml:"enable" default:"true"`
-		Timeout      string        `yaml:"timeout" default:"5s"`
-		HealthChecks []HealthCheck `yaml:"healthchecks"`
-		Location     string        `yaml:"location" default:""`
-		Country      string        `yaml:"country" default:""`
+		Description     string        `yaml:"description" default:""`
+		Address         string        `yaml:"address" default:"127.0.0.1"`
+		Priority        int           `yaml:"priority" default:"0"`
+		Enable          bool          `yaml:"enable" default:"true"`
+		Timeout         string        `yaml:"timeout" default:"5s"`
+		HealthChecks    []HealthCheck `yaml:"healthchecks"`
+		Countries       []string      `yaml:"location_countries"`
+		Cities          []string      `yaml:"location_cities"`
+		ASNs            []uint        `yaml:"location_asns"`
+		CustomLocations []string      `yaml:"locations_custom"`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -94,8 +119,10 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.Enable = raw.Enable
 	b.Timeout = raw.Timeout
 	b.Description = raw.Description
-	b.Location = raw.Location
-	b.Country = raw.Country
+	b.Countries = raw.Countries
+	b.Cities = raw.Cities
+	b.ASNs = raw.ASNs
+	b.CustomLocations = raw.CustomLocations
 
 	for _, hc := range raw.HealthChecks {
 		specificHC, err := hc.ToSpecificHealthCheck()
@@ -210,24 +237,14 @@ type BackendInterface interface {
 	IsEnabled() bool
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
-	GetLocation() string
-	GetCountry() string
+	GetCountries() []string
+	GetCities() []string
+	GetASNs() []uint
+	GetCustomLocations() []string
 	IsHealthy() bool
 	runHealthChecks(retries int, timeout time.Duration)
 	removeBackend()
 	updateBackend(newBackend BackendInterface)
 	Lock()
 	Unlock()
-}
-
-// Mock Backend and Record
-// For testing purpopose
-type MockBackend struct {
-	mock.Mock
-	*Backend
-}
-
-func (m *MockBackend) IsHealthy() bool {
-	args := m.Called()
-	return args.Bool(0)
 }

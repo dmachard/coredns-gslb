@@ -103,7 +103,7 @@ func TestLoadConfigFile(t *testing.T) {
 	}
 }
 
-func TestLoadLocationMap(t *testing.T) {
+func TestLoadCustomLocationMap(t *testing.T) {
 	// Create a temporary YAML file for the location map
 	tmpFile, err := os.CreateTemp("", "location_map_test_*.yml")
 	if err != nil {
@@ -123,7 +123,7 @@ func TestLoadLocationMap(t *testing.T) {
 	tmpFile.Close()
 
 	g := &GSLB{}
-	err = g.loadLocationMap(tmpFile.Name())
+	err = g.loadCustomLocationsMap(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestLoadLocationMap(t *testing.T) {
 
 func TestLoadLocationMap_FileNotFound(t *testing.T) {
 	g := &GSLB{}
-	err := g.loadLocationMap("/nonexistent/location_map.yml")
+	err := g.loadCustomLocationsMap("/nonexistent/location_map.yml")
 	if err == nil {
 		t.Error("Expected error for missing file, got nil")
 	}
@@ -145,7 +145,7 @@ func TestLoadLocationMap_FileNotFound(t *testing.T) {
 
 func TestLoadLocationMap_EmptyPath(t *testing.T) {
 	g := &GSLB{}
-	err := g.loadLocationMap("")
+	err := g.loadCustomLocationsMap("")
 	if err != nil {
 		t.Errorf("Expected no error for empty path, got: %v", err)
 	}

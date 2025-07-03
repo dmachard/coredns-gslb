@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"gopkg.in/yaml.v3"
 )
 
@@ -13,8 +14,10 @@ func TestBackend_UnmarshalYAML(t *testing.T) {
 address: "127.0.0.1"
 priority: 10
 description: "helloworld"
-location: "eu-west-1"
-country: "FR"
+location_countries: ["FR", "DE"]
+location_cities: ["Paris", "Berlin"]
+location_asns: [64500, 64501]
+locations_custom: ["edge-eu", "edge-de"]
 enable: true
 timeout: "10s"
 healthchecks:
@@ -31,8 +34,10 @@ healthchecks:
 	assert.Equal(t, true, backend.Enable)
 	assert.Equal(t, "10s", backend.Timeout)
 	assert.Equal(t, "helloworld", backend.Description)
-	assert.Equal(t, "eu-west-1", backend.Location)
-	assert.Equal(t, "FR", backend.Country)
+	assert.ElementsMatch(t, []string{"FR", "DE"}, backend.Countries)
+	assert.ElementsMatch(t, []string{"Paris", "Berlin"}, backend.Cities)
+	assert.ElementsMatch(t, []uint{64500, 64501}, backend.ASNs)
+	assert.ElementsMatch(t, []string{"edge-eu", "edge-de"}, backend.CustomLocations)
 	assert.Len(t, backend.HealthChecks, 1)
 	assert.IsType(t, &HTTPHealthCheck{}, backend.HealthChecks[0])
 }
@@ -51,4 +56,16 @@ func TestBackend_RunHealthChecks(t *testing.T) {
 
 	// Assert that the backend's Alive status is true (since the mock always returns true)
 	assert.True(t, backend.Alive)
+}
+
+// Mock Backend and Record
+// For testing purpopose
+type MockBackend struct {
+	mock.Mock
+	*Backend
+}
+
+func (m *MockBackend) IsHealthy() bool {
+	args := m.Called()
+	return args.Bool(0)
 }

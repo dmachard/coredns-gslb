@@ -22,6 +22,8 @@ services:
       - ./coredns/gslb_config.example.com.yml:/gslb_config.example.com.yml
       - ./coredns/location_map.yml:/coredns/location_map.yml
       - ./coredns/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
+      - ./coredns/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
+      - ./coredns/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
       - ./coredns/healthcheck_custom.sh:/coredns/healthcheck_custom.sh:ro
     command: -conf /Corefile
     environment:

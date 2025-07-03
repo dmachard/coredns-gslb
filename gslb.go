@@ -19,8 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Define log to be a logger with the plugin name in it. T
-// his way we can just use log.Info and friends to log.
 var log = clog.NewWithPlugin("gslb")
 
 type GSLB struct {
@@ -37,13 +35,13 @@ type GSLB struct {
 	Mutex                     sync.RWMutex
 	UseEDNSCSubnet            bool
 	LocationMap               map[string]string
-	GeoIPMaxmindDB            *geoip2.Reader // Loaded MaxMind DB
+	GeoIPCountryDB            *geoip2.Reader // Loaded MaxMind DB (country)
+	GeoIPCityDB               *geoip2.Reader // Loaded MaxMind DB (city)
+	GeoIPASNDB                *geoip2.Reader // Loaded MaxMind DB (ASN)
 }
 
 func (g *GSLB) Name() string { return "gslb" }
 
-// ServeDNS implements the plugin.Handler interface. This method gets called when example is used
-// in a Server.
 func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	// Get domain and ensure it is fully qualified
 	q := r.Question[0]
@@ -78,7 +76,6 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	}
 }
 
-// extractClientIP extracts the client's IP and prefix length from EDNS or the remote address.
 func (g *GSLB) extractClientIP(w dns.ResponseWriter, r *dns.Msg) (net.IP, uint8) {
 	var clientIP net.IP
 	var prefixLen uint8 = 32 // Default for IPv4
@@ -124,7 +121,6 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 	return false
 }
 
-// handleAddressRecord handles both A and AAAA record queries for the domain.
 func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16) (int, error) {
 	record, exists := g.Records[domain]
 	if !exists {
@@ -152,9 +148,6 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
-// handleTXTRecord handles TXT record queries for the domain.
-// It returns a TXT record for each backend, summarizing its address, priority, health, and enabled status.
-// This is useful for debugging and monitoring: you can query the TXT record for a domain to see backend states.
 func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
 	record, exists := g.Records[domain]
 	if !exists {
@@ -216,7 +209,6 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 	return dns.RcodeSuccess, nil
 }
 
-// pickAllByType returns all the IP addresses of backends defined for a given domain, filtered by type (A or AAAA).
 func (g *GSLB) pickAllAddresses(domain string, recordType uint16) ([]string, error) {
 	record, exists := g.Records[domain]
 	if !exists {
@@ -360,15 +352,21 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 }
 
 func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP net.IP) ([]string, error) {
-	// 1. If MaxMind DB is loaded and at least one backend has a country field, route by country
-	if g.GeoIPMaxmindDB != nil && clientIP != nil {
-		recordCountry, err := g.GeoIPMaxmindDB.Country(clientIP)
+	// 1. Country-based routing (highest priority)
+	if g.GeoIPCountryDB != nil {
+		recordCountry, err := g.GeoIPCountryDB.Country(clientIP)
 		if err == nil && recordCountry != nil && recordCountry.Country.IsoCode != "" {
 			countryCode := recordCountry.Country.IsoCode
 			var matchedIPs []string
 			for _, backend := range record.Backends {
-				if backend.IsHealthy() && backend.IsEnabled() && strings.EqualFold(backend.GetCountry(), countryCode) {
-					matchedIPs = append(matchedIPs, backend.GetAddress())
+				if backend.IsHealthy() && backend.IsEnabled() {
+					countries := backend.GetCountries()
+					for _, c := range countries {
+						if strings.EqualFold(c, countryCode) {
+							matchedIPs = append(matchedIPs, backend.GetAddress())
+							break
+						}
+					}
 				}
 			}
 			if len(matchedIPs) > 0 {
@@ -377,19 +375,71 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 		}
 	}
 
-	// 2. Otherwise, if LocationMap is loaded, route by custom location
+	// 2. City-based routing (if city DB loaded)
+	if g.GeoIPCityDB != nil {
+		recordCity, err := g.GeoIPCityDB.City(clientIP)
+		if err == nil && recordCity != nil && recordCity.City.Names != nil {
+			cityName := recordCity.City.Names["en"]
+			if cityName != "" {
+				var matchedIPs []string
+				for _, backend := range record.Backends {
+					if backend.IsHealthy() && backend.IsEnabled() {
+						cities := backend.GetCities()
+						for _, c := range cities {
+							if strings.EqualFold(c, cityName) {
+								matchedIPs = append(matchedIPs, backend.GetAddress())
+								break
+							}
+						}
+					}
+				}
+				if len(matchedIPs) > 0 {
+					return matchedIPs, nil
+				}
+			}
+		}
+	}
+
+	// 3. ASN-based routing (if ASN DB loaded)
+	if g.GeoIPASNDB != nil {
+		recordASN, err := g.GeoIPASNDB.ASN(clientIP)
+		if err == nil && recordASN != nil && recordASN.AutonomousSystemNumber != 0 {
+			asn := recordASN.AutonomousSystemNumber
+			var matchedIPs []string
+			for _, backend := range record.Backends {
+				if backend.IsHealthy() && backend.IsEnabled() {
+					asns := backend.GetASNs()
+					for _, a := range asns {
+						if a == asn {
+							matchedIPs = append(matchedIPs, backend.GetAddress())
+							break
+						}
+					}
+				}
+			}
+			if len(matchedIPs) > 0 {
+				return matchedIPs, nil
+			}
+		}
+	}
+
+	// 4. Custom location map (subnet to location string)
 	g.Mutex.RLock()
 	locationMap := g.LocationMap
 	g.Mutex.RUnlock()
-	if len(locationMap) > 0 && clientIP != nil {
+	if len(locationMap) > 0 {
 		var matchedIPs []string
 		for _, backend := range record.Backends {
 			if backend.IsHealthy() && backend.IsEnabled() {
+				customLocs := backend.GetCustomLocations()
 				for subnet, location := range locationMap {
 					_, ipnet, err := net.ParseCIDR(subnet)
 					if err == nil && ipnet.Contains(clientIP) {
-						if backend.GetLocation() == location {
-							matchedIPs = append(matchedIPs, backend.GetAddress())
+						for _, loc := range customLocs {
+							if loc == location {
+								matchedIPs = append(matchedIPs, backend.GetAddress())
+								break
+							}
 						}
 						break
 					}
@@ -401,7 +451,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 		}
 	}
 
-	// 3. Fallback: return all healthy backends (failover)
+	// 5. Fallback: failover (priority order)
 	return g.pickBackendWithFailover(record, recordType)
 }
 
@@ -537,7 +587,7 @@ func (g *GSLB) GetResolutionIdleTimeout() time.Duration {
 	return d
 }
 
-func (g *GSLB) loadLocationMap(path string) error {
+func (g *GSLB) loadCustomLocationsMap(path string) error {
 	g.Mutex.Lock()
 	defer g.Mutex.Unlock()
 	if path == "" {
@@ -564,5 +614,3 @@ func (g *GSLB) loadLocationMap(path string) error {
 	g.LocationMap = m
 	return nil
 }
-
-// Context key for client info

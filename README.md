@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
+  <img src="https://img.shields.io/badge/go%20tests-43-green" alt="Go tests"/>
 </p>
 
 ## Name
@@ -31,7 +32,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-  - **GeoIP**: Routes clients to the closest backend by location (country, region)
+  - **GeoIP**: Routes clients to the closest backend by location (asn, country, city)
 - **Prometheus/OpenMetrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
@@ -43,8 +44,10 @@ gslb DB_YAML_FILE [ZONES...] {
     resolution_idle_timeout "3600s"   # Duration before slow healthcheck (default: 3600s)
     healthcheck_idle_multiplier 10      # Multiplier for slow healthcheck interval (default: 10)
     batch_size_start 100
-    geoip_custom_db /coredns/location_map.yml
-    geoip_maxmind_db /coredns/GeoLite2-Country.mmdb
+    geoip_country_maxmind_db /coredns/GeoLite2-Country.mmdb   # Enable GeoIP by country (MaxMind)
+    geoip_city_maxmind_db /coredns/GeoLite2-City.mmdb         # Enable GeoIP by city (MaxMind)
+    geoip_asn_maxmind_db /coredns/GeoLite2-ASN.mmdb           # Enable GeoIP by ASN (MaxMind)
+    geoip_custom_db /coredns/location_map.yml                 # Enable GeoIP by region/subnet (YAML map)
     use_edns_csubnet
 }
 ~~~
@@ -59,8 +62,10 @@ gslb DB_YAML_FILE [ZONES...] {
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
 * `healthcheck_idle_multiplier`: The multiplier for the healthcheck interval when a record is idle (default: 10).
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
+* `geoip_country_maxmind_db`: Path to a MaxMind GeoLite2-Country.mmdb file for country-based GeoIP backend selection. Used for `geoip` mode (country-based routing).
+* `geoip_city_maxmind_db`: Path to a MaxMind GeoLite2-City.mmdb file for city-based GeoIP backend selection. Used for `geoip` mode (city-based routing).
+* `geoip_asn_maxmind_db`: Path to a MaxMind GeoLite2-ASN.mmdb file for ASN-based GeoIP backend selection. Used for `geoip` mode (ASN-based routing).
 * `geoip_custom_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Used for `geoip` mode (location-based routing).
-* `geoip_maxmind_db`: Path to a MaxMind GeoLite2-Country.mmdb file for country-based GeoIP backend selection. Used for `geoip` mode (country-based routing). If both `geoip_maxmind_db` and `geoip_custom_db` are set, country-based selection is attempted first, then location-based, then fallback.
 * `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging. Recommended for deployments behind DNS forwarders or public resolvers.
 
 ## Examples
@@ -126,6 +131,28 @@ records:
 
 A complete example with all parameters is available in the folder coredns
 
+#### Example backend with all GeoIP location fields
+
+~~~yaml
+- address: "172.16.0.12"
+  location_country: [ "FR", "US" ]
+  location_city: [ "Paris", "London" ]
+  location_asn: [ "12345", "67890" ]
+  location_custom: [ "eu-west-1" ]
+  enable: true
+  priority: 1
+  healthchecks:
+    - type: grpc
+      params:
+        port: 9090
+        service: ""
+        timeout: 5s
+~~~
+
+- All `location_*` fields must be YAML lists (even if empty or with one value).
+- You can leave a list empty (`[ ]`) if you do not want to filter on that dimension.
+- This allows flexible matching by country, city, ASN, or custom tags.
+
 
 ## Selection modes
 
@@ -167,14 +194,16 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   ```
 
 ### GeoIP
-- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping) or by country using a MaxMind database. Requires the `geoip_custom_db` and/or `geoip_maxmind_db` option.
+- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping), by country, city, or ASN using MaxMind databases. Requires the `geoip_custom_db`, `geoip_country_maxmind_db`, `geoip_city_maxmind_db`, and/or `geoip_asn_maxmind_db` options.
 - **Use case:** Directs users to the nearest datacenter, region, or country for lower latency.
 - **Example (custom-location-based):**
   ```yaml
   mode: "geoip"
   backends:
-    - address: "10.0.0.1" # e.g. EU
-    - address: "192.168.1.1" # e.g. US
+    - address: "10.0.0.1"
+      location_custom: [ "eu-west-1" ]
+    - address: "192.168.1.1"
+      location_custom: [ "eu-west-2" ]
   ```
   And in your Corefile:
   ```
@@ -186,23 +215,53 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   ```yaml
   subnets:
     - subnet: "10.0.0.0/24"
-      location: "eu-west"
+      location: [ "eu-west" ]
     - subnet: "192.168.1.0/24"
-      location: "us-east"
+      location: [ "us-east" ]
   ```
 - **Example (country-based):**
   ```yaml
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      country: "FR"
+      location_country: [ "FR" ]
     - address: "20.0.0.1"
-      country: "US"
+      location_country: [ "US" ]
   ```
   And in your Corefile:
   ```
   gslb gslb_config.example.com.yml gslb.example.com {
       geoip_maxmind_db coredns/GeoLite2-Country.mmdb
+  }
+  ```
+- **Example (city-based):**
+  ```yaml
+  mode: "geoip"
+  backends:
+    - address: "10.0.0.1"
+      location_city: [ "Paris" ]
+    - address: "20.0.0.1"
+      location_city: [ "New York" ]
+  ```
+  And in your Corefile:
+  ```
+  gslb gslb_config.example.com.yml gslb.example.com {
+      geoip_maxmind_db coredns/GeoLite2-City.mmdb
+  }
+  ```
+- **Example (ASN-based):**
+  ```yaml
+  mode: "geoip"
+  backends:
+    - address: "10.0.0.1"
+      location_asn: [ "AS12345" ]
+    - address: "20.0.0.1"
+      location_asn: [ "AS67890" ]
+  ```
+  And in your Corefile:
+  ```
+  gslb gslb_config.example.com.yml gslb.example.com {
+      geoip_maxmind_db coredns/GeoLite2-ASN.mmdb
   }
   ```
 
