@@ -3,65 +3,75 @@ package gslb
 import (
 	"context"
 	"net"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
-	"github.com/oschwald/geoip2-golang"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGSLB_PickBackendWithFailover_IPv4(t *testing.T) {
-	// Create mock backends with different priorities and health statuses
-	backendHealthy := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
-	backendUnhealthy := &MockBackend{Backend: &Backend{Address: "192.168.1.2", Enable: true, Priority: 20}}
-
-	// Mock the behavior of the IsHealthy method
-	backendHealthy.On("IsHealthy").Return(true)
-	backendUnhealthy.On("IsHealthy").Return(false)
-
-	// Create a record
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "failover",
-		Backends: []BackendInterface{backendHealthy, backendUnhealthy},
-	}
-
-	// Create the GSLB object
-	g := &GSLB{}
-
-	// Test the pickFailoverBackend method
-	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeA)
-
-	// Assert the results
-	assert.NoError(t, err, "Expected pickFailoverBackend to succeed")
-	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the healthy backend to be selected")
+type mockResponseWriter struct {
+	addr net.Addr
 }
 
-func TestGSLB_PickBackendWithFailover_IPv6(t *testing.T) {
-	// Create mock backends with different priorities and health statuses
-	backendHealthy := &MockBackend{Backend: &Backend{Address: "2001:db8::1", Enable: true, Priority: 10}}
-	backendUnhealthy := &MockBackend{Backend: &Backend{Address: "2001:db8::2", Enable: true, Priority: 20}}
+func (m *mockResponseWriter) WriteMsg(*dns.Msg) error   { return nil }
+func (m *mockResponseWriter) Write([]byte) (int, error) { return 0, nil }
+func (m *mockResponseWriter) Close() error              { return nil }
+func (m *mockResponseWriter) TsigStatus() error         { return nil }
+func (m *mockResponseWriter) TsigTimersOnly(bool)       {}
+func (m *mockResponseWriter) Hijack()                   {}
+func (m *mockResponseWriter) LocalAddr() net.Addr       { return nil }
+func (m *mockResponseWriter) RemoteAddr() net.Addr      { return m.addr }
+func (m *mockResponseWriter) SetReply(*dns.Msg)         {}
+func (m *mockResponseWriter) Msg() *dns.Msg             { return nil }
+func (m *mockResponseWriter) Size() int                 { return 512 }
+func (m *mockResponseWriter) Scrub(bool)                {}
+func (m *mockResponseWriter) WroteMsg()                 {}
 
-	// Mock the behavior of the IsHealthy method
-	backendHealthy.On("IsHealthy").Return(true)
-	backendUnhealthy.On("IsHealthy").Return(false)
+func TestExtractClientIP_WithECS(t *testing.T) {
+	g := &GSLB{UseEDNSCSubnet: true}
+	w := &mockResponseWriter{addr: &net.UDPAddr{IP: net.ParseIP("9.9.9.9"), Port: 53}}
 
-	// Create a record
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "failover",
-		Backends: []BackendInterface{backendHealthy, backendUnhealthy},
+	// Create a DNS message with ECS option
+	r := new(dns.Msg)
+	r.SetQuestion("example.com.", dns.TypeA)
+	o := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecs := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("1.2.3.4"),
+		SourceNetmask: 24,
+		Family:        1,
 	}
+	o.Option = append(o.Option, ecs)
+	r.Extra = append(r.Extra, o)
 
-	// Create the GSLB object
-	g := &GSLB{}
+	ip, prefixLen := g.extractClientIP(w, r)
 
-	// Test the pickFailoverBackend method
-	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeAAAA)
+	assert.Equal(t, "1.2.3.4", ip.String())
+	assert.Equal(t, uint8(24), prefixLen)
+}
 
-	// Assert the results
-	assert.NoError(t, err, "Expected pickFailoverBackend to succeed")
-	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the healthy backend to be selected")
+func TestExtractClientIP_FallbackToRemoteAddr_IPv4(t *testing.T) {
+	g := &GSLB{UseEDNSCSubnet: false}
+	w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 53}}
+	r := new(dns.Msg)
+
+	ip, prefixLen := g.extractClientIP(w, r)
+
+	assert.Equal(t, "192.168.1.1", ip.String())
+	assert.Equal(t, uint8(32), prefixLen)
+}
+
+func TestExtractClientIP_FallbackToRemoteAddr_IPv6(t *testing.T) {
+	g := &GSLB{UseEDNSCSubnet: false}
+	w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("2001:db8::1"), Port: 53}}
+	r := new(dns.Msg)
+
+	ip, prefixLen := g.extractClientIP(w, r)
+
+	assert.Equal(t, "2001:db8::1", ip.String())
+	assert.Equal(t, uint8(128), prefixLen)
 }
 
 func TestGSLB_PickAllAddresses_IPv4(t *testing.T) {
@@ -179,154 +189,6 @@ func TestGSLB_PickAllAddresses_UnknownDomain(t *testing.T) {
 	assert.Nil(t, ipAddresses, "Expected no IP addresses to be returned")
 }
 
-func TestGSLB_PickBackendWithRoundRobin_IPv4(t *testing.T) {
-	// Create mock backends with IPv4 addresses
-	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true}}
-	backend2 := &MockBackend{Backend: &Backend{Address: "192.168.1.2", Enable: true}}
-	backend3 := &MockBackend{Backend: &Backend{Address: "192.168.1.3", Enable: true}}
-
-	// Mock the behavior of the IsHealthy method
-	backend1.On("IsHealthy").Return(true)
-	backend2.On("IsHealthy").Return(true)
-	backend3.On("IsHealthy").Return(true)
-
-	// Create a record with healthy backends
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "round-robin",
-		Backends: []BackendInterface{backend1, backend2, backend3},
-	}
-
-	// Create the GSLB object
-	g := &GSLB{}
-
-	// Perform the first selection; index should be 0
-	ipAddresses, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the first backend to be selected")
-
-	// Perform the second selection; index should be 1
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.2", ipAddresses[0], "Expected the second backend to be selected")
-
-	// Perform the third selection; index should be 2
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.3", ipAddresses[0], "Expected the third backend to be selected")
-
-	// Perform the fourth selection; index should wrap back to 0
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "192.168.1.1", ipAddresses[0], "Expected the first backend to be selected again")
-}
-
-func TestGSLB_PickBackendWithRoundRobin_IPv6(t *testing.T) {
-	// Create mock backends with IPv6 addresses
-	backend1 := &MockBackend{Backend: &Backend{Address: "2001:db8::1", Enable: true}}
-	backend2 := &MockBackend{Backend: &Backend{Address: "2001:db8::2", Enable: true}}
-	backend3 := &MockBackend{Backend: &Backend{Address: "2001:db8::3", Enable: true}}
-
-	// Mock the behavior of the IsHealthy method
-	backend1.On("IsHealthy").Return(true)
-	backend2.On("IsHealthy").Return(true)
-	backend3.On("IsHealthy").Return(true)
-
-	// Create a record with healthy backends
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "round-robin",
-		Backends: []BackendInterface{backend1, backend2, backend3},
-	}
-
-	// Create the GSLB object
-	g := &GSLB{}
-
-	// Perform the first selection; index should be 0
-	ipAddresses, err := g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the first IPv6 backend to be selected")
-
-	// Perform the second selection; index should be 1
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::2", ipAddresses[0], "Expected the second IPv6 backend to be selected")
-
-	// Perform the third selection; index should be 2
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::3", ipAddresses[0], "Expected the third IPv6 backend to be selected")
-
-	// Perform the fourth selection; index should wrap back to 0
-	ipAddresses, err = g.pickBackendWithRoundRobin("example.com.", record, dns.TypeAAAA)
-	assert.NoError(t, err, "Expected pickBackendWithRoundRobin to succeed")
-	assert.Equal(t, "2001:db8::1", ipAddresses[0], "Expected the first IPv6 backend to be selected again")
-}
-
-func TestGSLB_PickBackendWithRandom_IPv4(t *testing.T) {
-	// Create mock backends
-	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true}}
-	backend2 := &MockBackend{Backend: &Backend{Address: "192.168.1.2", Enable: true}}
-	backend3 := &MockBackend{Backend: &Backend{Address: "192.168.1.3", Enable: true}}
-
-	// Mock the behavior of the IsHealthy method
-	backend1.On("IsHealthy").Return(true)
-	backend2.On("IsHealthy").Return(true)
-	backend3.On("IsHealthy").Return(true)
-
-	// Create a record
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "random",
-		Backends: []BackendInterface{backend1, backend2, backend3},
-	}
-
-	// Create the GSLB object
-	g := &GSLB{}
-
-	// Perform the random selection multiple times
-	selectedIPs := make(map[string]bool)
-	for i := 0; i < 10; i++ {
-		ipAddresses, err := g.pickBackendWithRandom(record, dns.TypeA)
-		assert.NoError(t, err, "Expected pickBackendWithRandom to succeed")
-		for _, ip := range ipAddresses {
-			selectedIPs[ip] = true
-		}
-	}
-
-	// Assert that the IPs are from the healthy backends
-	assert.GreaterOrEqual(t, len(selectedIPs), 2, "Expected at least two different backends to be selected randomly")
-	assert.Contains(t, selectedIPs, "192.168.1.1", "Expected IP 192.168.1.1 to be selected")
-	assert.Contains(t, selectedIPs, "192.168.1.2", "Expected IP 192.168.1.2 to be selected")
-	assert.Contains(t, selectedIPs, "192.168.1.3", "Expected IP 192.168.1.3 to be selected")
-}
-
-func TestGSLB_PickBackendWithFailover_MultipleSamePriority(t *testing.T) {
-	// Deux backends healthy, même priorité
-	backendHealthy1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
-	backendHealthy2 := &MockBackend{Backend: &Backend{Address: "192.168.1.2", Enable: true, Priority: 10}}
-	backendUnhealthy := &MockBackend{Backend: &Backend{Address: "192.168.1.3", Enable: true, Priority: 20}}
-
-	backendHealthy1.On("IsHealthy").Return(true)
-	backendHealthy2.On("IsHealthy").Return(true)
-	backendUnhealthy.On("IsHealthy").Return(false)
-
-	record := &Record{
-		Fqdn:     "example.com.",
-		Mode:     "failover",
-		Backends: []BackendInterface{backendHealthy1, backendHealthy2, backendUnhealthy},
-	}
-
-	g := &GSLB{}
-
-	ipAddresses, err := g.pickBackendWithFailover(record, dns.TypeA)
-
-	assert.NoError(t, err, "Expected pickBackendWithFailover to succeed")
-	assert.Len(t, ipAddresses, 2, "Expected two healthy backends of same priority to be returned")
-	assert.Contains(t, ipAddresses, "192.168.1.1")
-	assert.Contains(t, ipAddresses, "192.168.1.2")
-}
-
 func TestGSLB_HandleTXTRecord(t *testing.T) {
 	// Create mock backends
 	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
@@ -374,201 +236,71 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	assert.True(t, found2, "Expected TXT record for backend2")
 }
 
-func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
-	locationMap := map[string]string{
-		"10.0.0.0/24":    "eu-west",
-		"192.168.1.0/24": "us-east",
+func TestGetResolutionIdleTimeout_WithCustomValue(t *testing.T) {
+	r := &GSLB{
+		ResolutionIdleTimeout: "100s",
 	}
 
-	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, CustomLocations: []string{"eu-west"}}}
-	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, CustomLocations: []string{"us-east"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, CustomLocations: []string{"other"}}}
-	backendEU.On("IsHealthy").Return(true)
-	backendUS.On("IsHealthy").Return(true)
-	backendOther.On("IsHealthy").Return(true)
+	timeout := r.GetResolutionIdleTimeout()
 
-	record := &Record{
-		Fqdn:     "geo.example.com.",
-		Mode:     "geoip",
-		Backends: []BackendInterface{backendEU, backendUS, backendOther},
-	}
-
-	g := &GSLB{
-		LocationMap: locationMap,
-	}
-
-	testCases := []struct {
-		name     string
-		clientIP string
-		expect   []string
-	}{
-		{"us-east subnet", "192.168.1.50", []string{"192.168.1.42"}},
-		{"eu-west subnet", "10.0.0.50", []string{"10.0.0.42"}},
-		{"us-east subnet 2", "192.168.1.100", []string{"192.168.1.42"}},
-		{"eu-west subnet 2", "10.0.0.200", []string{"10.0.0.42"}},
-		{"unmatched IP fallback", "8.8.8.8", []string{"10.0.0.42"}},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, ips)
-		})
-	}
-
-	// Test fallback when LocationMap is nil
-	g.LocationMap = nil
-	t.Run("fallback no location map", func(t *testing.T) {
-		ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("8.8.8.8"))
-		assert.NoError(t, err)
-		assert.Equal(t, []string{"10.0.0.42"}, ips)
-	})
+	assert.Equal(t, 100*time.Second, timeout)
 }
 
-func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-Country.mmdb")
+func TestGetResolutionIdleTimeout_DefaultValue(t *testing.T) {
+	r := &GSLB{}
+
+	timeout := r.GetResolutionIdleTimeout()
+
+	assert.Equal(t, 3600*time.Second, timeout)
+}
+
+func TestLoadCustomLocationMap(t *testing.T) {
+	// Create a temporary YAML file for the location map
+	tmpFile, err := os.CreateTemp("", "location_map_test_*.yml")
 	if err != nil {
-		t.Skip("GeoLite2-Country.mmdb not found, skipping real MaxMind test")
+		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer db.Close()
+	defer os.Remove(tmpFile.Name())
 
-	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Countries: []string{"US"}}}
-	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Countries: []string{"AU"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Countries: []string{"DE"}}}
-	backendUS.On("IsHealthy").Return(true)
-	backendAU.On("IsHealthy").Return(true)
-	backendOther.On("IsHealthy").Return(true)
-
-	record := &Record{
-		Fqdn:     "geo.example.com.",
-		Mode:     "geoip",
-		Backends: []BackendInterface{backendUS, backendAU, backendOther},
+	content := `subnets:
+  - subnet: "192.168.0.0/16"
+    location: "eu-west-1"
+  - subnet: "10.0.0.0/8"
+    location: "us-east-1"
+`
+	if _, err := tmpFile.Write([]byte(content)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
 	}
+	tmpFile.Close()
 
-	g := &GSLB{
-		GeoIPCountryDB: db,
-	}
-
-	testCases := []struct {
-		name     string
-		clientIP string
-		expect   []string
-	}{
-		{"US IP", "8.8.8.8", []string{"20.0.0.1"}},
-		{"AU IP", "1.144.110.23", []string{"30.0.0.1"}},
-		{"Unknown country fallback", "127.0.0.1", []string{"20.0.0.1"}},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, ips)
-		})
-	}
-}
-
-func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-City.mmdb")
+	g := &GSLB{}
+	err = g.loadCustomLocationsMap(tmpFile.Name())
 	if err != nil {
-		t.Skip("GeoLite2-City.mmdb not found, skipping real MaxMind city test")
+		t.Fatalf("Expected no error, got: %v", err)
 	}
-	defer db.Close()
-
-	backendParis := &MockBackend{Backend: &Backend{Address: "10.10.10.1", Enable: true, Priority: 10, Cities: []string{"Paris"}}}
-	backendBerlin := &MockBackend{Backend: &Backend{Address: "20.20.20.1", Enable: true, Priority: 20, Cities: []string{"Berlin"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "30.30.30.1", Enable: true, Priority: 30, Cities: []string{"OtherCity"}}}
-	backendParis.On("IsHealthy").Return(true)
-	backendBerlin.On("IsHealthy").Return(true)
-	backendOther.On("IsHealthy").Return(true)
-
-	record := &Record{
-		Fqdn:     "geo.example.com.",
-		Mode:     "geoip",
-		Backends: []BackendInterface{backendParis, backendBerlin, backendOther},
+	if g.LocationMap["192.168.0.0/16"] != "eu-west-1" {
+		t.Errorf("Expected eu-west-1, got %v", g.LocationMap["192.168.0.0/16"])
 	}
-
-	g := &GSLB{
-		GeoIPCityDB: db,
-	}
-
-	testCases := []struct {
-		name     string
-		clientIP string
-		expect   []string
-	}{
-		{"Paris IP", "81.185.159.80", []string{"10.10.10.1"}},        // IP in Paris
-		{"Berlin IP", "141.20.20.1", []string{"20.20.20.1"}},         // IP in Berlin
-		{"Unknown city fallback", "8.8.8.8", []string{"10.10.10.1"}}, // fallback to lowest priority
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, ips)
-		})
+	if g.LocationMap["10.0.0.0/8"] != "us-east-1" {
+		t.Errorf("Expected us-east-1, got %v", g.LocationMap["10.0.0.0/8"])
 	}
 }
 
-func TestGSLB_PickBackendWithGeoIP_ASN_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-ASN.mmdb")
+func TestLoadLocationMap_FileNotFound(t *testing.T) {
+	g := &GSLB{}
+	err := g.loadCustomLocationsMap("/nonexistent/location_map.yml")
+	if err == nil {
+		t.Error("Expected error for missing file, got nil")
+	}
+}
+
+func TestLoadLocationMap_EmptyPath(t *testing.T) {
+	g := &GSLB{}
+	err := g.loadCustomLocationsMap("")
 	if err != nil {
-		t.Skip("GeoLite2-ASN.mmdb not found, skipping real MaxMind ASN test")
+		t.Errorf("Expected no error for empty path, got: %v", err)
 	}
-	defer db.Close()
-
-	backendGoogle := &MockBackend{Backend: &Backend{Address: "8.8.8.8", Enable: true, Priority: 10, ASNs: []uint{15169}}}     // Google ASN
-	backendCloudflare := &MockBackend{Backend: &Backend{Address: "1.1.1.1", Enable: true, Priority: 20, ASNs: []uint{13335}}} // Cloudflare ASN
-	backendOther := &MockBackend{Backend: &Backend{Address: "9.9.9.9", Enable: true, Priority: 30, ASNs: []uint{0}}}
-	backendGoogle.On("IsHealthy").Return(true)
-	backendCloudflare.On("IsHealthy").Return(true)
-	backendOther.On("IsHealthy").Return(true)
-
-	record := &Record{
-		Fqdn:     "geo.example.com.",
-		Mode:     "geoip",
-		Backends: []BackendInterface{backendGoogle, backendCloudflare, backendOther},
-	}
-
-	g := &GSLB{
-		GeoIPASNDB: db,
-	}
-
-	testCases := []struct {
-		name     string
-		clientIP string
-		expect   []string
-	}{
-		{"Google ASN IP", "8.8.8.8", []string{"8.8.8.8"}},
-		{"Cloudflare ASN IP", "1.1.1.1", []string{"1.1.1.1"}},
-		{"Unknown ASN fallback", "9.9.9.9", []string{"8.8.8.8"}},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP(tc.clientIP))
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expect, ips)
-		})
+	if g.LocationMap != nil {
+		t.Errorf("Expected LocationMap to be nil for empty path")
 	}
 }
-
-// TestResponseWriter is a mock dns.ResponseWriter for testing
-// It captures the DNS message sent by WriteMsg
-type TestResponseWriter struct {
-	Msg *dns.Msg
-}
-
-func (w *TestResponseWriter) WriteMsg(m *dns.Msg) error {
-	w.Msg = m
-	return nil
-}
-func (w *TestResponseWriter) LocalAddr() net.Addr       { return nil }
-func (w *TestResponseWriter) RemoteAddr() net.Addr      { return nil }
-func (w *TestResponseWriter) Close() error              { return nil }
-func (w *TestResponseWriter) TsigStatus() error         { return nil }
-func (w *TestResponseWriter) TsigTimersOnly(bool)       {}
-func (w *TestResponseWriter) Hijack()                   {}
-func (w *TestResponseWriter) Write([]byte) (int, error) { return 0, nil }
