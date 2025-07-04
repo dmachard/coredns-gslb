@@ -31,7 +31,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
   - **Round Robin**: Cycles through backends in sequence
-  - **GeoIP**: Routes clients to the closest backend by location (asn, country, city)
+  - **GeoIP**: Routes clients to the closest backend by location (asn, country, city, custom location)
 - **Prometheus/OpenMetrics**:
   - Counters and histograms for all healthchecks (success, failure, duration)
 
@@ -363,8 +363,7 @@ healthchecks:
 
 ⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
 
-Executes a custom shell script to determine backend health. 
-The script should return exit code 0 for healthy, non-zero for unhealthy.
+Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
 
 ```yaml
 healthchecks:
@@ -384,7 +383,7 @@ The following environment variables are available:
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
-- `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type (http, tcp, icmp, custom), backend address, and result (success/fail).
+- `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type, backend address, and result (success/fail).
 - `gslb_healthcheck_duration_seconds{type, address}`: Duration of healthchecks in seconds, labeled by type and backend address.
 
 Example Corefile block:
