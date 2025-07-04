@@ -2,7 +2,8 @@
 
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
-  <img src="https://img.shields.io/badge/go%20tests-43-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-76-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-56%-green" alt="Go coverage"/>
 </p>
 
 ## Name
