@@ -7,6 +7,10 @@
   <img src="https://img.shields.io/badge/lines%20of%20code-2128-blue" alt="Lines of code"/>
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/dmachard/coredns-gslb?logo=github&sort=semver" alt="release"/>
+</p>
+
 ## Name
 
 *gslb* - A plugin for managing Global Server Load Balancing (GSLB) functionality in CoreDNS. 
