@@ -1,0 +1,57 @@
+name: Release
+
+on:
+    push:
+        tags:
+        - 'v*'
+
+permissions:
+    contents: write
+
+env:
+    COREDNS_VERSION: "1.12.2"
+    GO_VERSION: "1.23"
+
+jobs:
+    release:
+        name: Release
+        runs-on: ubuntu-latest
+        steps:
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: ${{ env.GO_VERSION }}
+
+            - name: Checkout coredns
+              uses: actions/checkout@v4
+              with:
+                repository: coredns/coredns
+                ref: v${{ env.COREDNS_VERSION }}
+                path: coredns
+
+            - name: Checkout gslb plugin
+              uses: actions/checkout@v4
+              with:
+                path: coredns-gslb
+
+            - name: Build release binary
+              run: |
+                set -x -e
+                cd coredns
+                sed -i '/file:file/i gslb:../coredns-gslb' plugin.cfg
+                go mod edit -replace github.com/dmachard/coredns-gslb=../coredns-gslb
+                go mod tidy
+                go generate
+                make -f Makefile.release release -e LINUX_ARCH="amd64 arm64" VERSION=${{ github.event.release.tag_name }}
+
+            - name: Build release binary sha256
+              run: (cd release; for asset in `ls -A *tgz`; do sha256sum $asset > $asset.sha256; done)
+
+            - name: Upload Assets
+              uses: softprops/action-gh-release@v2
+              with:
+                name: ${{ github.ref_name }}
+                tag_name: ${{ github.ref_name }}
+                files: |
+                    coredns/release/*.tgz
+                    release/*.tgz.sha256

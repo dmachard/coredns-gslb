@@ -23,10 +23,10 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Test
-      run: go test -cover -v .
+      run: make tests
+
+    - name: Line of Code
+      run: make stats
 
     - name: Bench
       run: go test -bench .
-
-    - name: Bench with race detection
-      run: go test -race .
