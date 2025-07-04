@@ -1,4 +1,4 @@
-.PHONY: tests
+.PHONY: tests stats
 
 tests:
 	@echo "Running tests..."
@@ -12,3 +12,13 @@ tests:
 	echo "Code coverage: $$COVERAGE"
 
 	@rm -f test_output.json coverage.out
+
+stats:
+	@echo "Calculating Go code statistics (excluding tests)..."
+	@TOTAL_LINES=$$(find . -name '*.go' ! -name '*_test.go' -print0 | xargs -0 cat | wc -l); \
+	COMMENT_LINES=$$(find . -name '*.go' ! -name '*_test.go' -print0 | xargs -0 grep -E '^\s*//' | wc -l); \
+	CODE_LINES=$$((TOTAL_LINES - COMMENT_LINES)); \
+	echo "Total lines       : $$TOTAL_LINES"; \
+	echo "Comment lines     : $$COMMENT_LINES"; \
+	echo "Effective code lines: $$CODE_LINES"
+
