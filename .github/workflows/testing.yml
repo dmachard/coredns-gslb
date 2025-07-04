@@ -25,5 +25,8 @@ jobs:
     - name: Test
       run: make tests
 
+    - name: Line of Code
+      run: make stats
+
     - name: Bench
       run: go test -bench .

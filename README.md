@@ -4,6 +4,7 @@
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20tests-76-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-56%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-2128-blue" alt="Lines of code"/>
 </p>
 
 ## Name
