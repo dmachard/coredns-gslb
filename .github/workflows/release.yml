@@ -47,6 +47,18 @@ jobs:
           go generate
           make -f Makefile.release release -e LINUX_ARCH="amd64 arm64" VERSION=${{ github.ref_name }}
       
+      - name: Rename release archives
+        run: |
+          cd coredns/release
+          for file in coredns_*.tgz; do
+            newname=$(echo "$file" | sed 's/coredns_/coredns_gslb_/')
+            mv "$file" "$newname"
+          done
+          for file in coredns_*.tgz.sha256; do
+            newname=$(echo "$file" | sed 's/coredns_/coredns_gslb_/')
+            mv "$file" "$newname"
+          done
+
       - name: Build release binary sha256
         run: |
           cd coredns/release
