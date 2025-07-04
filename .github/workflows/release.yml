@@ -45,6 +45,13 @@ jobs:
           go get github.com/dmachard/coredns-gslb
           go generate
           make -f Makefile.release release -e LINUX_ARCH="amd64 arm64" VERSION=${{ github.ref_name }}
+
+      - name: Build release binary sha256
+        run: |
+          cd coredns/release
+          for asset in *.tgz; do 
+            sha256sum "$asset" > "$asset.sha256"
+          done
       
       - name: Rename release archives
         run: |
@@ -58,13 +65,6 @@ jobs:
             mv "$file" "$newname"
           done
 
-      - name: Build release binary sha256
-        run: |
-          cd coredns/release
-          for asset in *.tgz; do 
-            sha256sum "$asset" > "$asset.sha256"
-          done
-      
       - name: Upload Assets
         uses: softprops/action-gh-release@v2
         with:
