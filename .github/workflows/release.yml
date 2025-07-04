@@ -36,7 +36,6 @@ jobs:
 
       - name: Build release binary
         run: |
-          cat /etc/passwd
           set -x -e
           cd coredns
           # Add plugin to plugin.cfg with GitHub module path
