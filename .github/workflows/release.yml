@@ -42,12 +42,14 @@ jobs:
         run: |
           set -x -e
           cd coredns
-          # Add plugin to plugin.cfg
+          # Add plugin to plugin.cfg with local path
           sed -i '/file:file/i gslb:gslb' plugin.cfg
-          # Initialize go module and add dependencies
+          # Add replace directive for local plugin
+          go mod edit -replace github.com/coredns/coredns/plugin/gslb=./plugin/gslb
           go mod tidy
           go generate
           make -f Makefile.release release -e LINUX_ARCH="amd64 arm64" VERSION=${{ github.ref_name }}
+      
       
       - name: Build release binary sha256
         run: |
