@@ -17,13 +17,13 @@ Before opening a pull request, please read the following guidelines to ensure sm
 Build CoreDNS with the plugin
 
 ~~~ bash
-sudo docker compose --progress=plain build
+sudo docker compose -f docker-compose.dev.yml --progress=plain build
 ~~~
 
 Start the stack (CoreDNS + webapps)
 
 ~~~ bash
-sudo docker compose up -d 
+sudo docker compose -f docker-compose.dev.yml up -d
 ~~~
 
 Wait some seconds and test the DNS resolution

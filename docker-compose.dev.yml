@@ -1,0 +1,70 @@
+networks:
+  gslb_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.0.0/24
+
+services:
+  # create coredns with GSLB plugin
+  coredns:
+    build:
+      context: .
+      dockerfile: coredns/Dockerfile
+    container_name: coredns
+    ports:
+      - "8053:53/udp"
+      - "8053:53/tcp"
+      - "9153:9153/tcp"
+    volumes:
+      - ./coredns/Corefile:/Corefile
+      - ./coredns/db.gslb.example.com:/db.gslb.example.com
+      - ./coredns/gslb_config.example.com.yml:/gslb_config.example.com.yml
+      - ./coredns/location_map.yml:/coredns/location_map.yml
+      - ./coredns/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
+      - ./coredns/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
+      - ./coredns/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
+      - ./coredns/healthcheck_custom.sh:/coredns/healthcheck_custom.sh:ro
+    command: -conf /Corefile
+    environment:
+      - COREDNS_LOG_LEVEL=debug
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.9
+
+  # create webapp to simulate web application to monitor
+  webapp10:
+    build:
+      context: ./webapp
+    ports:
+      - "10443:443"
+    environment:
+      - APP_NAME=WebApplication10
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.10
+
+  # create webapp to simulate a second web application to monitor
+  webapp11:
+    build:
+      context: ./webapp
+    ports:
+      - "11443:443"
+    environment:
+      - APP_NAME=WebApplication11
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.11
+
+  # create webapp to simulate a third web application with gRPC health endpoint
+  webapp12:
+    build:
+      context: ./webapp
+    ports:
+      - "12990:9090"  # Expose gRPC port
+    environment:
+      - APP_NAME=WebApplication12
+      - ENABLE_GRPC_HEALTH=1  # Custom env to enable gRPC health endpoint in the app (implement in webapp if needed)
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.12
