@@ -1,9 +1,6 @@
 name: Go Cross-Platform Build
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -25,4 +22,4 @@ jobs:
         run: |
           PLATFORM=${{ matrix.platform }}  
           TAG=$(echo "$PLATFORM" | tr '/' '-')
-          docker build --platform $PLATFORM --file coredns/Dockerfile -t coredns_gslb:$TAG
+          docker build --platform $PLATFORM --file coredns/Dockerfile -t coredns_gslb:$TAG .
