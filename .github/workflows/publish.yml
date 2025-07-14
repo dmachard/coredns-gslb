@@ -1,0 +1,29 @@
+name: Docker Push
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  dockerhub:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build the Docker image
+      run: |
+        docker build . --file coredns/Dockerfile -t coredns_gslb
+
+    - name: Tag image
+      run: |
+        docker tag coredns_gslb dmachard/coredns_gslb:${{ github.event.release.tag_name }}
+        docker tag coredns_gslb dmachard/coredns_gslb:latest
+
+    - name: Upload to DockerHub
+      run: |
+        echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_LOGIN }}" --password-stdin
+        docker push dmachard/coredns_gslb:latest
+        docker push dmachard/coredns_gslb:${{ github.event.release.tag_name }}

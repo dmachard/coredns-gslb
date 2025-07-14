@@ -17,13 +17,13 @@ Before opening a pull request, please read the following guidelines to ensure sm
 Build CoreDNS with the plugin
 
 ~~~ bash
-sudo docker compose --progress=plain build
+sudo docker compose -f docker-compose.dev.yml --progress=plain build
 ~~~
 
 Start the stack (CoreDNS + webapps)
 
 ~~~ bash
-sudo docker compose up -d 
+sudo docker compose -f docker-compose.dev.yml up -d
 ~~~
 
 Wait some seconds and test the DNS resolution
@@ -36,7 +36,7 @@ $ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
 Stop the webapp 1 to simulate a failover
 
 ~~~ bash
-sudo docker compose stop webapp10
+sudo docker compose -f docker-compose.dev.yml stop webapp10
 ~~~
 
 Wait 30 seconds, then resolve again:
@@ -49,7 +49,7 @@ $ dig -p 8053 @127.0.0.1 webapp.gslb.example.com +short
 Restart Webapp 1:
 
 ~~~ bash
-sudo docker compose start webapp10
+sudo docker compose -f docker-compose.dev.yml start webapp10
 ~~~
 
 Wait a few seconds, then resolve again to observe traffic switching back to Webapp 1:
