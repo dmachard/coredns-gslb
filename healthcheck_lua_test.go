@@ -209,20 +209,6 @@ func TestLuaHealthCheck_MetricGet_Timeout_TLSVerify(t *testing.T) {
 	}
 }
 
-func TestLuaHealthCheck_SSHExec_Timeout(t *testing.T) {
-	// Ce test vérifie juste que le paramètre timeout est accepté et ne plante pas (pas de vrai serveur SSH ici)
-	script := `local out = ssh_exec("127.0.0.1", "user", "pass", "echo ok", 1); return out == ""`
-	check := &LuaHealthCheck{
-		Script:  script,
-		Timeout: 2 * time.Second,
-	}
-	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
-	result := check.PerformCheck(backend, "fqdn.test.", 1)
-	if !result {
-		t.Errorf("Expected Lua healthcheck to handle ssh_exec timeout gracefully (no SSH server)")
-	}
-}
-
 func TestLuaHealthCheck_MetricGet_Auth(t *testing.T) {
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
@@ -248,5 +234,19 @@ func TestLuaHealthCheck_MetricGet_Auth(t *testing.T) {
 	result := check.PerformCheck(backend, "fqdn.test.", 1)
 	if !result {
 		t.Errorf("Expected Lua healthcheck to succeed with metric_get and HTTP Basic auth")
+	}
+}
+
+func TestLuaHealthCheck_SSHExec_Timeout(t *testing.T) {
+	// Ce test vérifie juste que le paramètre timeout est accepté et ne plante pas (pas de vrai serveur SSH ici)
+	script := `local out = ssh_exec("127.0.0.1", "user", "pass", "echo ok", 1); return out ~= nil`
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to handle ssh_exec timeout gracefully (no SSH server)")
 	}
 }
