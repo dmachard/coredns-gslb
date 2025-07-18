@@ -490,7 +490,6 @@ You can then scrape metrics at http://localhost:9153/metrics
 For production environments requiring high availability and scalability, 
 the CoreDNS-GSLB can be deployed as below to ensure resilience and performance
 
-For Multi-Datacenter Deployment
 In this model:
   - Each CoreDNS-GSLB instance is deployed with the same configuration across datacenters.
   - All GSLB nodes monitor the same backend pool, ensuring consistent health-based decisions regardless of location.
