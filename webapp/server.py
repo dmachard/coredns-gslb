@@ -5,6 +5,7 @@ import http.server
 import ssl
 import argparse
 from concurrent import futures
+import json
 
 # gRPC imports
 try:
@@ -19,10 +20,17 @@ from http.server import BaseHTTPRequestHandler
 def run_https_server(port, name, certfile, keyfile):
     class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            msg = f"Welcome to {name}"
-            self.wfile.write(msg.encode())
+            if self.path == "/api/health":
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                resp = {"status": "green", "number_of_nodes": 3}
+                self.wfile.write(json.dumps(resp).encode())
+            else:
+                self.send_response(200)
+                self.end_headers()
+                msg = f"Welcome to {name}"
+                self.wfile.write(msg.encode())
 
     httpd = http.server.HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)

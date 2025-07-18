@@ -4,7 +4,7 @@
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20tests-85-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-60%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-2138-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-2434-blue" alt="Lines of code"/>
 </p>
 
 <p align="center">
@@ -33,6 +33,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **ICMP**: checks if the backend responds to ICMP echo (ping).
   - **MySQL**: checks database status
   - **gRPC**: checks gRPC health service
+  - **LUA**: executes a user-defined Lua script for advanced, programmable healthchecks (HTTP, JSON, Prometheus metrics, SSH, and more)
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
@@ -365,24 +366,105 @@ healthchecks:
 
 - `service` can be left empty to check the overall server health, or set to a specific service name.
 
-### Additional: Custom Script
+### Lua
 
-⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
+Executes an embedded Lua script to determine the backend health. The script can use the helper functions http_get(url) and json_decode(str) to perform HTTP requests and parse JSON. The global variable 'backend' provides the backend's address and priority.
 
-Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
+**Available helpers:**
+- `http_get(url, [timeout_sec], [user], [password], [tls_verify])`: Performs an HTTP(S) GET request. Optional timeout (seconds), HTTP Basic auth (user, password), and TLS verification (default true).
+- `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
+- `metric_get(url, metric_name, [timeout_sec], [tls_verify], [user], [password])`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found). Optional timeout (seconds), TLS verification (default true), and HTTP Basic auth (user, password).
+- `ssh_exec(host, user, password, command, [timeout_sec])`: Executes a command via SSH and returns the output as a string. Optional timeout (seconds).
+- `backend`: A Lua table with fields:
+    - `address`: the backend's address (string)
+    - `priority`: the backend's priority (number)
 
+
+**Example: Use http_get and json_decode**
 ```yaml
 healthchecks:
-  - type: custom
+  - type: lua
     params:
-      script: "/coredns/healthcheck_custom.sh"  # Path to the script
-      timeout: 5s                                # Script timeout (default: 5s)
+      timeout: 5s
+      script: |
+        local health = json_decode(http_get("http://" .. backend.address .. ":9200/_cluster/health"))
+        if health and health.status == "green" and health.number_of_nodes >= 3 then
+          return true
+        else
+          return false
+        end
 ```
 
-The following environment variables are available: 
-- `BACKEND_ADDRESS`
-- `BACKEND_PRIORITY`
+**Example: Get a Prometheus metric value**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("http://myapp:9100/metrics", "nginx_connections_active")
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
 
+**Example: Check a process via SSH**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local output = ssh_exec("10.0.0.5", "monitor", "secret", "pgrep nginx")
+        if output and output ~= "" then
+          return true
+        else
+          return false
+        end
+```
+
+**Example: metric_get with timeout and skip TLS verification**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("https://myapp:9100/metrics", "nginx_connections_active", 2, false)
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
+
+**Example: ssh_exec with timeout**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local out = ssh_exec("10.0.0.5", "user", "pass", "pgrep nginx", 3)
+        if out ~= "" then
+          return true
+        end
+        return false
+```
+
+**Example: metric_get with HTTP Basic authentication**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("https://myapp:9100/metrics", "nginx_connections_active", 2, true, "user", "pass")
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
 ## Observability
 
 ### Metrics
@@ -403,6 +485,81 @@ Example Corefile block:
 
 You can then scrape metrics at http://localhost:9153/metrics
 
+## High Availability and Scalability
+
+For production environments requiring high availability and scalability, 
+the CoreDNS-GSLB can be deployed as below to ensure resilience and performance
+
+In this model:
+  - Each CoreDNS-GSLB instance is deployed with the same configuration across datacenters.
+  - All GSLB nodes monitor the same backend pool, ensuring consistent health-based decisions regardless of location.
+  - GeoDNS logic (via EDNS Client Subnet and GeoIP) allows each instance to respond optimally from its point of view.
+
+```
+              DNS Query for gslb.example.com
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ Authoritative NS │
+                    │   ns1 / ns2      │
+                    └────────┬─────────┘
+                             │ Delegation to:
+         ┌───────────────────┴──────────────────┐
+         ▼                                      ▼
+┌───────────────────┐              ┌───────────────────┐
+│   Datacenter 1    │              │   Datacenter 2    │
+│                   │              │                   │
+│  ┌─────────────┐  │              │  ┌─────────────┐  │
+│  │  dnsdist    │  │              │  │  dnsdist    │  │
+│  │ with cache  │  │              │  │ with cache  │  │
+│  └─────┬───────┘  │              │  └─────┬───────┘  │
+│        │          │              │        │          │
+│    ┌───┴───┐      │              │    ┌───┴───┐      │
+│    │CoreDNS│      │              │    │CoreDNS│      │
+│    │GSLB   │      │              │    │GSLB   │      │
+│    └───┬───┘      │              │    └───┬───┘      │
+│        │          │              │        │          │
+└───────────────────┘              └───────────────────┘
+         │                                  │           
+         ▼                                  ▼           
+ ┌────────────────────────────────────────────────────┐
+ │                 Backends to check                  │
+ │           web1.dc1.com   web1.dc2.com              │
+ │           web2.dc1.com    web2.dc2.com             │
+ │           api1.dc1.com    api1.dc2.com             │
+ └────────────────────────────────────────────────────┘
+```
+
+Per-Datacenter Scalability Model
+
+```
+                    ┌─────────────────┐
+                    │   dnsdist       │
+                    │ (Load Balancer) │
+                    └─────────┬───────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ CoreDNS-GSLB/1  │  │ CoreDNS-GSLB/2  │  │ CoreDNS-GSLB/3  │
+│ Zones: A, B     │  │ Zones: C, D     │  │ Zones: E, F     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ Backend Pool 1  │  │ Backend Pool 2  │  │ Backend Pool 3  │
+│ web1.dc1.com    │  │ api1.dc1.com    │  │ db1.dc1.com     │
+│ web2.dc1.com    │  │ api2.dc1.com    │  │ db2.dc1.com     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+**Benefits:**
+- **Horizontal scalability**: Add more CoreDNS instances as needed
+- **Zone isolation**: Each CoreDNS instance handles specific zones
+- **Load balancing**: dnsdist distributes queries intelligently
+- **Fault tolerance**: If one CoreDNS fails, others continue serving their zones
+- **Resource optimization**: Each instance optimized for its zone workload
 
 ## Troubleshooting
 

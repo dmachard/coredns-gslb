@@ -82,19 +82,6 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		}
 		return &tcpCheck, nil
 
-	case "custom":
-		var customCheck CustomHealthCheck
-		customCheck.SetDefault()
-		paramsYaml, err := yaml.Marshal(hc.Params)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
-		}
-		err = yaml.Unmarshal(paramsYaml, &customCheck)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode custom params: %v", err)
-		}
-		return &customCheck, nil
-
 	case "mysql":
 		var mysqlCheck MySQLHealthCheck
 		mysqlCheck.SetDefault()
@@ -120,6 +107,20 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 			return nil, fmt.Errorf("failed to decode gRPC params: %v", err)
 		}
 		return &grpcCheck, nil
+
+	case "lua":
+		var luaCheck LuaHealthCheck
+		luaCheck.SetDefault()
+
+		paramsYaml, err := yaml.Marshal(hc.Params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+		}
+		err = yaml.Unmarshal(paramsYaml, &luaCheck)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode Lua params: %v", err)
+		}
+		return &luaCheck, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported healthcheck type: %s", hc.Type)
