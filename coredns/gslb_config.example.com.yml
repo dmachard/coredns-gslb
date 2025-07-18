@@ -50,11 +50,7 @@ records:
           params:
             timeout: 2s  # Timeout for the ICMP request
             count:  3  # Number of ICMP requests to send
-        - type: custom
-          params:
-            script: "/coredns/healthcheck_custom.sh"
-            timeout: 5s
-  
+
   # Define a GSLB record for webapp2.gslb.example.com with GeoIP mode 
   webapp-geoip-region.gslb.example.com.:
     owner: "admin"

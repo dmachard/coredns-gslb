@@ -33,6 +33,7 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
   - **ICMP**: checks if the backend responds to ICMP echo (ping).
   - **MySQL**: checks database status
   - **gRPC**: checks gRPC health service
+  - **LUA**: executes a user-defined Lua script for advanced, programmable healthchecks (HTTP, JSON, Prometheus metrics, SSH, and more)
 - **Selection Modes**:
   - **Failover**: Routes traffic to the highest-priority available backend
   - **Random**: Distributes traffic randomly across backends
@@ -365,23 +366,63 @@ healthchecks:
 
 - `service` can be left empty to check the overall server health, or set to a specific service name.
 
-### Additional: Custom Script
+### Lua
 
-⚠️ **Security Warning**: Custom scripts execute with CoreDNS privileges and have no sandboxing. Use with extreme caution in production environments.
+Executes an embedded Lua script to determine the backend health. The script can use the helper functions http_get(url) and json_decode(str) to perform HTTP requests and parse JSON. The global variable 'backend' provides the backend's address and priority.
 
-Executes a custom shell script to determine backend health. The script should return exit code 0 for healthy, non-zero for unhealthy.
+**Available helpers:**
+- `http_get(url)`: Performs an HTTP GET request and returns the response body as a string (or an empty string on error).
+- `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
+- `metric_get(url, metric_name)`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found).
+- `ssh_exec(host, user, password, command)`: Executes a command via SSH and returns the output as a string.
+- `backend`: A Lua table with fields:
+    - `address`: the backend's address (string)
+    - `priority`: the backend's priority (number)
 
+
+**Example: Use http_get and json_decode**
 ```yaml
 healthchecks:
-  - type: custom
+  - type: lua
     params:
-      script: "/coredns/healthcheck_custom.sh"  # Path to the script
-      timeout: 5s                                # Script timeout (default: 5s)
+      timeout: 5s
+      script: |
+        local health = json_decode(http_get("http://" .. backend.address .. ":9200/_cluster/health"))
+        if health and health.status == "green" and health.number_of_nodes >= 3 then
+          return true
+        else
+          return false
+        end
 ```
 
-The following environment variables are available: 
-- `BACKEND_ADDRESS`
-- `BACKEND_PRIORITY`
+**Example: Get a Prometheus metric value**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("http://myapp:9100/metrics", "nginx_connections_active")
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
+
+**Example: Check a process via SSH**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local output = ssh_exec("10.0.0.5", "monitor", "secret", "pgrep nginx")
+        if output and output ~= "" then
+          return true
+        else
+          return false
+        end
+```
 
 ## Observability
 
