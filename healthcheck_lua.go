@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"crypto/tls"
+
 	"github.com/melbahja/goph"
 	gopherlua "github.com/yuin/gopher-lua"
 	ssh "golang.org/x/crypto/ssh"
@@ -66,6 +68,7 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 			L.SetGlobal("json_decode", L.NewFunction(luaJSONDecode))
 			L.SetGlobal("metric_get", L.NewFunction(luaMetricGet))
 			L.SetGlobal("ssh_exec", L.NewFunction(luaSSHExec))
+			L.SetGlobal("tls_cert_days_left", L.NewFunction(luaTLSCertDaysLeft))
 
 			// Inject backend table
 			backendTable := L.NewTable()
@@ -113,6 +116,7 @@ func luaHTTPGet(L *gopherlua.LState) int {
 	url := L.ToString(1)
 	var timeout int = 10 // default timeout 10s
 	var user, pass string
+	var tlsVerify = true
 	argc := L.GetTop()
 	if argc >= 2 {
 		timeout = L.ToInt(2)
@@ -120,6 +124,9 @@ func luaHTTPGet(L *gopherlua.LState) int {
 	if argc >= 4 {
 		user = L.ToString(3)
 		pass = L.ToString(4)
+	}
+	if argc >= 5 {
+		tlsVerify = L.ToBool(5)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
@@ -132,7 +139,14 @@ func luaHTTPGet(L *gopherlua.LState) int {
 		auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
 		req.Header.Add("Authorization", "Basic "+auth)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	client := http.DefaultClient
+	if !tlsVerify {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		L.Push(gopherlua.LString(""))
 		return 1
@@ -295,28 +309,24 @@ func sshInsecureIgnoreHostKey(host string, remote net.Addr, key ssh.PublicKey) e
 	return nil // Accept all keys (for healthcheck only)
 }
 
-// Helper: convert Go value to Lua value
-func goToLua(L *gopherlua.LState, v interface{}) gopherlua.LValue {
-	switch val := v.(type) {
-	case string:
-		return gopherlua.LString(val)
-	case float64:
-		return gopherlua.LNumber(val)
-	case bool:
-		return gopherlua.LBool(val)
-	case map[string]interface{}:
-		tbl := L.NewTable()
-		for k, v2 := range val {
-			L.SetField(tbl, k, goToLua(L, v2))
-		}
-		return tbl
-	case []interface{}:
-		tbl := L.NewTable()
-		for i, v2 := range val {
-			L.RawSet(tbl, gopherlua.LNumber(i+1), goToLua(L, v2))
-		}
-		return tbl
-	default:
-		return gopherlua.LString(fmt.Sprintf("%v", val))
+// Helper: tls_cert_days_left(host, port)
+func luaTLSCertDaysLeft(L *gopherlua.LState) int {
+	host := L.ToString(1)
+	port := L.ToInt(2)
+	addr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		L.Push(gopherlua.LNil)
+		return 1
 	}
+	defer conn.Close()
+	certs := conn.ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		L.Push(gopherlua.LNil)
+		return 1
+	}
+	notAfter := certs[0].NotAfter
+	days := int(time.Until(notAfter).Hours() / 24)
+	L.Push(gopherlua.LNumber(days))
+	return 1
 }
