@@ -1,6 +1,8 @@
 package gslb
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,6 +61,8 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 
 			// Inject helpers
 			L.SetGlobal("http_get", L.NewFunction(luaHTTPGet))
+			L.SetGlobal("http_get_ex", L.NewFunction(luaHTTPGetEx))
+			L.SetGlobal("http_get_auth", L.NewFunction(luaHTTPGetAuth))
 			L.SetGlobal("json_decode", L.NewFunction(luaJSONDecode))
 			L.SetGlobal("metric_get", L.NewFunction(luaMetricGet))
 			L.SetGlobal("ssh_exec", L.NewFunction(luaSSHExec))
@@ -107,7 +111,84 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 // Helper: http_get(url) in Lua
 func luaHTTPGet(L *gopherlua.LState) int {
 	url := L.ToString(1)
-	resp, err := http.Get(url)
+	var timeout int = 10 // default timeout 10s
+	var user, pass string
+	argc := L.GetTop()
+	if argc >= 2 {
+		timeout = L.ToInt(2)
+	}
+	if argc >= 4 {
+		user = L.ToString(3)
+		pass = L.ToString(4)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	if user != "" || pass != "" {
+		auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+		req.Header.Add("Authorization", "Basic "+auth)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	L.Push(gopherlua.LString(string(body)))
+	return 1
+}
+
+// Helper: http_get_ex(url, timeout_sec)
+func luaHTTPGetEx(L *gopherlua.LState) int {
+	url := L.ToString(1)
+	timeout := L.ToInt(2)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	L.Push(gopherlua.LString(string(body)))
+	return 1
+}
+
+// Helper: http_get_auth(url, user, password, timeout_sec)
+func luaHTTPGetAuth(L *gopherlua.LState) int {
+	url := L.ToString(1)
+	user := L.ToString(2)
+	pass := L.ToString(3)
+	timeout := L.ToInt(4)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		L.Push(gopherlua.LString(""))
+		return 1
+	}
+	auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+	req.Header.Add("Authorization", "Basic "+auth)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		L.Push(gopherlua.LString(""))
 		return 1

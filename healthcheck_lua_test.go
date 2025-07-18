@@ -109,3 +109,79 @@ func TestLuaHealthCheck_MetricGet(t *testing.T) {
 		t.Errorf("Expected Lua healthcheck to succeed with metric_get")
 	}
 }
+
+func TestLuaHealthCheck_HttpGet_Simple(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"status":"green"}`))
+	}))
+	defer ts.Close()
+
+	script := fmt.Sprintf(`
+		local body = http_get("%s")
+		local health = json_decode(body)
+		if health and health.status == "green" then return true end
+		return false
+	`, ts.URL)
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to succeed with http_get simple")
+	}
+}
+
+func TestLuaHealthCheck_HttpGet_Timeout(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		w.Write([]byte(`{"status":"green"}`))
+	}))
+	defer ts.Close()
+
+	script := fmt.Sprintf(`
+		local body = http_get("%s", 1)
+		return body == ""
+	`, ts.URL)
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 3 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to timeout with http_get")
+	}
+}
+
+func TestLuaHealthCheck_HttpGet_Auth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth == "Basic dXNlcjpwYXNz" { // user:pass
+			w.Write([]byte(`{"status":"green"}`))
+		} else {
+			w.WriteHeader(401)
+		}
+	}))
+	defer ts.Close()
+
+	script := fmt.Sprintf(`
+		local body = http_get("%s", 2, "user", "pass")
+		local health = json_decode(body)
+		if health and health.status == "green" then return true end
+		return false
+	`, ts.URL)
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to succeed with http_get auth")
+	}
+}

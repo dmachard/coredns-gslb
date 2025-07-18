@@ -371,7 +371,7 @@ healthchecks:
 Executes an embedded Lua script to determine the backend health. The script can use the helper functions http_get(url) and json_decode(str) to perform HTTP requests and parse JSON. The global variable 'backend' provides the backend's address and priority.
 
 **Available helpers:**
-- `http_get(url)`: Performs an HTTP GET request and returns the response body as a string (or an empty string on error).
+- `http_get(url, [timeout_sec], [user], [password])`: Performs an HTTP(S) GET request. Optional timeout (seconds) and HTTP Basic auth (user, password).
 - `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
 - `metric_get(url, metric_name)`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found).
 - `ssh_exec(host, user, password, command)`: Executes a command via SSH and returns the output as a string.
@@ -422,6 +422,21 @@ healthchecks:
         else
           return false
         end
+```
+
+**Example: Simple HTTP GET**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local body = http_get("https://myapp/api/health")
+        local health = json_decode(body)
+        if health and health.status == "green" then
+          return true
+        end
+        return false
 ```
 
 ## Observability
