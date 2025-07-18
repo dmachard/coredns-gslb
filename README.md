@@ -465,9 +465,143 @@ healthchecks:
         end
         return false
 ```
-
 ## Observability
 
 ### Metrics
 
-If you enable the `
+If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
+
+- `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type, backend address, and result (success/fail).
+- `gslb_healthcheck_duration_seconds{type, address}`: Duration of healthchecks in seconds, labeled by type and backend address.
+
+Example Corefile block:
+
+~~~
+. {
+    prometheus
+    ...
+}
+~~~
+
+You can then scrape metrics at http://localhost:9153/metrics
+
+## High Availability and Scalability
+
+For production environments requiring high availability and scalability, 
+the CoreDNS-GSLB can be deployed as below to ensure resilience and performance
+
+For Multi-Datacenter Deployment
+In this model:
+  - Each CoreDNS-GSLB instance is deployed with the same configuration across datacenters.
+  - All GSLB nodes monitor the same backend pool, ensuring consistent health-based decisions regardless of location.
+  - GeoDNS logic (via EDNS Client Subnet and GeoIP) allows each instance to respond optimally from its point of view.
+
+```
+              DNS Query for gslb.example.com
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ Authoritative NS │
+                    │   ns1 / ns2      │
+                    └────────┬─────────┘
+                             │ Delegation to:
+         ┌───────────────────┴──────────────────┐
+         ▼                                      ▼
+┌───────────────────┐              ┌───────────────────┐
+│   Datacenter 1    │              │   Datacenter 2    │
+│                   │              │                   │
+│  ┌─────────────┐  │              │  ┌─────────────┐  │
+│  │  dnsdist    │  │              │  │  dnsdist    │  │
+│  │ with cache  │  │              │  │ with cache  │  │
+│  └─────┬───────┘  │              │  └─────┬───────┘  │
+│        │          │              │        │          │
+│    ┌───┴───┐      │              │    ┌───┴───┐      │
+│    │CoreDNS│      │              │    │CoreDNS│      │
+│    │GSLB   │      │              │    │GSLB   │      │
+│    └───┬───┘      │              │    └───┬───┘      │
+│        │          │              │        │          │
+└───────────────────┘              └───────────────────┘
+         │                                  │           
+         ▼                                  ▼           
+ ┌────────────────────────────────────────────────────┐
+ │                 Backends to check                  │
+ │           web1.dc1.com   web1.dc2.com              │
+ │           web2.dc1.com    web2.dc2.com             │
+ │           api1.dc1.com    api1.dc2.com             │
+ └────────────────────────────────────────────────────┘
+```
+
+Per-Datacenter Scalability Model
+
+```
+                    ┌─────────────────┐
+                    │   dnsdist       │
+                    │ (Load Balancer) │
+                    └─────────┬───────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ CoreDNS-GSLB/1  │  │ CoreDNS-GSLB/2  │  │ CoreDNS-GSLB/3  │
+│ Zones: A, B     │  │ Zones: C, D     │  │ Zones: E, F     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ Backend Pool 1  │  │ Backend Pool 2  │  │ Backend Pool 3  │
+│ web1.dc1.com    │  │ api1.dc1.com    │  │ db1.dc1.com     │
+│ web2.dc1.com    │  │ api2.dc1.com    │  │ db2.dc1.com     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+**Benefits:**
+- **Horizontal scalability**: Add more CoreDNS instances as needed
+- **Zone isolation**: Each CoreDNS instance handles specific zones
+- **Load balancing**: dnsdist distributes queries intelligently
+- **Fault tolerance**: If one CoreDNS fails, others continue serving their zones
+- **Resource optimization**: Each instance optimized for its zone workload
+
+## Troubleshooting
+
+### To log Health Checks
+
+Example Corefile block:
+
+~~~
+. {
+    # To log healthcheck results
+    debug
+}
+~~~
+
+### TXT Record Support for Debugging
+
+The GSLB plugin supports DNS TXT queries for any managed domain. When you query a domain with type TXT, the plugin returns a TXT record for each backend, summarizing:
+- Backend address (IP)
+- Priority
+- Health status (healthy/unhealthy)
+- Enabled status (true/false)
+
+This feature is useful for debugging and monitoring: you can instantly see the state of all backends for a domain with a single DNS TXT query.
+
+**Example:**
+
+```
+dig TXT webapp.gslb.example.com.
+```
+
+**Sample response:**
+
+```
+webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.10 | Priority: 1 | Status: healthy | Enabled: true"
+webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.11 | Priority: 2 | Status: unhealthy | Enabled: true"
+```
+
+This makes it easy to monitor backend health and configuration in real time using standard DNS tools.
+
+
+## Contributions
+
+Contributions are welcome!
+Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.
