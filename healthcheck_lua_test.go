@@ -185,3 +185,68 @@ func TestLuaHealthCheck_HttpGet_Auth(t *testing.T) {
 		t.Errorf("Expected Lua healthcheck to succeed with http_get auth")
 	}
 }
+
+func TestLuaHealthCheck_MetricGet_Timeout_TLSVerify(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("nginx_connections_active 42\n"))
+	}))
+	defer ts.Close()
+
+	script := fmt.Sprintf(`
+		local value = metric_get("%s", "nginx_connections_active", 2, false)
+		if value and value == 42 then return true end
+		return false
+	`, ts.URL)
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to succeed with metric_get timeout/tls_verify")
+	}
+}
+
+func TestLuaHealthCheck_SSHExec_Timeout(t *testing.T) {
+	// Ce test vérifie juste que le paramètre timeout est accepté et ne plante pas (pas de vrai serveur SSH ici)
+	script := `local out = ssh_exec("127.0.0.1", "user", "pass", "echo ok", 1); return out == ""`
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to handle ssh_exec timeout gracefully (no SSH server)")
+	}
+}
+
+func TestLuaHealthCheck_MetricGet_Auth(t *testing.T) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth == "Basic dXNlcjpwYXNz" { // user:pass
+			w.Write([]byte("nginx_connections_active 42\n"))
+		} else {
+			w.WriteHeader(401)
+		}
+	}))
+	defer ts.Close()
+
+	script := fmt.Sprintf(`
+		local value = metric_get("%s", "nginx_connections_active", 2, false, "user", "pass")
+		if value and value == 42 then return true end
+		return false
+	`, ts.URL)
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to succeed with metric_get and HTTP Basic auth")
+	}
+}

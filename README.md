@@ -373,8 +373,8 @@ Executes an embedded Lua script to determine the backend health. The script can 
 **Available helpers:**
 - `http_get(url, [timeout_sec], [user], [password], [tls_verify])`: Performs an HTTP(S) GET request. Optional timeout (seconds), HTTP Basic auth (user, password), and TLS verification (default true).
 - `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
-- `metric_get(url, metric_name)`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found).
-- `ssh_exec(host, user, password, command)`: Executes a command via SSH and returns the output as a string.
+- `metric_get(url, metric_name, [timeout_sec], [tls_verify], [user], [password])`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found). Optional timeout (seconds), TLS verification (default true), and HTTP Basic auth (user, password).
+- `ssh_exec(host, user, password, command, [timeout_sec])`: Executes a command via SSH and returns the output as a string. Optional timeout (seconds).
 - `backend`: A Lua table with fields:
     - `address`: the backend's address (string)
     - `priority`: the backend's priority (number)
@@ -424,67 +424,50 @@ healthchecks:
         end
 ```
 
+**Example: metric_get with timeout and skip TLS verification**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("https://myapp:9100/metrics", "nginx_connections_active", 2, false)
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
+
+**Example: ssh_exec with timeout**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local out = ssh_exec("10.0.0.5", "user", "pass", "pgrep nginx", 3)
+        if out ~= "" then
+          return true
+        end
+        return false
+```
+
+**Example: metric_get with HTTP Basic authentication**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        local value = metric_get("https://myapp:9100/metrics", "nginx_connections_active", 2, true, "user", "pass")
+        if value and value < 100 then
+          return true
+        end
+        return false
+```
+
 ## Observability
 
 ### Metrics
 
-If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
-
-- `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type, backend address, and result (success/fail).
-- `gslb_healthcheck_duration_seconds{type, address}`: Duration of healthchecks in seconds, labeled by type and backend address.
-
-Example Corefile block:
-
-~~~
-. {
-    prometheus
-    ...
-}
-~~~
-
-You can then scrape metrics at http://localhost:9153/metrics
-
-
-## Troubleshooting
-
-### To log Health Checks
-
-Example Corefile block:
-
-~~~
-. {
-    # To log healthcheck results
-    debug
-}
-~~~
-
-### TXT Record Support for Debugging
-
-The GSLB plugin supports DNS TXT queries for any managed domain. When you query a domain with type TXT, the plugin returns a TXT record for each backend, summarizing:
-- Backend address (IP)
-- Priority
-- Health status (healthy/unhealthy)
-- Enabled status (true/false)
-
-This feature is useful for debugging and monitoring: you can instantly see the state of all backends for a domain with a single DNS TXT query.
-
-**Example:**
-
-```
-dig TXT webapp.gslb.example.com.
-```
-
-**Sample response:**
-
-```
-webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.10 | Priority: 1 | Status: healthy | Enabled: true"
-webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.11 | Priority: 2 | Status: unhealthy | Enabled: true"
-```
-
-This makes it easy to monitor backend health and configuration in real time using standard DNS tools.
-
-
-## Contributions
-
-Contributions are welcome!
-Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.
+If you enable the `
