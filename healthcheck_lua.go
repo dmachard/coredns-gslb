@@ -49,7 +49,7 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 	start := time.Now()
 	result := false
 	defer func() {
-		ObserveHealthcheck(typeStr, address, start, result)
+		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
 	for i := 0; i < maxRetries; i++ {

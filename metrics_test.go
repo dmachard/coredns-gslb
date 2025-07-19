@@ -8,16 +8,16 @@ import (
 
 func TestMetrics_IncAndObserve(t *testing.T) {
 	RegisterMetrics()
-	IncHealthcheckTotal("http", "1.2.3.4", "success")
-	IncHealthcheckTotal("http", "1.2.3.4", "fail")
+	IncHealthcheckTotal("example.com.", "http", "1.2.3.4", "success")
+	IncHealthcheckTotal("example.com.", "http", "1.2.3.4", "fail")
 	ObserveHealthcheckDuration("http", "1.2.3.4", 0.123)
 	ObserveHealthcheckDuration("http", "1.2.3.4", 0.456)
 
-	count := testutil.ToFloat64(healthcheckTotal.WithLabelValues("http", "1.2.3.4", "success"))
+	count := testutil.ToFloat64(healthcheckTotal.WithLabelValues("example.com.", "http", "1.2.3.4", "success"))
 	if count != 1 {
 		t.Errorf("expected 1, got %v", count)
 	}
-	countFail := testutil.ToFloat64(healthcheckTotal.WithLabelValues("http", "1.2.3.4", "fail"))
+	countFail := testutil.ToFloat64(healthcheckTotal.WithLabelValues("example.com.", "http", "1.2.3.4", "fail"))
 	if countFail != 1 {
 		t.Errorf("expected 1, got %v", countFail)
 	}
@@ -104,5 +104,26 @@ func TestMetrics_ActiveBackends(t *testing.T) {
 	val2 := testutil.ToFloat64(activeBackends.WithLabelValues("test.com."))
 	if val2 != 1 {
 		t.Errorf("expected 1, got %v", val2)
+	}
+}
+
+func TestMetrics_BackendSelected(t *testing.T) {
+	RegisterMetrics()
+	IncBackendSelected("example.com.", "1.2.3.4")
+	IncBackendSelected("example.com.", "1.2.3.4")
+	IncBackendSelected("example.com.", "2.2.2.2")
+	IncBackendSelected("test.com.", "1.2.3.4")
+
+	val1 := testutil.ToFloat64(backendSelected.WithLabelValues("example.com.", "1.2.3.4"))
+	if val1 != 2 {
+		t.Errorf("expected 2, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(backendSelected.WithLabelValues("example.com.", "2.2.2.2"))
+	if val2 != 1 {
+		t.Errorf("expected 1, got %v", val2)
+	}
+	val3 := testutil.ToFloat64(backendSelected.WithLabelValues("test.com.", "1.2.3.4"))
+	if val3 != 1 {
+		t.Errorf("expected 1, got %v", val3)
 	}
 }

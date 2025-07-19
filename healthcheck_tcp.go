@@ -32,7 +32,7 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 	start := time.Now()
 	result := false
 	defer func() {
-		ObserveHealthcheck(typeStr, address, start, result)
+		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
 	timeout, err := time.ParseDuration(h.Timeout)

@@ -42,7 +42,7 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 	start := time.Now()
 	result := false
 	defer func() {
-		ObserveHealthcheck(typeStr, address, start, result)
+		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?timeout=%s", h.User, h.Password, h.Host, h.Port, h.Database, h.Timeout)
