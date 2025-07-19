@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/github/v/release/dmachard/coredns-gslb?logo=github&sort=semver" alt="release"/>
 </p>
 
+<p align="center">
+  <img src="docs/coredns_gslb_logo.svg" alt="CoreDNS-GSLB"/>
+</p>
+
 ## What is CoreDNS-GSLB?
 
 **CoreDNS-GSLB** is a plugin that provides Global Server Load Balancing functionality in **[CoreDNS](https://coredns.io/)**. It intelligently routes your traffic to healthy backends based on geographic location, priority, or load balancing algorithms.
