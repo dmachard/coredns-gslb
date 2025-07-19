@@ -323,6 +323,7 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 			log.Infof("Records [%s] removed", domain)
 		}
 	}
+	SetRecordsTotal(float64(len(g.Records)))
 }
 
 func (g *GSLB) initializeRecords(ctx context.Context) {
@@ -341,6 +342,7 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 			}
 		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
+	SetRecordsTotal(float64(len(g.Records)))
 }
 
 func (g *GSLB) batchRecords(batchSize int) [][]*Record {

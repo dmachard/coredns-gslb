@@ -19,9 +19,13 @@ import (
 // init registers this plugin.
 func init() { plugin.Register("gslb", setup) }
 
+// Version of the GSLB plugin, set at build time
+var Version = "dev"
+
 // setup is the function that gets called when the config parser see the token "gslb".
 func setup(c *caddy.Controller) error {
 	RegisterMetrics()
+	SetVersionInfo(Version)
 
 	config := dnsserver.GetConfig(c)
 

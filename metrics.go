@@ -81,6 +81,21 @@ var (
 		},
 		[]string{"name"},
 	)
+
+	recordsTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "gslb_records_total",
+			Help: "Total number of GSLB records (FQDNs) configured.",
+		},
+	)
+
+	versionInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_version_info",
+			Help: "GSLB build version info (label: version)",
+		},
+		[]string{"version"},
+	)
 )
 
 var metricsOnce sync.Once
@@ -96,6 +111,8 @@ func RegisterMetrics() {
 		prometheus.MustRegister(backendSelected)
 		prometheus.MustRegister(recordResolutionDuration)
 		prometheus.MustRegister(backendTotal)
+		prometheus.MustRegister(recordsTotal)
+		prometheus.MustRegister(versionInfo)
 	})
 }
 
@@ -129,6 +146,14 @@ func IncBackendSelected(name, address string) {
 
 func SetBackendTotal(name string, value float64) {
 	backendTotal.WithLabelValues(name).Set(value)
+}
+
+func SetRecordsTotal(value float64) {
+	recordsTotal.Set(value)
+}
+
+func SetVersionInfo(version string) {
+	versionInfo.WithLabelValues(version).Set(1)
 }
 
 func ObserveHealthcheck(name, typeStr, address string, start time.Time, result bool) {

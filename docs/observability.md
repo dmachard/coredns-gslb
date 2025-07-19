@@ -27,5 +27,7 @@ Available metrics:
 - `gslb_backend_active{name}`: Number of active (healthy) backends per record. The `name` label is the FQDN of the GSLB record.
 - `gslb_backend_selected_total{name, address}`: Total number of times a backend was selected for a record. The `name` label is the FQDN of the GSLB record, and `address` is the backend IP or hostname.
 - `gslb_backend_total{name}`: Total number of backends per record. The `name` label is the FQDN of the GSLB record.
+- `gslb_records_total`: Total number of GSLB records (FQDNs) configured.
+- `gslb_version_info{version}`: GSLB build version info. The `version` label is the running build version, always set to 1.
 
 You can then scrape metrics at http://localhost:9153/metrics

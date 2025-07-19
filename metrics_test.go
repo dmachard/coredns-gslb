@@ -156,3 +156,29 @@ func TestMetrics_BackendTotal(t *testing.T) {
 		t.Errorf("expected 1, got %v", val2)
 	}
 }
+
+func TestMetrics_RecordsTotal(t *testing.T) {
+	RegisterMetrics()
+	SetRecordsTotal(5)
+	SetRecordsTotal(3)
+
+	val := testutil.ToFloat64(recordsTotal)
+	if val != 3 {
+		t.Errorf("expected 3, got %v", val)
+	}
+}
+
+func TestMetrics_VersionInfo(t *testing.T) {
+	RegisterMetrics()
+	SetVersionInfo("1.2.3")
+	SetVersionInfo("dev")
+
+	val1 := testutil.ToFloat64(versionInfo.WithLabelValues("1.2.3"))
+	if val1 != 1 {
+		t.Errorf("expected 1, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(versionInfo.WithLabelValues("dev"))
+	if val2 != 1 {
+		t.Errorf("expected 1, got %v", val2)
+	}
+}
