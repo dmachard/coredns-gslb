@@ -64,6 +64,15 @@ var (
 		},
 		[]string{"name", "address"},
 	)
+
+	recordResolutionDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "gslb_record_resolution_duration_seconds",
+			Help:    "Duration of GSLB record resolution in seconds, labeled by record name and result",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"name", "result"},
+	)
 )
 
 var metricsOnce sync.Once
@@ -77,6 +86,7 @@ func RegisterMetrics() {
 		prometheus.MustRegister(healthcheckFailures)
 		prometheus.MustRegister(activeBackends)
 		prometheus.MustRegister(backendSelected)
+		prometheus.MustRegister(recordResolutionDuration)
 	})
 }
 
@@ -118,4 +128,8 @@ func ObserveHealthcheck(name, typeStr, address string, start time.Time, result b
 		IncHealthcheckTotal(name, typeStr, address, "fail")
 	}
 	ObserveHealthcheckDuration(typeStr, address, dur)
+}
+
+func ObserveRecordResolutionDuration(name, result string, duration float64) {
+	recordResolutionDuration.WithLabelValues(name, result).Observe(duration)
 }

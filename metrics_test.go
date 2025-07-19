@@ -127,3 +127,16 @@ func TestMetrics_BackendSelected(t *testing.T) {
 		t.Errorf("expected 1, got %v", val3)
 	}
 }
+
+func TestMetrics_RecordResolutionDuration(t *testing.T) {
+	RegisterMetrics()
+	ObserveRecordResolutionDuration("example.com.", "success", 0.5)
+	ObserveRecordResolutionDuration("example.com.", "success", 1.0)
+	ObserveRecordResolutionDuration("example.com.", "fail", 2.0)
+	ObserveRecordResolutionDuration("test.com.", "success", 0.25)
+
+	count := testutil.CollectAndCount(recordResolutionDuration)
+	if count != 3 {
+		t.Errorf("expected 3 series, got %v", count)
+	}
+}

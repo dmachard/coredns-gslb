@@ -22,6 +22,7 @@ Available metrics:
     - `protocol`: Protocol-level error (unexpected HTTP code, MySQL query error, gRPC status, Lua script error, etc.)
     - `other`: Any other or unknown failure
 - `gslb_record_resolution_total{name, result}`: Total number of GSLB record resolutions, labeled by record name and result.
+- `gslb_record_resolution_duration_seconds{name, result}`: Duration of GSLB record resolution in seconds, labeled by record name (FQDN) and result (success/fail).
 - `gslb_config_reload_total{result}`: Total number of config reloads, labeled by result (success/failure).
 - `gslb_backend_active{name}`: Number of active (healthy) backends per record. The `name` label is the FQDN of the GSLB record.
 - `gslb_backend_selected_total{name, address}`: Total number of times a backend was selected for a record. The `name` label is the FQDN of the GSLB record, and `address` is the backend IP or hostname.

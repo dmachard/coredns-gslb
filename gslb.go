@@ -129,6 +129,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		log.Error("No client info in context")
 		return dns.RcodeServerFailure, nil
 	}
+	start := time.Now()
 	ip, err := g.pickResponse(domain, recordType, ci.IP)
 	if err != nil {
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
@@ -137,12 +138,15 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		ipAddresses, err := g.pickAllAddresses(domain, recordType)
 		if err != nil {
 			log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
+			ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 			return dns.RcodeServerFailure, nil
 		}
 
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 		return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
 	}
 
+	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
 	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
