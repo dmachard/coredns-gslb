@@ -15,7 +15,7 @@ jobs:
 
     - name: Build the Docker image
       run: |
-        docker build . --file coredns/Dockerfile -t coredns_gslb
+        docker build . --file coredns/Dockerfile -t coredns_gslb --build-arg GSLB_VERSION=${{ github.event.release.tag_name }}
 
     - name: Tag image
       run: |

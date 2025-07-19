@@ -65,7 +65,10 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 		r.Backends = append(r.Backends, &backend)
 	}
-
+	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
+	for _, backend := range r.Backends {
+		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
+	}
 	return nil
 }
 
@@ -151,6 +154,10 @@ func (r *Record) updateRecord(newRecord *Record) {
 			i++
 		}
 	}
+	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
+	for _, backend := range r.Backends {
+		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
+	}
 }
 
 // GetScrapeInterval returns the health check interval for HTTPHealthCheck
@@ -218,6 +225,15 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 				backend.Unlock()
 				backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
 			}
+
+			// Update Prometheus gauge for active backends
+			healthyCount := 0
+			for _, backend := range r.Backends {
+				if backend.IsHealthy() {
+					healthyCount++
+				}
+			}
+			SetActiveBackends(r.Fqdn, float64(healthyCount))
 		case <-ctx.Done():
 			log.Debugf("[%s] stopping health checks", r.Fqdn)
 			return

@@ -129,6 +129,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		log.Error("No client info in context")
 		return dns.RcodeServerFailure, nil
 	}
+	start := time.Now()
 	ip, err := g.pickResponse(domain, recordType, ci.IP)
 	if err != nil {
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
@@ -137,12 +138,15 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		ipAddresses, err := g.pickAllAddresses(domain, recordType)
 		if err != nil {
 			log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
+			ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 			return dns.RcodeServerFailure, nil
 		}
 
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 		return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
 	}
 
+	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
 	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
@@ -256,7 +260,8 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	response.SetReply(r)
 	for _, ip := range ipAddresses {
 		var rr dns.RR
-		if recordType == dns.TypeA {
+		switch recordType {
+		case dns.TypeA:
 			rr = &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -266,7 +271,7 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 				},
 				A: net.ParseIP(ip),
 			}
-		} else if recordType == dns.TypeAAAA {
+		case dns.TypeAAAA:
 			rr = &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -283,9 +288,10 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	err := w.WriteMsg(response)
 	if err != nil {
 		log.Error("Failed to write DNS response: ", err)
+		IncRecordResolutions(domain, "fail")
 		return dns.RcodeServerFailure, err
 	}
-
+	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
 }
 
@@ -317,6 +323,7 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 			log.Infof("Records [%s] removed", domain)
 		}
 	}
+	SetRecordsConfiguredTotal(float64(len(g.Records)))
 }
 
 func (g *GSLB) initializeRecords(ctx context.Context) {
@@ -335,6 +342,7 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 			}
 		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
+	SetRecordsConfiguredTotal(float64(len(g.Records)))
 }
 
 func (g *GSLB) batchRecords(batchSize int) [][]*Record {
