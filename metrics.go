@@ -32,6 +32,14 @@ var (
 		},
 		[]string{"name", "result"},
 	)
+
+	configReloads = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gslb_config_reload_total",
+			Help: "Total number of config reloads, labeled by result",
+		},
+		[]string{"result"},
+	)
 )
 
 var metricsOnce sync.Once
@@ -41,6 +49,7 @@ func RegisterMetrics() {
 		prometheus.MustRegister(healthcheckTotal)
 		prometheus.MustRegister(healthcheckDuration)
 		prometheus.MustRegister(recordResolutions)
+		prometheus.MustRegister(configReloads)
 	})
 }
 
@@ -54,6 +63,10 @@ func ObserveHealthcheckDuration(typ, address string, duration float64) {
 
 func IncRecordResolutions(name, result string) {
 	recordResolutions.WithLabelValues(name, result).Inc()
+}
+
+func IncConfigReloads(result string) {
+	configReloads.WithLabelValues(result).Inc()
 }
 
 func ObserveHealthcheck(typeStr, address string, start time.Time, result bool) {

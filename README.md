@@ -132,7 +132,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](doc/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Configuration Options](doc/configuration.doc) | Complete parameter reference |
+| [Configuration Options](doc/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [Observability](docs/observability.md) | Prometheus metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |

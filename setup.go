@@ -254,12 +254,13 @@ func reloadConfig(g *GSLB, filePath string) error {
 	// Read YAML configuration
 	newGSLB := &GSLB{}
 	if err := loadConfigFile(newGSLB, filePath); err != nil {
+		IncConfigReloads("failure")
 		return err
 	}
 
 	// Update GSLB
 	g.updateRecords(context.Background(), newGSLB)
-
+	IncConfigReloads("success")
 	return nil
 }
 

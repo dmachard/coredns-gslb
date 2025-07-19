@@ -48,3 +48,19 @@ func TestMetrics_RecordResolutions(t *testing.T) {
 		t.Errorf("expected 1, got %v", countTest)
 	}
 }
+
+func TestMetrics_ConfigReloads(t *testing.T) {
+	RegisterMetrics()
+	IncConfigReloads("success")
+	IncConfigReloads("failure")
+	IncConfigReloads("success")
+
+	successCount := testutil.ToFloat64(configReloads.WithLabelValues("success"))
+	if successCount != 2 {
+		t.Errorf("expected 2, got %v", successCount)
+	}
+	failureCount := testutil.ToFloat64(configReloads.WithLabelValues("failure"))
+	if failureCount != 1 {
+		t.Errorf("expected 1, got %v", failureCount)
+	}
+}
