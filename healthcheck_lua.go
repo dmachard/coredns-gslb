@@ -97,14 +97,17 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		select {
 		case res := <-resultChan:
 			if res.err != nil {
+				IncHealthcheckFailures(typeStr, address, "protocol")
 				return false
 			}
 			result = res.result
 			return result
 		case <-time.After(l.Timeout):
+			IncHealthcheckFailures(typeStr, address, "timeout")
 			return false
 		}
 	}
+	IncHealthcheckFailures(typeStr, address, "other")
 	return false
 }
 

@@ -36,6 +36,7 @@ func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	timeout, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[%s] invalid timeout format: %v", fqdn, err)
+		IncHealthcheckFailures(typeStr, address, "timeout")
 		return false
 	}
 
@@ -44,6 +45,7 @@ func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		if err != nil {
 			log.Errorf("[%s] ICMP health check failed to initialize pinger: %v", fqdn, err)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
 				return false
 			}
 			continue
@@ -55,6 +57,7 @@ func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		if err != nil {
 			log.Debugf("[%s] ICMP health check failed: %v", fqdn, err)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
 				return false
 			}
 			continue
@@ -68,6 +71,7 @@ func (h *ICMPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		}
 	}
 
+	IncHealthcheckFailures(typeStr, address, "other")
 	return false
 }
 

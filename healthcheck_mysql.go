@@ -49,6 +49,7 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 	timeout, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[mysql] invalid timeout format: %v", err)
+		IncHealthcheckFailures(typeStr, address, "timeout")
 		return false
 	}
 
@@ -57,6 +58,7 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 		if err != nil {
 			log.Debugf("[mysql] connection failed: %v", err)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
 				return false
 			}
 			continue
@@ -70,6 +72,7 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 		if pingErr != nil {
 			log.Debugf("[mysql] ping failed: %v", pingErr)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
 				return false
 			}
 			continue
@@ -81,6 +84,7 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 		if err := row.Scan(&dummy); err != nil {
 			log.Debugf("[mysql] query failed: %v", err)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "protocol")
 				return false
 			}
 			continue
@@ -88,6 +92,8 @@ func (h *MySQLHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetrie
 		result = true
 		return true
 	}
+
+	IncHealthcheckFailures(typeStr, address, "other")
 	return false
 }
 

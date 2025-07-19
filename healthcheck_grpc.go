@@ -22,15 +22,18 @@ func (h *GRPCHealthCheck) Check() error {
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
+		IncHealthcheckFailures("grpc", addr, "connection")
 		return err
 	}
 	defer conn.Close()
 	client := healthpb.NewHealthClient(conn)
 	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: h.Service})
 	if err != nil {
+		IncHealthcheckFailures("grpc", addr, "connection")
 		return err
 	}
 	if resp.Status != healthpb.HealthCheckResponse_SERVING {
+		IncHealthcheckFailures("grpc", addr, "protocol")
 		return fmt.Errorf("gRPC health status: %s", resp.Status.String())
 	}
 	return nil
