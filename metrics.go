@@ -24,6 +24,14 @@ var (
 		},
 		[]string{"type", "address"},
 	)
+
+	recordResolutions = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gslb_record_resolution_total",
+			Help: "Total number of GSLB record resolutions, labeled by record name and result",
+		},
+		[]string{"name", "result"},
+	)
 )
 
 var metricsOnce sync.Once
@@ -32,6 +40,7 @@ func RegisterMetrics() {
 	metricsOnce.Do(func() {
 		prometheus.MustRegister(healthcheckTotal)
 		prometheus.MustRegister(healthcheckDuration)
+		prometheus.MustRegister(recordResolutions)
 	})
 }
 
@@ -43,9 +52,13 @@ func ObserveHealthcheckDuration(typ, address string, duration float64) {
 	healthcheckDuration.WithLabelValues(typ, address).Observe(duration)
 }
 
+func IncRecordResolutions(name, result string) {
+	recordResolutions.WithLabelValues(name, result).Inc()
+}
+
 func ObserveHealthcheck(typeStr, address string, start time.Time, result bool) {
 	// Log the health check result
-	log.Debugf("Record health check for metrics: type=%s, address=%s, result=%t", typeStr, address, result)
+	// log.Debugf("Record health check for metrics: type=%s, address=%s, result=%t", typeStr, address, result)
 	dur := time.Since(start).Seconds()
 	if result {
 		IncHealthcheckTotal(typeStr, address, "success")

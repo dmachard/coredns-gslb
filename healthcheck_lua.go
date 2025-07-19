@@ -63,12 +63,9 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 
 			// Inject helpers
 			L.SetGlobal("http_get", L.NewFunction(luaHTTPGet))
-			L.SetGlobal("http_get_ex", L.NewFunction(luaHTTPGetEx))
-			L.SetGlobal("http_get_auth", L.NewFunction(luaHTTPGetAuth))
 			L.SetGlobal("json_decode", L.NewFunction(luaJSONDecode))
 			L.SetGlobal("metric_get", L.NewFunction(luaMetricGet))
 			L.SetGlobal("ssh_exec", L.NewFunction(luaSSHExec))
-			L.SetGlobal("tls_cert_days_left", L.NewFunction(luaTLSCertDaysLeft))
 
 			// Inject backend table
 			backendTable := L.NewTable()
@@ -147,62 +144,6 @@ func luaHTTPGet(L *gopherlua.LState) int {
 		client = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
 	}
 	resp, err := client.Do(req)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	L.Push(gopherlua.LString(string(body)))
-	return 1
-}
-
-// Helper: http_get_ex(url, timeout_sec)
-func luaHTTPGetEx(L *gopherlua.LState) int {
-	url := L.ToString(1)
-	timeout := L.ToInt(2)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	L.Push(gopherlua.LString(string(body)))
-	return 1
-}
-
-// Helper: http_get_auth(url, user, password, timeout_sec)
-func luaHTTPGetAuth(L *gopherlua.LState) int {
-	url := L.ToString(1)
-	user := L.ToString(2)
-	pass := L.ToString(3)
-	timeout := L.ToInt(4)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
-	req.Header.Add("Authorization", "Basic "+auth)
-	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		L.Push(gopherlua.LString(""))
 		return 1
@@ -345,26 +286,4 @@ func luaSSHExec(L *gopherlua.LState) int {
 
 func sshInsecureIgnoreHostKey(host string, remote net.Addr, key ssh.PublicKey) error {
 	return nil // Accept all keys (for healthcheck only)
-}
-
-// Helper: tls_cert_days_left(host, port)
-func luaTLSCertDaysLeft(L *gopherlua.LState) int {
-	host := L.ToString(1)
-	port := L.ToInt(2)
-	addr := fmt.Sprintf("%s:%d", host, port)
-	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		L.Push(gopherlua.LNil)
-		return 1
-	}
-	defer conn.Close()
-	certs := conn.ConnectionState().PeerCertificates
-	if len(certs) == 0 {
-		L.Push(gopherlua.LNil)
-		return 1
-	}
-	notAfter := certs[0].NotAfter
-	days := int(time.Until(notAfter).Hours() / 24)
-	L.Push(gopherlua.LNumber(days))
-	return 1
 }

@@ -1,0 +1,8 @@
+global:
+  scrape_interval:     15s
+
+scrape_configs:
+  - job_name: 'coredns_gslb_exporter'
+    static_configs:
+      - targets: ['172.16.0.9:9090']
+    scrape_interval: 5s

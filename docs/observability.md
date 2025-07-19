@@ -16,6 +16,7 @@ Enable in Corefile:
 Available metrics:
 - `gslb_healthcheck_total{type, address, result}`: Total number of healthchecks performed, labeled by type, backend address, and result (success/fail).
 - `gslb_healthcheck_duration_seconds{type, address}`: Duration of healthchecks in seconds, labeled by type and backend address.
+- `gslb_record_resolution_total{name, result}`: Total number of GSLB record resolutions, labeled by record name and result.
 
 
 You can then scrape metrics at http://localhost:9153/metrics

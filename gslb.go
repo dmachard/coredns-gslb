@@ -256,7 +256,8 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	response.SetReply(r)
 	for _, ip := range ipAddresses {
 		var rr dns.RR
-		if recordType == dns.TypeA {
+		switch recordType {
+		case dns.TypeA:
 			rr = &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -266,7 +267,7 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 				},
 				A: net.ParseIP(ip),
 			}
-		} else if recordType == dns.TypeAAAA {
+		case dns.TypeAAAA:
 			rr = &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -283,9 +284,10 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	err := w.WriteMsg(response)
 	if err != nil {
 		log.Error("Failed to write DNS response: ", err)
+		IncRecordResolutions(domain, "fail")
 		return dns.RcodeServerFailure, err
 	}
-
+	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
 }
 
