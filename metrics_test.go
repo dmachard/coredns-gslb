@@ -90,3 +90,19 @@ func TestMetrics_HealthcheckFailures(t *testing.T) {
 		t.Errorf("expected 1, got %v", otherCount)
 	}
 }
+
+func TestMetrics_ActiveBackends(t *testing.T) {
+	RegisterMetrics()
+	SetActiveBackends("example.com.", 3)
+	SetActiveBackends("example.com.", 2)
+	SetActiveBackends("test.com.", 1)
+
+	val1 := testutil.ToFloat64(activeBackends.WithLabelValues("example.com."))
+	if val1 != 2 {
+		t.Errorf("expected 2, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(activeBackends.WithLabelValues("test.com."))
+	if val2 != 1 {
+		t.Errorf("expected 1, got %v", val2)
+	}
+}

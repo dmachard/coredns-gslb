@@ -48,6 +48,14 @@ var (
 		},
 		[]string{"type", "address", "reason"},
 	)
+
+	activeBackends = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_backend_active",
+			Help: "Number of active (healthy) backends per record",
+		},
+		[]string{"name"},
+	)
 )
 
 var metricsOnce sync.Once
@@ -59,6 +67,7 @@ func RegisterMetrics() {
 		prometheus.MustRegister(recordResolutions)
 		prometheus.MustRegister(configReloads)
 		prometheus.MustRegister(healthcheckFailures)
+		prometheus.MustRegister(activeBackends)
 	})
 }
 
@@ -80,6 +89,10 @@ func IncConfigReloads(result string) {
 
 func IncHealthcheckFailures(typ, address, reason string) {
 	healthcheckFailures.WithLabelValues(typ, address, reason).Inc()
+}
+
+func SetActiveBackends(name string, value float64) {
+	activeBackends.WithLabelValues(name).Set(value)
 }
 
 func ObserveHealthcheck(typeStr, address string, start time.Time, result bool) {

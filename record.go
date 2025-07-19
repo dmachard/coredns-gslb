@@ -218,6 +218,15 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 				backend.Unlock()
 				backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
 			}
+
+			// Update Prometheus gauge for active backends
+			healthyCount := 0
+			for _, backend := range r.Backends {
+				if backend.IsHealthy() {
+					healthyCount++
+				}
+			}
+			SetActiveBackends(r.Fqdn, float64(healthyCount))
 		case <-ctx.Done():
 			log.Debugf("[%s] stopping health checks", r.Fqdn)
 			return
