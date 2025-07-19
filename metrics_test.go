@@ -140,3 +140,19 @@ func TestMetrics_RecordResolutionDuration(t *testing.T) {
 		t.Errorf("expected 3 series, got %v", count)
 	}
 }
+
+func TestMetrics_BackendTotal(t *testing.T) {
+	RegisterMetrics()
+	SetBackendTotal("example.com.", 3)
+	SetBackendTotal("example.com.", 2)
+	SetBackendTotal("test.com.", 1)
+
+	val1 := testutil.ToFloat64(backendTotal.WithLabelValues("example.com."))
+	if val1 != 2 {
+		t.Errorf("expected 2, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(backendTotal.WithLabelValues("test.com."))
+	if val2 != 1 {
+		t.Errorf("expected 1, got %v", val2)
+	}
+}

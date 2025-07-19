@@ -26,5 +26,6 @@ Available metrics:
 - `gslb_config_reload_total{result}`: Total number of config reloads, labeled by result (success/failure).
 - `gslb_backend_active{name}`: Number of active (healthy) backends per record. The `name` label is the FQDN of the GSLB record.
 - `gslb_backend_selected_total{name, address}`: Total number of times a backend was selected for a record. The `name` label is the FQDN of the GSLB record, and `address` is the backend IP or hostname.
+- `gslb_backend_total{name}`: Total number of backends per record. The `name` label is the FQDN of the GSLB record.
 
 You can then scrape metrics at http://localhost:9153/metrics
