@@ -107,6 +107,54 @@ func TestMetrics_ActiveBackends(t *testing.T) {
 	}
 }
 
+func TestMetrics_BackendConfiguredTotal(t *testing.T) {
+	RegisterMetrics()
+	SetBackendConfiguredTotal("example.com.", 3)
+	SetBackendConfiguredTotal("example.com.", 2)
+	SetBackendConfiguredTotal("test.com.", 1)
+
+	val1 := testutil.ToFloat64(backendConfiguredTotal.WithLabelValues("example.com."))
+	if val1 != 2 {
+		t.Errorf("expected 2, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(backendConfiguredTotal.WithLabelValues("test.com."))
+	if val2 != 1 {
+		t.Errorf("expected 1, got %v", val2)
+	}
+}
+
+func TestMetrics_RecordsConfiguredTotal(t *testing.T) {
+	RegisterMetrics()
+	SetRecordsConfiguredTotal(5)
+	SetRecordsConfiguredTotal(3)
+
+	val := testutil.ToFloat64(recordsConfiguredTotal)
+	if val != 3 {
+		t.Errorf("expected 3, got %v", val)
+	}
+}
+
+func TestMetrics_HealthcheckConfiguredTotal(t *testing.T) {
+	RegisterMetrics()
+	SetHealthcheckConfiguredTotal("example.com.", "1.2.3.4", 2)
+	SetHealthcheckConfiguredTotal("example.com.", "1.2.3.4", 1)
+	SetHealthcheckConfiguredTotal("example.com.", "2.2.2.2", 3)
+	SetHealthcheckConfiguredTotal("test.com.", "1.2.3.4", 4)
+
+	val1 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("example.com.", "1.2.3.4"))
+	if val1 != 1 {
+		t.Errorf("expected 1, got %v", val1)
+	}
+	val2 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("example.com.", "2.2.2.2"))
+	if val2 != 3 {
+		t.Errorf("expected 3, got %v", val2)
+	}
+	val3 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("test.com.", "1.2.3.4"))
+	if val3 != 4 {
+		t.Errorf("expected 4, got %v", val3)
+	}
+}
+
 func TestMetrics_BackendSelected(t *testing.T) {
 	RegisterMetrics()
 	IncBackendSelected("example.com.", "1.2.3.4")
@@ -138,33 +186,6 @@ func TestMetrics_RecordResolutionDuration(t *testing.T) {
 	count := testutil.CollectAndCount(recordResolutionDuration)
 	if count != 3 {
 		t.Errorf("expected 3 series, got %v", count)
-	}
-}
-
-func TestMetrics_BackendTotal(t *testing.T) {
-	RegisterMetrics()
-	SetBackendTotal("example.com.", 3)
-	SetBackendTotal("example.com.", 2)
-	SetBackendTotal("test.com.", 1)
-
-	val1 := testutil.ToFloat64(backendTotal.WithLabelValues("example.com."))
-	if val1 != 2 {
-		t.Errorf("expected 2, got %v", val1)
-	}
-	val2 := testutil.ToFloat64(backendTotal.WithLabelValues("test.com."))
-	if val2 != 1 {
-		t.Errorf("expected 1, got %v", val2)
-	}
-}
-
-func TestMetrics_RecordsTotal(t *testing.T) {
-	RegisterMetrics()
-	SetRecordsTotal(5)
-	SetRecordsTotal(3)
-
-	val := testutil.ToFloat64(recordsTotal)
-	if val != 3 {
-		t.Errorf("expected 3, got %v", val)
 	}
 }
 

@@ -65,7 +65,10 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 		r.Backends = append(r.Backends, &backend)
 	}
-	SetBackendTotal(r.Fqdn, float64(len(r.Backends)))
+	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
+	for _, backend := range r.Backends {
+		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
+	}
 	return nil
 }
 
@@ -151,7 +154,10 @@ func (r *Record) updateRecord(newRecord *Record) {
 			i++
 		}
 	}
-	SetBackendTotal(r.Fqdn, float64(len(r.Backends)))
+	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
+	for _, backend := range r.Backends {
+		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
+	}
 }
 
 // GetScrapeInterval returns the health check interval for HTTPHealthCheck

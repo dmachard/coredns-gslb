@@ -1,0 +1,235 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "graph", "name": "Graph", "version": "7.0.0" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "7.0.0" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "7.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "iteration": 163,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "GSLB Version",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "gslb_version_info",
+          "format": "time_series",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "displayName": "${__field.labels.version}",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "No version detected"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "type": "stat",
+      "title": "Configured GSLB Records",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "gslb_records_configured_total", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "options": { "reduceOptions": { "values": false, "calcs": ["last"] } },
+      "gridPos": { "h": 3, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "type": "graph",
+      "title": "Configured Backends per Record",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "gslb_backend_configured_total{name=~\"$name\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 }
+    },
+    {
+      "type": "graph",
+      "title": "Configured Healthchecks per Backend",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "gslb_healthcheck_configured_total{name=~\"$name\",address=~\"$address\"}",
+          "legendFormat": "{{name}} {{address}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 14 }
+    },
+    {
+      "type": "graph",
+      "title": "Healthcheck Results per Backend",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (name, address, result) (rate(gslb_healthcheck_total{name=~\"$name\",address=~\"$address\",result=~\"$result\"}[5m]))",
+          "legendFormat": "{{name}} {{address}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 }
+    },
+    {
+      "type": "graph",
+      "title": "Healthcheck Failures by Reason",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (type, reason) (rate(gslb_healthcheck_failures_total[type=~\"$name\",address=~\"$address\"][5m]))",
+          "legendFormat": "{{type}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 }
+    },
+    {
+      "type": "graph",
+      "title": "Active Backends per Record",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "gslb_backend_active{name=~\"$name\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 }
+    },
+    {
+      "type": "graph",
+      "title": "Total Backends per Record",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "gslb_backend_total{name=~\"$name\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 }
+    },
+    {
+      "type": "graph",
+      "title": "Backend Selection Count",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (name, address) (rate(gslb_backend_selected_total{name=~\"$name\",address=~\"$address\"}[5m]))",
+          "legendFormat": "{{name}} {{address}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 26 }
+    },
+    {
+      "type": "graph",
+      "title": "Record Resolution Duration (s)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gslb_record_resolution_duration_seconds_bucket{name=~\"$name\",result=~\"$result\"}[5m])) by (le, name, result))",
+          "legendFormat": "{{name}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 26 }
+    },
+    {
+      "type": "graph",
+      "title": "Record Resolutions per Record",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (name, result) (rate(gslb_record_resolution_total{name=~\"$name\",result=~\"$result\"}[5m]))",
+          "legendFormat": "{{name}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 32 }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": ["gslb", "prometheus", "dns"],
+  "templating": {
+    "list": [
+      {
+        "name": "name",
+        "type": "query",
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "query": "label_values(gslb_backend_active, name)",
+        "label": "Record Name",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "address",
+        "type": "query",
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "query": "label_values(gslb_backend_selected_total, address)",
+        "label": "Backend Address",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1
+      },
+      {
+        "name": "result",
+        "type": "query",
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "query": "label_values(gslb_healthcheck_total, result)",
+        "label": "Result",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "sort": 1
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "GSLB Observability",
+  "uid": "gslb-observability",
+  "version": 2
+} 

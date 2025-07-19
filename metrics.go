@@ -74,27 +74,35 @@ var (
 		[]string{"name", "result"},
 	)
 
-	backendTotal = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "gslb_backend_total",
-			Help: "Total number of backends per record",
-		},
-		[]string{"name"},
-	)
-
-	recordsTotal = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "gslb_records_total",
-			Help: "Total number of GSLB records (FQDNs) configured.",
-		},
-	)
-
 	versionInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_version_info",
 			Help: "GSLB build version info (label: version)",
 		},
 		[]string{"version"},
+	)
+
+	healthcheckConfiguredTotal = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_healthcheck_configured_total",
+			Help: "Number of healthchecks configured per backend (by record and address)",
+		},
+		[]string{"name", "address"},
+	)
+
+	backendConfiguredTotal = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_backend_configured_total",
+			Help: "Total number of backends configured per record",
+		},
+		[]string{"name"},
+	)
+
+	recordsConfiguredTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "gslb_records_configured_total",
+			Help: "Total number of GSLB records (FQDNs) configured.",
+		},
 	)
 )
 
@@ -110,9 +118,10 @@ func RegisterMetrics() {
 		prometheus.MustRegister(activeBackends)
 		prometheus.MustRegister(backendSelected)
 		prometheus.MustRegister(recordResolutionDuration)
-		prometheus.MustRegister(backendTotal)
-		prometheus.MustRegister(recordsTotal)
 		prometheus.MustRegister(versionInfo)
+		prometheus.MustRegister(healthcheckConfiguredTotal)
+		prometheus.MustRegister(backendConfiguredTotal)
+		prometheus.MustRegister(recordsConfiguredTotal)
 	})
 }
 
@@ -144,16 +153,18 @@ func IncBackendSelected(name, address string) {
 	backendSelected.WithLabelValues(name, address).Inc()
 }
 
-func SetBackendTotal(name string, value float64) {
-	backendTotal.WithLabelValues(name).Set(value)
-}
-
-func SetRecordsTotal(value float64) {
-	recordsTotal.Set(value)
-}
-
 func SetVersionInfo(version string) {
 	versionInfo.WithLabelValues(version).Set(1)
+}
+
+func SetHealthcheckConfiguredTotal(name, address string, value float64) {
+	healthcheckConfiguredTotal.WithLabelValues(name, address).Set(value)
+}
+func SetBackendConfiguredTotal(name string, value float64) {
+	backendConfiguredTotal.WithLabelValues(name).Set(value)
+}
+func SetRecordsConfiguredTotal(value float64) {
+	recordsConfiguredTotal.Set(value)
 }
 
 func ObserveHealthcheck(name, typeStr, address string, start time.Time, result bool) {
