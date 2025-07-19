@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   viewBox="0 0 255.19599 83.792587"
+   viewBox="0 0 347.77818 114.19157"
    version="1.1"
    id="svg29"
    sodipodi:docname="coredns_gslb_logo.svg"
-   width="255.19598"
-   height="83.792587"
+   width="347.77817"
+   height="114.19157"
    inkscape:version="1.4.2 (2aeb623e1d, 2025-05-12)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -23,7 +23,7 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="0.98687499"
      inkscape:cx="-109.43635"
-     inkscape:cy="45.091831"
+     inkscape:cy="75.490817"
      inkscape:window-width="1680"
      inkscape:window-height="941"
      inkscape:window-x="0"
@@ -138,7 +138,7 @@
   <!-- Arrière-plan avec dégradé subtil -->
   <!-- Globe terrestre stylisé représentant le "Global" -->
   <g
-     transform="matrix(1.3624811,0,0,1.3624811,-5.4499244,-5.7905447)"
+     transform="matrix(1.8567736,0,0,1.8567736,-7.4270944,-7.8912878)"
      id="g12">
     <!-- Cercle principal du globe -->
     <!-- Lignes de latitude -->
@@ -263,7 +263,7 @@
        refY="3.5"
        orient="auto">
       <polygon
-         points="0,7 0,0 10,3.5 "
+         points="0,0 10,3.5 0,7 "
          fill="url(#accentGradient)"
          id="polygon14" />
     </marker>
@@ -271,7 +271,7 @@
   <!-- Serveurs de destination -->
   <!-- Texte du logo -->
   <g
-     transform="matrix(1.3624811,0,0,1.3624811,94.76384,3.6747873)"
+     transform="matrix(1.8567736,0,0,1.8567736,129.14307,5.0079582)"
      id="g27">
     <!-- CoreDNS -->
     <text
