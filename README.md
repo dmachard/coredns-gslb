@@ -32,6 +32,26 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 ## 🚀 Quick Start
 
 1. **Create docker-compose.yml:**
+
+Prepare folder
+
+```
+mkdir coredns
+```
+
+Expected folder structure
+
+```
+coredns-gslb/
+├── docker-compose.yml
+└── coredns/
+    ├── Corefile
+    ├── db.gslb.example.com
+    └── gslb_config.yml
+```
+
+Create the `docker-compose.yml`, update binding ports according to your system
+
 ```yaml
 services:
   coredns-gslb:
@@ -45,15 +65,16 @@ services:
     command: ["-conf", "/coredns/Corefile"]
     restart: unless-stopped
 ```
-
+    
 2. **Create coredns/Corefile:**
+
+Create the `Corefile`
 
 ```
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
     gslb /coredns/gslb_config.yml gslb.example.com
     prometheus
-    log
 }
 ```
 
