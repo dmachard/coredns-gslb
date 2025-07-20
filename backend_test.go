@@ -126,6 +126,7 @@ func (m *MockBackend) IsHealthy() bool {
 	return args.Bool(0)
 }
 
+//nolint:staticcheck
 func TestBackend_LockUnlock(t *testing.T) {
 	b := &Backend{
 		Address: "1.2.3.4",
@@ -149,7 +150,7 @@ func TestBackend_LockUnlock(t *testing.T) {
 
 	b.Lock()
 	b.Enable = false
-	b.Unlock()
+	b.Unlock() //nolint:staticcheck
 
 	<-done
 }

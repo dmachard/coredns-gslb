@@ -46,11 +46,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 
 		paramsYaml, err := yaml.Marshal(hc.Params) // Serialize `hc.Params` to YAML
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &httpCheck) // Deserialize into `HTTPHealthCheck`
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode HTTP params: %v", err)
+			return nil, fmt.Errorf("failed to decode HTTP params: %w", err)
 		}
 		return &httpCheck, nil
 
@@ -60,11 +60,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 
 		paramsYaml, err := yaml.Marshal(hc.Params) // Serialize `hc.Params` to YAML
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &icmpCheck) // Deserialize into `ICMPHealthCheck`
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode ICMP params: %v", err)
+			return nil, fmt.Errorf("failed to decode ICMP params: %w", err)
 		}
 		return &icmpCheck, nil
 
@@ -74,11 +74,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 
 		paramsYaml, err := yaml.Marshal(hc.Params) // Serialize `hc.Params` to YAML
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &tcpCheck) // Deserialize into `ICMPHealthCheck`
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode TCP params: %v", err)
+			return nil, fmt.Errorf("failed to decode TCP params: %w", err)
 		}
 		return &tcpCheck, nil
 
@@ -87,11 +87,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		mysqlCheck.SetDefault()
 		paramsYaml, err := yaml.Marshal(hc.Params)
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &mysqlCheck)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode MySQL params: %v", err)
+			return nil, fmt.Errorf("failed to decode MySQL params: %w", err)
 		}
 		return &mysqlCheck, nil
 
@@ -100,11 +100,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		grpcCheck.SetDefault()
 		paramsYaml, err := yaml.Marshal(hc.Params)
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &grpcCheck)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode gRPC params: %v", err)
+			return nil, fmt.Errorf("failed to decode gRPC params: %w", err)
 		}
 		return &grpcCheck, nil
 
@@ -114,11 +114,11 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 
 		paramsYaml, err := yaml.Marshal(hc.Params)
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize healthcheck params: %v", err)
+			return nil, fmt.Errorf("failed to serialize healthcheck params: %w", err)
 		}
 		err = yaml.Unmarshal(paramsYaml, &luaCheck)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode Lua params: %v", err)
+			return nil, fmt.Errorf("failed to decode Lua params: %w", err)
 		}
 		return &luaCheck, nil
 

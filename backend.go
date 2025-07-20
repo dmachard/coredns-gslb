@@ -127,7 +127,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	for _, hc := range raw.HealthChecks {
 		specificHC, err := hc.ToSpecificHealthCheck()
 		if err != nil {
-			return fmt.Errorf("error converting healthcheck for backend %s: %v", b.Address, err)
+			return fmt.Errorf("error converting healthcheck for backend %s: %w", b.Address, err)
 		}
 		b.HealthChecks = append(b.HealthChecks, specificHC)
 	}

@@ -55,12 +55,12 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		var backend Backend
 		backendYaml, err := yaml.Marshal(backendData)
 		if err != nil {
-			return fmt.Errorf("failed to serialize backend: %v", err)
+			return fmt.Errorf("failed to serialize backend: %w", err)
 		}
 
 		err = yaml.Unmarshal(backendYaml, &backend)
 		if err != nil {
-			return fmt.Errorf("failed to decode backend: %v", err)
+			return fmt.Errorf("failed to decode backend: %w", err)
 		}
 
 		r.Backends = append(r.Backends, &backend)

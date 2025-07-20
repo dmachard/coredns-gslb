@@ -52,160 +52,78 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
-	for i := 0; i < maxRetries; i++ {
-		resultChan := make(chan struct {
-			result bool
-			err    error
-		}, 1)
-		go func() {
-			L := gopherlua.NewState()
-			defer L.Close()
+	L := gopherlua.NewState()
+	defer L.Close()
 
-			// Inject helpers
-			L.SetGlobal("http_get", L.NewFunction(luaHTTPGet))
-			L.SetGlobal("json_decode", L.NewFunction(luaJSONDecode))
-			L.SetGlobal("metric_get", L.NewFunction(luaMetricGet))
-			L.SetGlobal("ssh_exec", L.NewFunction(luaSSHExec))
+	// Inject helpers
+	L.SetGlobal("http_get", L.NewFunction(luaHTTPGet))
+	L.SetGlobal("json_decode", L.NewFunction(luaJSONDecode))
+	L.SetGlobal("metric_get", L.NewFunction(luaMetricGet))
+	L.SetGlobal("ssh_exec", L.NewFunction(luaSSHExec))
 
-			// Inject backend table
-			backendTable := L.NewTable()
-			L.SetField(backendTable, "address", gopherlua.LString(backend.Address))
-			L.SetField(backendTable, "priority", gopherlua.LNumber(backend.Priority))
-			L.SetGlobal("backend", backendTable)
+	// Inject backend table
+	backendTable := L.NewTable()
+	L.SetField(backendTable, "address", gopherlua.LString(backend.Address))
+	L.SetField(backendTable, "priority", gopherlua.LNumber(backend.Priority))
+	L.SetGlobal("backend", backendTable)
 
-			err := L.DoString(l.Script)
-			if err != nil {
-				resultChan <- struct {
-					result bool
-					err    error
-				}{false, err}
-				return
-			}
-			ret := L.Get(-1)
-			if lv, ok := ret.(gopherlua.LBool); ok {
-				resultChan <- struct {
-					result bool
-					err    error
-				}{bool(lv), nil}
-				return
-			}
-			resultChan <- struct {
-				result bool
-				err    error
-			}{false, nil}
-		}()
-		select {
-		case res := <-resultChan:
-			if res.err != nil {
-				IncHealthcheckFailures(typeStr, address, "protocol")
-				return false
-			}
-			result = res.result
-			return result
-		case <-time.After(l.Timeout):
-			IncHealthcheckFailures(typeStr, address, "timeout")
-			return false
-		}
+	err := L.DoString(l.Script)
+	if err != nil {
+		return false
 	}
-	IncHealthcheckFailures(typeStr, address, "other")
+	ret := L.Get(-1)
+	if lv, ok := ret.(gopherlua.LBool); ok {
+		result = bool(lv)
+		return result
+	}
 	return false
 }
 
-// Helper: http_get(url) in Lua
-func luaHTTPGet(L *gopherlua.LState) int {
-	url := L.ToString(1)
-	var timeout int = 10 // default timeout 10s
-	var user, pass string
-	var tlsVerify = true
-	argc := L.GetTop()
-	if argc >= 2 {
-		timeout = L.ToInt(2)
-	}
-	if argc >= 4 {
-		user = L.ToString(3)
-		pass = L.ToString(4)
-	}
-	if argc >= 5 {
-		tlsVerify = L.ToBool(5)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	if user != "" || pass != "" {
-		auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
-		req.Header.Add("Authorization", "Basic "+auth)
-	}
-	client := http.DefaultClient
-	if !tlsVerify {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		L.Push(gopherlua.LString(""))
-		return 1
-	}
-	L.Push(gopherlua.LString(string(body)))
-	return 1
-}
-
 // Helper: json_decode(str) in Lua
-func luaJSONDecode(L *gopherlua.LState) int {
-	str := L.ToString(1)
+func luaJSONDecode(l *gopherlua.LState) int {
+	str := l.ToString(1)
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(str), &data)
 	if err != nil {
-		L.Push(gopherlua.LNil)
+		l.Push(gopherlua.LNil)
 		return 1
 	}
-	tbl := L.NewTable()
+	tbl := l.NewTable()
 	for k, v := range data {
 		switch val := v.(type) {
 		case string:
-			L.SetField(tbl, k, gopherlua.LString(val))
+			l.SetField(tbl, k, gopherlua.LString(val))
 		case float64:
-			L.SetField(tbl, k, gopherlua.LNumber(val))
+			l.SetField(tbl, k, gopherlua.LNumber(val))
 		case bool:
-			L.SetField(tbl, k, gopherlua.LBool(val))
+			l.SetField(tbl, k, gopherlua.LBool(val))
 		default:
-			L.SetField(tbl, k, gopherlua.LString(fmt.Sprintf("%v", val)))
+			l.SetField(tbl, k, gopherlua.LString(fmt.Sprintf("%v", val)))
 		}
 	}
-	L.Push(tbl)
+	l.Push(tbl)
 	return 1
 }
 
 // Helper: prometheus_metric(url, metric_name)
-func luaMetricGet(L *gopherlua.LState) int {
-	url := L.ToString(1)
-	metric := L.ToString(2)
-	var timeout int = 10 // default 10s
+func luaMetricGet(l *gopherlua.LState) int {
+	url := l.ToString(1)
+	metric := l.ToString(2)
+	var timeout = 10 // default 10s
 	var tlsVerify = true
 	var user, pass string
-	argc := L.GetTop()
+	argc := l.GetTop()
 	if argc >= 3 {
-		timeout = L.ToInt(3)
+		timeout = l.ToInt(3)
 	}
 	if argc >= 4 {
-		tlsVerify = L.ToBool(4)
+		tlsVerify = l.ToBool(4)
 	}
 	if argc >= 6 {
-		user = L.ToString(5)
-		pass = L.ToString(6)
+		user = l.ToString(5)
+		pass = l.ToString(6)
 	}
-	client := http.DefaultClient
+	var client *http.Client
 	if !tlsVerify {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -218,7 +136,7 @@ func luaMetricGet(L *gopherlua.LState) int {
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		L.Push(gopherlua.LNil)
+		l.Push(gopherlua.LNil)
 		return 1
 	}
 	if user != "" || pass != "" {
@@ -227,13 +145,13 @@ func luaMetricGet(L *gopherlua.LState) int {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		L.Push(gopherlua.LNil)
+		l.Push(gopherlua.LNil)
 		return 1
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		L.Push(gopherlua.LNil)
+		l.Push(gopherlua.LNil)
 		return 1
 	}
 	lines := strings.Split(string(body), "\n")
@@ -242,28 +160,78 @@ func luaMetricGet(L *gopherlua.LState) int {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				if v, err := strconv.ParseFloat(fields[len(fields)-1], 64); err == nil {
-					L.Push(gopherlua.LNumber(v))
+					l.Push(gopherlua.LNumber(v))
 					return 1
 				}
-				L.Push(gopherlua.LString(fields[len(fields)-1]))
+				l.Push(gopherlua.LString(fields[len(fields)-1]))
 				return 1
 			}
 		}
 	}
-	L.Push(gopherlua.LNil)
+	l.Push(gopherlua.LNil)
+	return 1
+}
+
+// Helper: http_get(url) in Lua
+func luaHTTPGet(l *gopherlua.LState) int {
+	url := l.ToString(1)
+	var timeout = 10 // default timeout 10s
+	var user, pass string
+	var tlsVerify = true
+	argc := l.GetTop()
+	if argc >= 2 {
+		timeout = l.ToInt(2)
+	}
+	if argc >= 4 {
+		user = l.ToString(3)
+		pass = l.ToString(4)
+	}
+	if argc >= 5 {
+		tlsVerify = l.ToBool(5)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		l.Push(gopherlua.LString(""))
+		return 1
+	}
+	if user != "" || pass != "" {
+		auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+		req.Header.Add("Authorization", "Basic "+auth)
+	}
+	client := http.DefaultClient
+	if !tlsVerify {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr, Timeout: time.Duration(timeout) * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		l.Push(gopherlua.LString(""))
+		return 1
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		l.Push(gopherlua.LString(""))
+		return 1
+	}
+	l.Push(gopherlua.LString(string(body)))
 	return 1
 }
 
 // Helper: ssh_exec(host, user, password, command, [timeout_sec])
-func luaSSHExec(L *gopherlua.LState) int {
-	host := L.ToString(1)
-	user := L.ToString(2)
-	password := L.ToString(3)
-	cmd := L.ToString(4)
+func luaSSHExec(l *gopherlua.LState) int {
+	host := l.ToString(1)
+	user := l.ToString(2)
+	password := l.ToString(3)
+	cmd := l.ToString(4)
 	var timeout = 5 * time.Second
-	argc := L.GetTop()
+	argc := l.GetTop()
 	if argc >= 5 {
-		timeout = time.Duration(L.ToInt(5)) * time.Second
+		timeout = time.Duration(l.ToInt(5)) * time.Second
 	}
 	client, err := goph.NewConn(&goph.Config{
 		User:     user,
@@ -274,16 +242,16 @@ func luaSSHExec(L *gopherlua.LState) int {
 		Callback: sshInsecureIgnoreHostKey,
 	})
 	if err != nil {
-		L.Push(gopherlua.LString(""))
+		l.Push(gopherlua.LString(""))
 		return 1
 	}
 	defer client.Close()
 	out, err := client.Run(cmd)
 	if err != nil {
-		L.Push(gopherlua.LString(""))
+		l.Push(gopherlua.LString(""))
 		return 1
 	}
-	L.Push(gopherlua.LString(string(out)))
+	l.Push(gopherlua.LString(string(out)))
 	return 1
 }
 

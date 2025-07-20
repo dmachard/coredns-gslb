@@ -434,7 +434,7 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read location map: %v", err)
+		return fmt.Errorf("failed to read location map: %w", err)
 	}
 	var parsed struct {
 		Subnets []struct {
@@ -443,7 +443,7 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 		} `yaml:"subnets"`
 	}
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("failed to parse location map: %v", err)
+		return fmt.Errorf("failed to parse location map: %w", err)
 	}
 	m := make(map[string]string)
 	for _, s := range parsed.Subnets {

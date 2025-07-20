@@ -1,5 +1,6 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
+  <img src="https://github.com/dmachard/coredns-gslb/actions/workflows/lint.yml/badge.svg" alt="Lint"/>
   <img src="https://img.shields.io/badge/go%20tests-118-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-71%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-2529-blue" alt="Lines of code"/>
@@ -144,3 +145,4 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 ## 👥 Contributions
 
 Contributions are welcome! Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.
+

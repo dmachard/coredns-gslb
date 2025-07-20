@@ -20,6 +20,7 @@ func (h *GRPCHealthCheck) Check() error {
 	addr := fmt.Sprintf("%s:%d", h.Host, h.Port)
 	ctx, cancel := context.WithTimeout(context.Background(), h.Timeout)
 	defer cancel()
+	//nolint:staticcheck // grpc.DialContext est utilisé pour compatibilité, migration possible plus tard
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		IncHealthcheckFailures("grpc", addr, "connection")
