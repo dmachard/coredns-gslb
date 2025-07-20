@@ -1,4 +1,4 @@
-FROM golang:1.23-bookworm AS builder
+FROM golang:1.24-bookworm AS builder
 
 # Set the GOPATH and create directories for CoreDNS and the GSLB plugin
 WORKDIR /go/src
