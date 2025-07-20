@@ -7,7 +7,7 @@ networks:
 
 services:
   # create coredns with GSLB plugin
-  coredns:
+  coredns_gslb:
     build:
       context: .
       dockerfile: coredns/Dockerfile
@@ -24,7 +24,6 @@ services:
       - ./coredns/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
       - ./coredns/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
       - ./coredns/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
-      - ./coredns/healthcheck_custom.sh:/coredns/healthcheck_custom.sh:ro
     command: -conf /Corefile
     environment:
       - COREDNS_LOG_LEVEL=debug
@@ -68,3 +67,41 @@ services:
     networks:
       gslb_net:
         ipv4_address: 172.16.0.12
+
+  prometheus:
+    image: prom/prometheus:v3.4.2
+    ports:
+      - "9090:9090/tcp"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./coredns/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=365d'
+      - '--web.enable-lifecycle'
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.50
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    ports:
+      - "3000:3000/tcp"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true      
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./coredns/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./coredns/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./dashboards:/var/lib/grafana/dashboards
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.51
+
+
+volumes:
+  prometheus_data:
+  grafana_data:

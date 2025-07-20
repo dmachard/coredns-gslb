@@ -19,9 +19,13 @@ import (
 // init registers this plugin.
 func init() { plugin.Register("gslb", setup) }
 
+// Version of the GSLB plugin, set at build time
+var Version = "dev"
+
 // setup is the function that gets called when the config parser see the token "gslb".
 func setup(c *caddy.Controller) error {
 	RegisterMetrics()
+	SetVersionInfo(Version)
 
 	config := dnsserver.GetConfig(c)
 
@@ -254,12 +258,13 @@ func reloadConfig(g *GSLB, filePath string) error {
 	// Read YAML configuration
 	newGSLB := &GSLB{}
 	if err := loadConfigFile(newGSLB, filePath); err != nil {
+		IncConfigReloads("failure")
 		return err
 	}
 
 	// Update GSLB
 	g.updateRecords(context.Background(), newGSLB)
-
+	IncConfigReloads("success")
 	return nil
 }
 

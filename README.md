@@ -1,15 +1,19 @@
-# CoreDNS with GSLB Plugin
-
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
-  <img src="https://img.shields.io/badge/go%20tests-85-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-60%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-2434-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/go%20tests-118-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-71%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-2529-blue" alt="Lines of code"/>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/github/v/release/dmachard/coredns-gslb?logo=github&sort=semver" alt="release"/>
 </p>
+
+<p align="center">
+  <img src="docs/coredns_gslb_logo.svg" alt="CoreDNS-GSLB"/>
+</p>
+
+## What is CoreDNS-GSLB?
 
 **CoreDNS-GSLB** is a plugin that provides Global Server Load Balancing functionality in **[CoreDNS](https://coredns.io/)**. It intelligently routes your traffic to healthy backends based on geographic location, priority, or load balancing algorithms.
 
@@ -132,7 +136,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](doc/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Configuration Options](doc/configuration.doc) | Complete parameter reference |
+| [Configuration Options](doc/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [Observability](docs/observability.md) | Prometheus metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |

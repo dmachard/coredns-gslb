@@ -304,3 +304,82 @@ func TestLoadLocationMap_EmptyPath(t *testing.T) {
 		t.Errorf("Expected LocationMap to be nil for empty path")
 	}
 }
+
+func TestGSLB_IsAuthoritative(t *testing.T) {
+	g := &GSLB{
+		Zones: map[string]string{
+			"example.com.": "",
+		},
+	}
+	assert.True(t, g.isAuthoritative("foo.example.com."))
+	assert.False(t, g.isAuthoritative("bar.other.com."))
+}
+
+func TestGSLB_UpdateLastResolutionTime(t *testing.T) {
+	g := &GSLB{}
+	domain := "test.example.com."
+	g.updateLastResolutionTime(domain)
+	v, ok := g.LastResolution.Load(domain)
+	assert.True(t, ok)
+	timeVal, ok := v.(time.Time)
+	assert.True(t, ok)
+	assert.WithinDuration(t, time.Now(), timeVal, time.Second)
+}
+
+func TestGSLB_Name(t *testing.T) {
+	g := &GSLB{}
+	assert.Equal(t, "gslb", g.Name())
+}
+
+func TestGSLB_SendAddressRecordResponse(t *testing.T) {
+	g := &GSLB{}
+
+	// Create a mock DNS message
+	msg := new(dns.Msg)
+	msg.SetQuestion("example.com.", dns.TypeA)
+
+	// Create a mock response writer
+	w := &TestResponseWriter{}
+
+	// Test A record response
+	ipAddresses := []string{"192.168.1.1", "192.168.1.2"}
+	code, err := g.sendAddressRecordResponse(w, msg, "example.com.", ipAddresses, 30, dns.TypeA)
+
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.Msg)
+	assert.Len(t, w.Msg.Answer, 2)
+
+	// Verify A records
+	for i, rr := range w.Msg.Answer {
+		if a, ok := rr.(*dns.A); ok {
+			assert.Equal(t, "example.com.", a.Hdr.Name)
+			assert.Equal(t, dns.TypeA, a.Hdr.Rrtype)
+			assert.Equal(t, uint32(30), a.Hdr.Ttl)
+			assert.Equal(t, ipAddresses[i], a.A.String())
+		}
+	}
+
+	// Test AAAA record response
+	msgAAAA := new(dns.Msg)
+	msgAAAA.SetQuestion("example.com.", dns.TypeAAAA)
+	wAAAA := &TestResponseWriter{}
+
+	ipv6Addresses := []string{"2001:db8::1", "2001:db8::2"}
+	codeAAAA, errAAAA := g.sendAddressRecordResponse(wAAAA, msgAAAA, "example.com.", ipv6Addresses, 60, dns.TypeAAAA)
+
+	assert.NoError(t, errAAAA)
+	assert.Equal(t, dns.RcodeSuccess, codeAAAA)
+	assert.NotNil(t, wAAAA.Msg)
+	assert.Len(t, wAAAA.Msg.Answer, 2)
+
+	// Verify AAAA records
+	for i, rr := range wAAAA.Msg.Answer {
+		if aaaa, ok := rr.(*dns.AAAA); ok {
+			assert.Equal(t, "example.com.", aaaa.Hdr.Name)
+			assert.Equal(t, dns.TypeAAAA, aaaa.Hdr.Rrtype)
+			assert.Equal(t, uint32(60), aaaa.Hdr.Ttl)
+			assert.Equal(t, ipv6Addresses[i], aaaa.AAAA.String())
+		}
+	}
+}

@@ -129,6 +129,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		log.Error("No client info in context")
 		return dns.RcodeServerFailure, nil
 	}
+	start := time.Now()
 	ip, err := g.pickResponse(domain, recordType, ci.IP)
 	if err != nil {
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
@@ -137,12 +138,15 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		ipAddresses, err := g.pickAllAddresses(domain, recordType)
 		if err != nil {
 			log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
+			ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 			return dns.RcodeServerFailure, nil
 		}
 
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 		return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
 	}
 
+	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
 	return g.sendAddressRecordResponse(w, r, domain, ip, record.RecordTTL, recordType)
 }
 
@@ -256,7 +260,8 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	response.SetReply(r)
 	for _, ip := range ipAddresses {
 		var rr dns.RR
-		if recordType == dns.TypeA {
+		switch recordType {
+		case dns.TypeA:
 			rr = &dns.A{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -266,7 +271,7 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 				},
 				A: net.ParseIP(ip),
 			}
-		} else if recordType == dns.TypeAAAA {
+		case dns.TypeAAAA:
 			rr = &dns.AAAA{
 				Hdr: dns.RR_Header{
 					Name:   domain,
@@ -283,9 +288,10 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	err := w.WriteMsg(response)
 	if err != nil {
 		log.Error("Failed to write DNS response: ", err)
+		IncRecordResolutions(domain, "fail")
 		return dns.RcodeServerFailure, err
 	}
-
+	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
 }
 
@@ -299,9 +305,13 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 
 			g.Records[domain] = newRecord
 			log.Infof("Added new record for domain: %s", domain)
+			// Initialize health status for new record
+			newRecord.updateRecordHealthStatus()
 			go newRecord.scrapeBackends(recordCtx, g)
 		} else {
 			oldRecord.updateRecord(newRecord)
+			// Update health status after record update
+			oldRecord.updateRecordHealthStatus()
 		}
 	}
 
@@ -317,6 +327,21 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 			log.Infof("Records [%s] removed", domain)
 		}
 	}
+	SetRecordsTotal(float64(len(g.Records)))
+	// Set total backends configured
+	totalBackends := 0
+	for _, record := range g.Records {
+		totalBackends += len(record.Backends)
+	}
+	SetBackendsTotal(float64(totalBackends))
+	// Set total healthchecks configured
+	totalHealthchecks := 0
+	for _, record := range g.Records {
+		for _, backend := range record.Backends {
+			totalHealthchecks += len(backend.GetHealthChecks())
+		}
+	}
+	SetHealthchecksTotal(float64(totalHealthchecks))
 }
 
 func (g *GSLB) initializeRecords(ctx context.Context) {
@@ -331,10 +356,27 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 				record.cancelFunc = cancel
 
 				log.Debugf("[%s] Starting health checks for backends", domain)
+				// Initialize health status for existing record
+				record.updateRecordHealthStatus()
 				go record.scrapeBackends(recordCtx, g)
 			}
 		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
+	SetRecordsTotal(float64(len(g.Records)))
+	// Set total backends configured
+	totalBackends := 0
+	for _, record := range g.Records {
+		totalBackends += len(record.Backends)
+	}
+	SetBackendsTotal(float64(totalBackends))
+	// Set total healthchecks configured
+	totalHealthchecks := 0
+	for _, record := range g.Records {
+		for _, backend := range record.Backends {
+			totalHealthchecks += len(backend.GetHealthChecks())
+		}
+	}
+	SetHealthchecksTotal(float64(totalHealthchecks))
 }
 
 func (g *GSLB) batchRecords(batchSize int) [][]*Record {

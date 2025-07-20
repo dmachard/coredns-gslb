@@ -62,6 +62,8 @@ func createHTTPClient(enableTLS bool, skipTLSVerify bool, timeout time.Duration)
 func (h *HTTPHealthCheck) retryHealthCheck(client *http.Client, req *http.Request, backend *Backend, fqdn string, maxRetries int) (*http.Response, error) {
 	var resp *http.Response
 	var err error
+	typeStr := h.GetType()
+	address := backend.Address
 	for retry := 0; retry <= maxRetries; retry++ {
 		resp, err = client.Do(req)
 		if err == nil && resp.StatusCode == h.ExpectedCode {
@@ -70,6 +72,7 @@ func (h *HTTPHealthCheck) retryHealthCheck(client *http.Client, req *http.Reques
 				if err := h.checkExpectedBody(resp.Body, fqdn); err != nil {
 					log.Debugf("[%s] HTTP healthcheck body mismatch: %v", fqdn, err)
 					if retry == maxRetries {
+						IncHealthcheckFailures(typeStr, address, "protocol")
 						return nil, err
 					}
 					continue
@@ -81,11 +84,16 @@ func (h *HTTPHealthCheck) retryHealthCheck(client *http.Client, req *http.Reques
 		// Log errors and retry
 		if err != nil {
 			log.Debugf("[%s] HTTP healthcheck failed (retries=%d/%d): [backend=%s:%d uri:%s method:%s host:%s] %v", fqdn, retry, maxRetries, backend.Address, h.Port, h.URI, h.Method, h.Host, err)
+			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
+				return nil, err
+			}
 		} else {
 			log.Debugf("[%s] HTTP healthcheck failed (retries=%d/%d): [backend=%s:%d uri:%s method:%s host:%s] unexpected status code: got %d, want %d", fqdn, retry, maxRetries, backend.Address, h.Port, h.URI, h.Method, h.Host, resp.StatusCode, h.ExpectedCode)
-		}
-		if retry == maxRetries {
-			return nil, fmt.Errorf("[%s] HTTP health check failed after %d retries", fqdn, maxRetries)
+			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "protocol")
+				return nil, fmt.Errorf("[%s] HTTP health check failed after %d retries", fqdn, maxRetries)
+			}
 		}
 	}
 	return nil, err
@@ -115,7 +123,7 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	start := time.Now()
 	result := false
 	defer func() {
-		ObserveHealthcheck(typeStr, address, start, result)
+		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
 	scheme := "http"
@@ -129,6 +137,7 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	t, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[%s] invalid timeout format: %v", fqdn, err)
+		IncHealthcheckFailures(typeStr, address, "timeout")
 		return false
 	}
 
@@ -138,6 +147,7 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	req, err := http.NewRequest(h.Method, url, nil)
 	if err != nil {
 		log.Debugf("[%s] HTTP healthcheck failed: [backend=%s:%d scheme:%s uri:%s method:%s host:%s] error to create http request: %v", fqdn, backend.Address, h.Port, scheme, h.URI, h.Method, h.Host, err)
+		IncHealthcheckFailures(typeStr, address, "other")
 		return false
 	}
 	req.Host = h.Host

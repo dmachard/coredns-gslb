@@ -31,6 +31,7 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 				}
 				if backend.GetPriority() == minPriority {
 					healthyIPs = append(healthyIPs, ip)
+					IncBackendSelected(record.Fqdn, ip)
 				} else {
 					break // stop at first higher priority
 				}
@@ -73,6 +74,7 @@ func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordTy
 
 	selectedBackend := healthyBackends[index%len(healthyBackends)]
 	g.RoundRobinIndex.Store(domain, (index+1)%len(healthyBackends))
+	IncBackendSelected(record.Fqdn, selectedBackend.GetAddress())
 
 	return []string{selectedBackend.GetAddress()}, nil
 }
@@ -107,6 +109,7 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 	addresses := []string{}
 	for _, backend := range healthyBackends {
 		addresses = append(addresses, backend.GetAddress())
+		IncBackendSelected(record.Fqdn, backend.GetAddress())
 	}
 
 	return addresses, nil
@@ -126,6 +129,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 					for _, c := range countries {
 						if strings.EqualFold(c, countryCode) {
 							matchedIPs = append(matchedIPs, backend.GetAddress())
+							IncBackendSelected(record.Fqdn, backend.GetAddress())
 							break
 						}
 					}
@@ -150,6 +154,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 						for _, c := range cities {
 							if strings.EqualFold(c, cityName) {
 								matchedIPs = append(matchedIPs, backend.GetAddress())
+								IncBackendSelected(record.Fqdn, backend.GetAddress())
 								break
 							}
 						}
@@ -174,6 +179,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 					for _, a := range asns {
 						if a == asn {
 							matchedIPs = append(matchedIPs, backend.GetAddress())
+							IncBackendSelected(record.Fqdn, backend.GetAddress())
 							break
 						}
 					}
@@ -200,6 +206,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 						for _, loc := range customLocs {
 							if loc == location {
 								matchedIPs = append(matchedIPs, backend.GetAddress())
+								IncBackendSelected(record.Fqdn, backend.GetAddress())
 								break
 							}
 						}

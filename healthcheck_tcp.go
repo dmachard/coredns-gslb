@@ -32,12 +32,13 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 	start := time.Now()
 	result := false
 	defer func() {
-		ObserveHealthcheck(typeStr, address, start, result)
+		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
 	timeout, err := time.ParseDuration(h.Timeout)
 	if err != nil {
 		log.Errorf("[%s] invalid timeout format: %v", fqdn, err)
+		IncHealthcheckFailures(typeStr, address, "timeout")
 		return false
 	}
 
@@ -49,6 +50,7 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		if err != nil {
 			log.Debugf("[%s] TCP health check failed (retries=%d/%d): %v", fqdn, retry, maxRetries, err)
 			if retry == maxRetries {
+				IncHealthcheckFailures(typeStr, address, "connection")
 				return false
 			}
 			continue
@@ -61,6 +63,7 @@ func (h *TCPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		return true
 	}
 
+	IncHealthcheckFailures(typeStr, address, "other")
 	return false
 }
 
