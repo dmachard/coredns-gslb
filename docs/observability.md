@@ -34,3 +34,7 @@ Available metrics:
 | `gslb_version_info`                        | `version`                                          | GSLB build version info (always set to 1).                                                     |
 
 You can then scrape metrics at http://localhost:9153/metrics
+
+Dashboard example
+
+<img src="dashboard.png" alt="CoreDNS-GSLB"/>
