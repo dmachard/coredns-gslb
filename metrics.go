@@ -82,27 +82,46 @@ var (
 		[]string{"version"},
 	)
 
-	healthcheckConfiguredTotal = prometheus.NewGaugeVec(
+	healthchecksTotal = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "gslb_healthcheck_configured_total",
-			Help: "Number of healthchecks configured per backend (by record and address)",
+			Name: "gslb_healthchecks_total",
+			Help: "Number of healthchecks configured (total for all records/backends)",
 		},
-		[]string{"name", "address"},
 	)
 
-	backendConfiguredTotal = prometheus.NewGaugeVec(
+	backendsTotal = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "gslb_backend_configured_total",
-			Help: "Total number of backends configured per record",
+			Name: "gslb_backends_total",
+			Help: "Total number of backends configured (all records)",
 		},
-		[]string{"name"},
 	)
 
-	recordsConfiguredTotal = prometheus.NewGauge(
+	recordsTotal = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "gslb_records_configured_total",
+			Name: "gslb_records_total",
 			Help: "Total number of GSLB records (FQDNs) configured.",
 		},
+	)
+	recordHealthStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_record_health_status",
+			Help: "Health status per record (1 = healthy, 0 = unhealthy).",
+		},
+		[]string{"name", "status"},
+	)
+	backendHealthStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_backend_health_status",
+			Help: "Health status per backend (1 = healthy, 0 = unhealthy).",
+		},
+		[]string{"name", "address", "status"},
+	)
+	backendHealthcheckStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gslb_backend_healthcheck_status",
+			Help: "Healthcheck status per backend and type (1 = success, 0 = fail).",
+		},
+		[]string{"name", "address", "type", "status"},
 	)
 )
 
@@ -119,9 +138,12 @@ func RegisterMetrics() {
 		prometheus.MustRegister(backendSelected)
 		prometheus.MustRegister(recordResolutionDuration)
 		prometheus.MustRegister(versionInfo)
-		prometheus.MustRegister(healthcheckConfiguredTotal)
-		prometheus.MustRegister(backendConfiguredTotal)
-		prometheus.MustRegister(recordsConfiguredTotal)
+		prometheus.MustRegister(healthchecksTotal)
+		prometheus.MustRegister(backendsTotal)
+		prometheus.MustRegister(recordsTotal)
+		prometheus.MustRegister(recordHealthStatus)
+		prometheus.MustRegister(backendHealthStatus)
+		prometheus.MustRegister(backendHealthcheckStatus)
 	})
 }
 
@@ -157,14 +179,23 @@ func SetVersionInfo(version string) {
 	versionInfo.WithLabelValues(version).Set(1)
 }
 
-func SetHealthcheckConfiguredTotal(name, address string, value float64) {
-	healthcheckConfiguredTotal.WithLabelValues(name, address).Set(value)
+func SetHealthchecksTotal(value float64) {
+	healthchecksTotal.Set(value)
 }
-func SetBackendConfiguredTotal(name string, value float64) {
-	backendConfiguredTotal.WithLabelValues(name).Set(value)
+func SetBackendsTotal(value float64) {
+	backendsTotal.Set(value)
 }
-func SetRecordsConfiguredTotal(value float64) {
-	recordsConfiguredTotal.Set(value)
+func SetRecordsTotal(value float64) {
+	recordsTotal.Set(value)
+}
+func SetRecordHealthStatus(name, status string, value float64) {
+	recordHealthStatus.WithLabelValues(name, status).Set(value)
+}
+func SetBackendHealthStatus(name, address, status string, value float64) {
+	backendHealthStatus.WithLabelValues(name, address, status).Set(value)
+}
+func SetBackendHealthcheckStatus(name, address, typeStr, status string, value float64) {
+	backendHealthcheckStatus.WithLabelValues(name, address, typeStr, status).Set(value)
 }
 
 func ObserveHealthcheck(name, typeStr, address string, start time.Time, result bool) {

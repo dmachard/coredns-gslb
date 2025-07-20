@@ -305,9 +305,13 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 
 			g.Records[domain] = newRecord
 			log.Infof("Added new record for domain: %s", domain)
+			// Initialize health status for new record
+			newRecord.updateRecordHealthStatus()
 			go newRecord.scrapeBackends(recordCtx, g)
 		} else {
 			oldRecord.updateRecord(newRecord)
+			// Update health status after record update
+			oldRecord.updateRecordHealthStatus()
 		}
 	}
 
@@ -323,7 +327,21 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 			log.Infof("Records [%s] removed", domain)
 		}
 	}
-	SetRecordsConfiguredTotal(float64(len(g.Records)))
+	SetRecordsTotal(float64(len(g.Records)))
+	// Set total backends configured
+	totalBackends := 0
+	for _, record := range g.Records {
+		totalBackends += len(record.Backends)
+	}
+	SetBackendsTotal(float64(totalBackends))
+	// Set total healthchecks configured
+	totalHealthchecks := 0
+	for _, record := range g.Records {
+		for _, backend := range record.Backends {
+			totalHealthchecks += len(backend.GetHealthChecks())
+		}
+	}
+	SetHealthchecksTotal(float64(totalHealthchecks))
 }
 
 func (g *GSLB) initializeRecords(ctx context.Context) {
@@ -338,11 +356,27 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 				record.cancelFunc = cancel
 
 				log.Debugf("[%s] Starting health checks for backends", domain)
+				// Initialize health status for existing record
+				record.updateRecordHealthStatus()
 				go record.scrapeBackends(recordCtx, g)
 			}
 		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
-	SetRecordsConfiguredTotal(float64(len(g.Records)))
+	SetRecordsTotal(float64(len(g.Records)))
+	// Set total backends configured
+	totalBackends := 0
+	for _, record := range g.Records {
+		totalBackends += len(record.Backends)
+	}
+	SetBackendsTotal(float64(totalBackends))
+	// Set total healthchecks configured
+	totalHealthchecks := 0
+	for _, record := range g.Records {
+		for _, backend := range record.Backends {
+			totalHealthchecks += len(backend.GetHealthChecks())
+		}
+	}
+	SetHealthchecksTotal(float64(totalHealthchecks))
 }
 
 func (g *GSLB) batchRecords(batchSize int) [][]*Record {

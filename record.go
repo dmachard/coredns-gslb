@@ -65,10 +65,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 		r.Backends = append(r.Backends, &backend)
 	}
-	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
-	for _, backend := range r.Backends {
-		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
-	}
+	// No direct call to SetBackendsTotal or SetRecordsTotal here; these are set globally after all records are loaded/updated.
 	return nil
 }
 
@@ -154,10 +151,7 @@ func (r *Record) updateRecord(newRecord *Record) {
 			i++
 		}
 	}
-	SetBackendConfiguredTotal(r.Fqdn, float64(len(r.Backends)))
-	for _, backend := range r.Backends {
-		SetHealthcheckConfiguredTotal(r.Fqdn, backend.GetAddress(), float64(len(backend.GetHealthChecks())))
-	}
+	// No direct call to SetBackendsTotal or SetRecordsTotal here; these are set globally after all records are updated.
 }
 
 // GetScrapeInterval returns the health check interval for HTTPHealthCheck
@@ -234,6 +228,9 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 				}
 			}
 			SetActiveBackends(r.Fqdn, float64(healthyCount))
+
+			// Update record health status
+			r.updateRecordHealthStatus()
 		case <-ctx.Done():
 			log.Debugf("[%s] stopping health checks", r.Fqdn)
 			return
@@ -247,4 +244,54 @@ func parseDurationWithDefault(durationStr string, defaultStr string) time.Durati
 		d, _ = time.ParseDuration(defaultStr)
 	}
 	return d
+}
+
+func (r *Record) UpdateRecord() {
+	// Update record health status
+	r.updateRecordHealthStatus()
+}
+
+func (r *Record) updateRecordHealthStatus() {
+	// Check if any backend is healthy
+	hasHealthyBackend := false
+	for _, backend := range r.Backends {
+		if backend.IsHealthy() {
+			hasHealthyBackend = true
+			break
+		}
+	}
+
+	// Set health status: 1 if any backend is healthy, 0 otherwise
+	if hasHealthyBackend {
+		SetRecordHealthStatus(r.Fqdn, "healthy", 1)
+		SetRecordHealthStatus(r.Fqdn, "unhealthy", 0)
+	} else {
+		SetRecordHealthStatus(r.Fqdn, "healthy", 0)
+		SetRecordHealthStatus(r.Fqdn, "unhealthy", 1)
+	}
+
+	// Update individual backend health status
+	for _, backend := range r.Backends {
+		if backend.IsHealthy() {
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "healthy", 1)
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "unhealthy", 0)
+		} else {
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "healthy", 0)
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "unhealthy", 1)
+		}
+
+		// Update healthcheck status for each type
+		for _, healthcheck := range backend.GetHealthChecks() {
+			healthcheckType := healthcheck.GetType()
+			// For now, we'll set based on overall backend health
+			// In a more detailed implementation, you could track individual healthcheck results
+			if backend.IsHealthy() {
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 1)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 0)
+			} else {
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 0)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 1)
+			}
+		}
+	}
 }

@@ -109,49 +109,82 @@ func TestMetrics_ActiveBackends(t *testing.T) {
 
 func TestMetrics_BackendConfiguredTotal(t *testing.T) {
 	RegisterMetrics()
-	SetBackendConfiguredTotal("example.com.", 3)
-	SetBackendConfiguredTotal("example.com.", 2)
-	SetBackendConfiguredTotal("test.com.", 1)
+	SetBackendsTotal(3)
+	SetBackendsTotal(5)
 
-	val1 := testutil.ToFloat64(backendConfiguredTotal.WithLabelValues("example.com."))
-	if val1 != 2 {
-		t.Errorf("expected 2, got %v", val1)
-	}
-	val2 := testutil.ToFloat64(backendConfiguredTotal.WithLabelValues("test.com."))
-	if val2 != 1 {
-		t.Errorf("expected 1, got %v", val2)
+	val := testutil.ToFloat64(backendsTotal)
+	if val != 5 {
+		t.Errorf("expected 5, got %v", val)
 	}
 }
 
 func TestMetrics_RecordsConfiguredTotal(t *testing.T) {
 	RegisterMetrics()
-	SetRecordsConfiguredTotal(5)
-	SetRecordsConfiguredTotal(3)
+	SetRecordsTotal(5)
+	SetRecordsTotal(3)
 
-	val := testutil.ToFloat64(recordsConfiguredTotal)
+	val := testutil.ToFloat64(recordsTotal)
 	if val != 3 {
 		t.Errorf("expected 3, got %v", val)
 	}
 }
 
+func TestMetrics_RecordHealthStatus(t *testing.T) {
+	RegisterMetrics()
+	SetRecordHealthStatus("test.example.com", "healthy", 1)
+	SetRecordHealthStatus("test.example.com", "unhealthy", 0)
+
+	healthyVal := testutil.ToFloat64(recordHealthStatus.WithLabelValues("test.example.com", "healthy"))
+	if healthyVal != 1 {
+		t.Errorf("expected 1, got %v", healthyVal)
+	}
+
+	unhealthyVal := testutil.ToFloat64(recordHealthStatus.WithLabelValues("test.example.com", "unhealthy"))
+	if unhealthyVal != 0 {
+		t.Errorf("expected 0, got %v", unhealthyVal)
+	}
+}
+
+func TestMetrics_BackendHealthStatus(t *testing.T) {
+	RegisterMetrics()
+	SetBackendHealthStatus("test.example.com", "192.168.1.1", "healthy", 1)
+	SetBackendHealthStatus("test.example.com", "192.168.1.1", "unhealthy", 0)
+
+	healthyVal := testutil.ToFloat64(backendHealthStatus.WithLabelValues("test.example.com", "192.168.1.1", "healthy"))
+	if healthyVal != 1 {
+		t.Errorf("expected 1, got %v", healthyVal)
+	}
+
+	unhealthyVal := testutil.ToFloat64(backendHealthStatus.WithLabelValues("test.example.com", "192.168.1.1", "unhealthy"))
+	if unhealthyVal != 0 {
+		t.Errorf("expected 0, got %v", unhealthyVal)
+	}
+}
+
+func TestMetrics_BackendHealthcheckStatus(t *testing.T) {
+	RegisterMetrics()
+	SetBackendHealthcheckStatus("test.example.com", "192.168.1.1", "https/443", "success", 1)
+	SetBackendHealthcheckStatus("test.example.com", "192.168.1.1", "https/443", "fail", 0)
+
+	successVal := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.1", "https/443", "success"))
+	if successVal != 1 {
+		t.Errorf("expected 1, got %v", successVal)
+	}
+
+	failVal := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.1", "https/443", "fail"))
+	if failVal != 0 {
+		t.Errorf("expected 0, got %v", failVal)
+	}
+}
+
 func TestMetrics_HealthcheckConfiguredTotal(t *testing.T) {
 	RegisterMetrics()
-	SetHealthcheckConfiguredTotal("example.com.", "1.2.3.4", 2)
-	SetHealthcheckConfiguredTotal("example.com.", "1.2.3.4", 1)
-	SetHealthcheckConfiguredTotal("example.com.", "2.2.2.2", 3)
-	SetHealthcheckConfiguredTotal("test.com.", "1.2.3.4", 4)
+	SetHealthchecksTotal(2)
+	SetHealthchecksTotal(5)
 
-	val1 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("example.com.", "1.2.3.4"))
-	if val1 != 1 {
-		t.Errorf("expected 1, got %v", val1)
-	}
-	val2 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("example.com.", "2.2.2.2"))
-	if val2 != 3 {
-		t.Errorf("expected 3, got %v", val2)
-	}
-	val3 := testutil.ToFloat64(healthcheckConfiguredTotal.WithLabelValues("test.com.", "1.2.3.4"))
-	if val3 != 4 {
-		t.Errorf("expected 4, got %v", val3)
+	val := testutil.ToFloat64(healthchecksTotal)
+	if val != 5 {
+		t.Errorf("expected 5, got %v", val)
 	}
 }
 
