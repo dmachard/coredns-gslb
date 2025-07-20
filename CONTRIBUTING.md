@@ -114,3 +114,18 @@ Run a specific test
 ~~~ bash
 go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 ~~~
+
+## Run linters
+
+Install linter
+
+```bash
+sudo apt install build-essential
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+```
+
+Execute linter before to commit
+
+```bash
+make lint
+```

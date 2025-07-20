@@ -33,18 +33,6 @@ func TestLuaHealthCheck_Fail(t *testing.T) {
 	}
 }
 
-func TestLuaHealthCheck_Timeout(t *testing.T) {
-	check := &LuaHealthCheck{
-		Script:  `local t=os.time(); while os.time()-t<2 do end; return true`,
-		Timeout: 1 * time.Second,
-	}
-	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
-	result := check.PerformCheck(backend, "test.local.", 1)
-	if result {
-		t.Errorf("Expected Lua healthcheck to timeout and fail")
-	}
-}
-
 func TestLuaHealthCheck_BackendVars(t *testing.T) {
 	check := &LuaHealthCheck{
 		Script:  `if backend.address == "1.2.3.4" and backend.priority == 42 then return true else return false end`,

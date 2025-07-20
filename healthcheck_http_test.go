@@ -77,7 +77,7 @@ func TestHTTPHealthCheck(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Setup the test server
-			server := httptest.NewServer(http.HandlerFunc(test.handler))
+			server := httptest.NewServer(test.handler)
 			defer server.Close()
 
 			// Define the backend

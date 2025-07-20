@@ -1,4 +1,13 @@
-.PHONY: tests stats
+ifndef $(GOPATH)
+	GOPATH=$(shell go env GOPATH)
+	export GOPATH
+endif
+
+.PHONY: tests stats lint
+
+# Runs linters.
+lint:
+	$(GOPATH)/bin/golangci-lint run --config=.golangci.yml ./...
 
 tests:
 	@echo "Running tests..."

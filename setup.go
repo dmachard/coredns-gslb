@@ -98,7 +98,7 @@ func setup(c *caddy.Controller) error {
 					}
 					locationMapPath = c.Val()
 					if err := g.loadCustomLocationsMap(locationMapPath); err != nil {
-						return fmt.Errorf("failed to load location map: %v", err)
+						return fmt.Errorf("failed to load location map: %w", err)
 					}
 				case "geoip_country_maxmind_db":
 					if !c.NextArg() {
@@ -108,7 +108,7 @@ func setup(c *caddy.Controller) error {
 					if countryPath != "" {
 						countryDB, err := geoip2.Open(countryPath)
 						if err != nil {
-							return fmt.Errorf("failed to open country MaxMind DB: %v", err)
+							return fmt.Errorf("failed to open country MaxMind DB: %w", err)
 						}
 						g.GeoIPCountryDB = countryDB
 					}
@@ -120,7 +120,7 @@ func setup(c *caddy.Controller) error {
 					if cityPath != "" {
 						cityDB, err := geoip2.Open(cityPath)
 						if err != nil {
-							return fmt.Errorf("failed to open city MaxMind DB: %v", err)
+							return fmt.Errorf("failed to open city MaxMind DB: %w", err)
 						}
 						g.GeoIPCityDB = cityDB
 					}
@@ -132,7 +132,7 @@ func setup(c *caddy.Controller) error {
 					if asnPath != "" {
 						asnDB, err := geoip2.Open(asnPath)
 						if err != nil {
-							return fmt.Errorf("failed to open ASN MaxMind DB: %v", err)
+							return fmt.Errorf("failed to open ASN MaxMind DB: %w", err)
 						}
 						g.GeoIPASNDB = asnDB
 					}
@@ -189,13 +189,13 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 	// Create a new file system watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("failed to create watcher: %v", err)
+		return fmt.Errorf("failed to create watcher: %w", err)
 	}
 	defer watcher.Close()
 
 	// Add the config file to the watcher
 	if err := watcher.Add(filePath); err != nil {
-		return fmt.Errorf("failed to add file to watcher: %v", err)
+		return fmt.Errorf("failed to add file to watcher: %w", err)
 	}
 
 	// Channel for delayed reloads
@@ -234,13 +234,13 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 func loadConfigFile(g *GSLB, fileName string) error {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		return fmt.Errorf("failed to read YAML configuration: %v", err)
+		return fmt.Errorf("failed to read YAML configuration: %w", err)
 	}
 	if len(data) == 0 {
 		return fmt.Errorf("failed to read YAML configuration: file empty")
 	}
 	if err := yaml.Unmarshal(data, g); err != nil {
-		return fmt.Errorf("failed to parse YAML configuration: %v", err)
+		return fmt.Errorf("failed to parse YAML configuration: %w", err)
 	}
 	return nil
 }
