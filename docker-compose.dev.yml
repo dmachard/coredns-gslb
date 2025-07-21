@@ -10,20 +10,20 @@ services:
   coredns_gslb:
     build:
       context: .
-      dockerfile: coredns/Dockerfile
+      dockerfile: ./Dockerfile
     container_name: coredns
     ports:
       - "8053:53/udp"
       - "8053:53/tcp"
       - "9153:9153/tcp"
     volumes:
-      - ./coredns/Corefile:/Corefile
-      - ./coredns/db.gslb.example.com:/db.gslb.example.com
-      - ./coredns/gslb_config.example.com.yml:/gslb_config.example.com.yml
-      - ./coredns/location_map.yml:/coredns/location_map.yml
-      - ./coredns/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
-      - ./coredns/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
-      - ./coredns/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
+      - ./tests/Corefile:/Corefile
+      - ./tests/db.gslb.example.com:/db.gslb.example.com
+      - ./tests/gslb_config.example.com.yml:/gslb_config.example.com.yml
+      - ./tests/location_map.yml:/coredns/location_map.yml
+      - ./tests/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
+      - ./tests/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
+      - ./tests/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
     command: -conf /Corefile
     environment:
       - COREDNS_LOG_LEVEL=debug
@@ -34,7 +34,7 @@ services:
   # create webapp to simulate web application to monitor
   webapp10:
     build:
-      context: ./webapp
+      context: ./tests/webapp
     ports:
       - "10443:443"
     environment:
@@ -46,7 +46,7 @@ services:
   # create webapp to simulate a second web application to monitor
   webapp11:
     build:
-      context: ./webapp
+      context: ./tests/webapp
     ports:
       - "11443:443"
     environment:
@@ -58,7 +58,7 @@ services:
   # create webapp to simulate a third web application with gRPC health endpoint
   webapp12:
     build:
-      context: ./webapp
+      context: ./tests/webapp
     ports:
       - "12990:9090"  # Expose gRPC port
     environment:
@@ -74,7 +74,7 @@ services:
       - "9090:9090/tcp"
     volumes:
       - prometheus_data:/prometheus
-      - ./coredns/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./tests/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -94,8 +94,8 @@ services:
       - GF_AUTH_DISABLE_LOGIN_FORM=true      
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./coredns/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
-      - ./coredns/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./tests/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./tests/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
       - ./dashboards:/var/lib/grafana/dashboards
     networks:
       gslb_net:

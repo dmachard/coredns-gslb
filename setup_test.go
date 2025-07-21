@@ -16,33 +16,33 @@ func TestSetupGSLB(t *testing.T) {
 		expectError bool
 	}{
 		// Test with basic valid configuration
-		{"Valid config", `gslb ./coredns/gslb_config.example.com.yml`, false},
+		{"Valid config", `gslb ./tests/gslb_config.example.com.yml`, false},
 
 		// Test with valid configuration and additional options
-		{"Valid config with additional options", `gslb ./coredns/gslb_config.example.com.yml {
+		{"Valid config with additional options", `gslb ./tests/gslb_config.example.com.yml {
 			max_stagger_start 120s
 			batch_size_start 50
 			resolution_idle_timeout 1800s
 		}`, false},
 
 		// Test with valid configuration and a single zone
-		{"Valid config with single zone", `gslb ./coredns/gslb_config.example.com.yml example.org {
+		{"Valid config with single zone", `gslb ./tests/gslb_config.example.com.yml example.org {
 			max_stagger_start 120s
 			batch_size_start 50
 		}`, false},
 
 		// Test with valid configuration and multiple zones
-		{"Valid config with multiple zones", `gslb ./coredns/gslb_config.example.com.yml example.org example.com {
+		{"Valid config with multiple zones", `gslb ./tests/gslb_config.example.com.yml example.org example.com {
 			resolution_idle_timeout 1800s
 		}`, false},
 
 		// Test with invalid `max_stagger_start` (non-duration value)
-		{"Invalid max_stagger_start", `gslb ./coredns/gslb_config.example.com.yml {
+		{"Invalid max_stagger_start", `gslb ./tests/gslb_config.example.com.yml {
 			max_stagger_start invalid
 		}`, true},
 
 		// Test with invalid `batch_size_start` (non-integer value)
-		{"Invalid batch_size_start", `gslb ./coredns/gslb_config.example.com.yml{
+		{"Invalid batch_size_start", `gslb ./tests/gslb_config.example.com.yml{
 			batch_size_start invalid
 		}`, true},
 
@@ -50,14 +50,14 @@ func TestSetupGSLB(t *testing.T) {
 		{"Non-existent config file", `gslb ./non_existent_config.yml`, true},
 
 		// Test with unknown block option
-		{"Unknown block option", `gslb ./coredns/gslb_config.example.com.yml {
+		{"Unknown block option", `gslb ./tests/gslb_config.example.com.yml {
 			unknown_option
 		}`, true},
 
 		// Test with valid geoip_country_maxmind_db path
 		{
 			name: "Invalid geoip_country_maxmind_db path",
-			config: `gslb ./coredns/gslb_config.example.com.yml {
+			config: `gslb ./tests/gslb_config.example.com.yml {
 				geoip_country_maxmind_db /invalid/path.mmdb
 			}`,
 			expectError: true,
@@ -66,7 +66,7 @@ func TestSetupGSLB(t *testing.T) {
 		// Test with invalid geoip_city_maxmind_db path
 		{
 			name: "Invalid geoip_city_maxmind_db path",
-			config: `gslb ./coredns/gslb_config.example.com.yml {
+			config: `gslb ./tests/gslb_config.example.com.yml {
 				geoip_city_maxmind_db /invalid/city.mmdb
 			}`,
 			expectError: true,
@@ -75,7 +75,7 @@ func TestSetupGSLB(t *testing.T) {
 		// Test with invalid geoip_asn_maxmind_db path
 		{
 			name: "Invalid geoip_asn_maxmind_db path",
-			config: `gslb ./coredns/gslb_config.example.com.yml {
+			config: `gslb ./tests/gslb_config.example.com.yml {
 				geoip_asn_maxmind_db /invalid/asn.mmdb
 			}`,
 			expectError: true,
@@ -84,7 +84,7 @@ func TestSetupGSLB(t *testing.T) {
 		// Test with invalid geoip_custom_db path
 		{
 			name: "Invalid geoip_custom_db path",
-			config: `gslb ./coredns/gslb_config.example.com.yml {
+			config: `gslb ./tests/gslb_config.example.com.yml {
 				geoip_custom_db /invalid/location.yaml
 			}`,
 			expectError: true,
@@ -117,7 +117,7 @@ func TestLoadConfigFile(t *testing.T) {
 		filePath    string
 		expectError bool
 	}{
-		{"Valid config", "./coredns/gslb_config.example.com.yml", false},
+		{"Valid config", "./tests/gslb_config.example.com.yml", false},
 		{"Non-existent file", "./tests/non_existent_config.yml", true},
 	}
 

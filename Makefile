@@ -3,7 +3,7 @@ ifndef $(GOPATH)
 	export GOPATH
 endif
 
-.PHONY: tests stats lint
+.PHONY: tests stats lint build clean
 
 # Runs linters.
 lint:
@@ -29,5 +29,11 @@ stats:
 	CODE_LINES=$$((TOTAL_LINES - COMMENT_LINES)); \
 	echo "Total lines       : $$TOTAL_LINES"; \
 	echo "Comment lines     : $$COMMENT_LINES"; \
-	echo "Effective code lines: $$CODE_LINES"
+	echo "Effective code lines: $$CODE_LINES"; \
+	echo "Lint rules enabled: $$($(GOPATH)/bin/golangci-lint linters --json | jq '.Enabled | length')"
 
+build:
+	docker build -t coredns-gslb:latest .
+
+clean:
+	docker rmi -f coredns-gslb:latest || true
