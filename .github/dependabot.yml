@@ -11,6 +11,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/coredns"
+    directory: "/"
     schedule:
       interval: "weekly"
