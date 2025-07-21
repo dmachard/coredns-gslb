@@ -217,9 +217,9 @@ func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 		"192.168.1.0/24": "us-east",
 	}
 
-	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, CustomLocations: []string{"eu-west"}}}
-	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, CustomLocations: []string{"us-east"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, CustomLocations: []string{"other"}}}
+	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Priority: 10, Location: "eu-west"}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Priority: 20, Location: "us-east"}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "172.16.0.1", Enable: true, Priority: 30, Location: "other"}}
 	backendEU.On("IsHealthy").Return(true)
 	backendUS.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -264,15 +264,15 @@ func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-Country.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-Country.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-Country.mmdb not found, skipping real MaxMind test")
 	}
 	defer db.Close()
 
-	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Countries: []string{"US"}}}
-	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Countries: []string{"AU"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Countries: []string{"DE"}}}
+	backendUS := &MockBackend{Backend: &Backend{Address: "20.0.0.1", Enable: true, Priority: 10, Country: "US"}}
+	backendAU := &MockBackend{Backend: &Backend{Address: "30.0.0.1", Enable: true, Priority: 20, Country: "AU"}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "40.0.0.1", Enable: true, Priority: 30, Country: "DE"}}
 	backendUS.On("IsHealthy").Return(true)
 	backendAU.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -307,15 +307,15 @@ func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-City.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-City.mmdb not found, skipping real MaxMind city test")
 	}
 	defer db.Close()
 
-	backendParis := &MockBackend{Backend: &Backend{Address: "10.10.10.1", Enable: true, Priority: 10, Cities: []string{"Paris"}}}
-	backendBerlin := &MockBackend{Backend: &Backend{Address: "20.20.20.1", Enable: true, Priority: 20, Cities: []string{"Berlin"}}}
-	backendOther := &MockBackend{Backend: &Backend{Address: "30.30.30.1", Enable: true, Priority: 30, Cities: []string{"OtherCity"}}}
+	backendParis := &MockBackend{Backend: &Backend{Address: "10.10.10.1", Enable: true, Priority: 10, City: "Paris"}}
+	backendBerlin := &MockBackend{Backend: &Backend{Address: "20.20.20.1", Enable: true, Priority: 20, City: "Berlin"}}
+	backendOther := &MockBackend{Backend: &Backend{Address: "30.30.30.1", Enable: true, Priority: 30, City: "OtherCity"}}
 	backendParis.On("IsHealthy").Return(true)
 	backendBerlin.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)
@@ -350,15 +350,15 @@ func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_ASN_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-ASN.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-ASN.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-ASN.mmdb not found, skipping real MaxMind ASN test")
 	}
 	defer db.Close()
 
-	backendGoogle := &MockBackend{Backend: &Backend{Address: "8.8.8.8", Enable: true, Priority: 10, ASNs: []uint{15169}}}     // Google ASN
-	backendCloudflare := &MockBackend{Backend: &Backend{Address: "1.1.1.1", Enable: true, Priority: 20, ASNs: []uint{13335}}} // Cloudflare ASN
-	backendOther := &MockBackend{Backend: &Backend{Address: "9.9.9.9", Enable: true, Priority: 30, ASNs: []uint{0}}}
+	backendGoogle := &MockBackend{Backend: &Backend{Address: "8.8.8.8", Enable: true, Priority: 10, ASN: "15169"}}     // Google ASN
+	backendCloudflare := &MockBackend{Backend: &Backend{Address: "1.1.1.1", Enable: true, Priority: 20, ASN: "13335"}} // Cloudflare ASN
+	backendOther := &MockBackend{Backend: &Backend{Address: "9.9.9.9", Enable: true, Priority: 30, ASN: "0"}}
 	backendGoogle.On("IsHealthy").Return(true)
 	backendCloudflare.On("IsHealthy").Return(true)
 	backendOther.On("IsHealthy").Return(true)

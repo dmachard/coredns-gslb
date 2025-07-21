@@ -14,10 +14,10 @@ func TestBackend_UnmarshalYAML(t *testing.T) {
 address: "127.0.0.1"
 priority: 10
 description: "helloworld"
-location_countries: ["FR", "DE"]
-location_cities: ["Paris", "Berlin"]
-location_asns: [64500, 64501]
-locations_custom: ["edge-eu", "edge-de"]
+country: "FR"
+city: "Paris"
+asn: "64500"
+location: "edge-eu"
 enable: true
 timeout: "10s"
 healthchecks:
@@ -34,10 +34,10 @@ healthchecks:
 	assert.Equal(t, true, backend.Enable)
 	assert.Equal(t, "10s", backend.Timeout)
 	assert.Equal(t, "helloworld", backend.Description)
-	assert.ElementsMatch(t, []string{"FR", "DE"}, backend.Countries)
-	assert.ElementsMatch(t, []string{"Paris", "Berlin"}, backend.Cities)
-	assert.ElementsMatch(t, []uint{64500, 64501}, backend.ASNs)
-	assert.ElementsMatch(t, []string{"edge-eu", "edge-de"}, backend.CustomLocations)
+	assert.Equal(t, "FR", backend.Country)
+	assert.Equal(t, "Paris", backend.City)
+	assert.Equal(t, "64500", backend.ASN)
+	assert.Equal(t, "edge-eu", backend.Location)
 	assert.Len(t, backend.HealthChecks, 1)
 	assert.IsType(t, &HTTPHealthCheck{}, backend.HealthChecks[0])
 }
@@ -60,15 +60,15 @@ func TestBackend_RunHealthChecks(t *testing.T) {
 
 func TestBackend_Getters(t *testing.T) {
 	b := &Backend{
-		Fqdn:            "test.example.com.",
-		Description:     "desc",
-		Address:         "1.2.3.4",
-		Priority:        10,
-		Enable:          true,
-		HealthChecks:    []GenericHealthCheck{},
-		Timeout:         "5s",
-		Countries:       []string{"FR"},
-		CustomLocations: []string{"eu-west-1"},
+		Fqdn:         "test.example.com.",
+		Description:  "desc",
+		Address:      "1.2.3.4",
+		Priority:     10,
+		Enable:       true,
+		HealthChecks: []GenericHealthCheck{},
+		Timeout:      "5s",
+		Country:      "FR",
+		Location:     "eu-west-1",
 	}
 
 	assert.Equal(t, "test.example.com.", b.GetFqdn())
@@ -78,8 +78,8 @@ func TestBackend_Getters(t *testing.T) {
 	assert.Equal(t, true, b.IsEnabled())
 	assert.Equal(t, []GenericHealthCheck{}, b.GetHealthChecks())
 	assert.Equal(t, "5s", b.GetTimeout())
-	assert.Equal(t, []string{"FR"}, b.GetCountries())
-	assert.Equal(t, []string{"eu-west-1"}, b.GetCustomLocations())
+	assert.Equal(t, "FR", b.GetCountry())
+	assert.Equal(t, "eu-west-1", b.GetLocation())
 	assert.Equal(t, "FR", b.GetCountry())
 	assert.Equal(t, "eu-west-1", b.GetLocation())
 }

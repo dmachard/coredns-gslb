@@ -1,7 +1,6 @@
 package gslb
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -14,28 +13,24 @@ func TestTCPHealthCheck(t *testing.T) {
 	tests := []struct {
 		name          string
 		startServer   bool
-		port          int
 		retries       int
 		expectedError bool
 	}{
 		{
 			name:          "Success",
 			startServer:   true,
-			port:          8080,
 			retries:       0,
 			expectedError: false,
 		},
 		{
 			name:          "FailNoServer",
 			startServer:   false,
-			port:          8081,
 			retries:       0,
 			expectedError: true,
 		},
 		{
 			name:          "RetryLogic",
 			startServer:   true,
-			port:          8082,
 			retries:       2,
 			expectedError: false,
 		},
@@ -44,37 +39,46 @@ func TestTCPHealthCheck(t *testing.T) {
 	// Iterate over test cases
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var port int
 			var server net.Listener
 			var err error
 
-			// Start a mock TCP server if required by the test case
 			if test.startServer {
-				server, err = net.Listen("tcp", net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", test.port)))
-				assert.NoError(t, err, "Failed to start mock server")
-				defer server.Close()
-
-				// Simulate a delay in starting the server for retry logic
+				server, err = net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatalf("Failed to find free port: %v", err)
+				}
+				port = server.Addr().(*net.TCPAddr).Port
 				if test.name == "RetryLogic" {
 					go func() {
-						time.Sleep(2 * time.Second) // Delay the server start
+						time.Sleep(2 * time.Second)
 						server.Accept()
 					}()
+				} else {
+					go func() {
+						defer server.Close()
+						conn, err := server.Accept()
+						if err == nil {
+							conn.Close()
+						}
+					}()
 				}
+				defer server.Close()
+			} else {
+				ln, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatalf("Failed to find free port: %v", err)
+				}
+				port = ln.Addr().(*net.TCPAddr).Port
+				ln.Close() // close immediately so nothing is listening
 			}
 
-			// Define the backend
 			backend := &Backend{Address: "127.0.0.1"}
-
-			// Create a TCPHealthCheck
 			hc := &TCPHealthCheck{
-				Port:    test.port,
+				Port:    port,
 				Timeout: "1s",
 			}
-
-			// Run the health check with retries
 			result := hc.PerformCheck(backend, "example.com", test.retries)
-
-			// Assert the result
 			if test.expectedError {
 				assert.False(t, result, "Expected failure, but got success in test: %s", test.name)
 			} else {
@@ -82,6 +86,68 @@ func TestTCPHealthCheck(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Success", func(t *testing.T) {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("Failed to find free port: %v", err)
+		}
+		port := ln.Addr().(*net.TCPAddr).Port
+		go func() {
+			defer ln.Close()
+			conn, err := ln.Accept()
+			if err == nil {
+				conn.Close()
+			}
+		}()
+		hc := &TCPHealthCheck{Port: port, Timeout: "1s"}
+		backend := &Backend{Address: "127.0.0.1"}
+		ok := hc.PerformCheck(backend, "test", 0)
+		if !ok {
+			t.Errorf("Expected TCP healthcheck to succeed on open port %d", port)
+		}
+	})
+
+	t.Run("FailNoServer", func(t *testing.T) {
+		// Use a free port, but don't start a server
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("Failed to find free port: %v", err)
+		}
+		port := ln.Addr().(*net.TCPAddr).Port
+		ln.Close() // close immediately so nothing is listening
+		hc := &TCPHealthCheck{Port: port, Timeout: "1s"}
+		backend := &Backend{Address: "127.0.0.1"}
+		ok := hc.PerformCheck(backend, "test", 0)
+		if ok {
+			t.Errorf("Expected TCP healthcheck to fail on closed port %d", port)
+		}
+	})
+
+	t.Run("RetryLogic", func(t *testing.T) {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("Failed to find free port: %v", err)
+		}
+		port := ln.Addr().(*net.TCPAddr).Port
+		acceptCount := 0
+		go func() {
+			defer ln.Close()
+			for acceptCount < 2 {
+				conn, err := ln.Accept()
+				if err == nil {
+					conn.Close()
+					acceptCount++
+				}
+			}
+		}()
+		hc := &TCPHealthCheck{Port: port, Timeout: "1s"}
+		backend := &Backend{Address: "127.0.0.1"}
+		ok := hc.PerformCheck(backend, "test", 2)
+		if !ok {
+			t.Errorf("Expected TCP healthcheck to succeed with retries on port %d", port)
+		}
+	})
 }
 
 // Test the Equals method for TCPHealthCheck

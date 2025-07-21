@@ -25,6 +25,7 @@ type LuaHealthCheck struct {
 }
 
 func (l *LuaHealthCheck) SetDefault() {
+
 	if l.Timeout == 0 {
 		l.Timeout = 5 * time.Second
 	}

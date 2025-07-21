@@ -19,10 +19,11 @@ type Backend struct {
 	HealthChecks    []GenericHealthCheck // Health check configurations
 	Timeout         string               // Timeout for requests
 	Alive           bool                 // Indicates if the backend is alive
-	Countries       []string             // List of country codes for GeoIP
-	Cities          []string             // List of city names for GeoIP
-	ASNs            []uint               // List of ASNs for GeoIP
-	CustomLocations []string             // List of custom location strings
+	Country         string               // Country code for GeoIP
+	City            string               // City name for GeoIP
+	ASN             string               // ASN for GeoIP
+	Location        string               // location
+	LastHealthcheck time.Time            // Last time a healthcheck was launched
 	mutex           sync.RWMutex
 }
 
@@ -66,48 +67,34 @@ func (b *Backend) GetTimeout() string {
 	return b.Timeout
 }
 
-func (b *Backend) GetCountries() []string {
-	return b.Countries
-}
-
-func (b *Backend) GetCities() []string {
-	return b.Cities
-}
-
-func (b *Backend) GetASNs() []uint {
-	return b.ASNs
-}
-
-func (b *Backend) GetCustomLocations() []string {
-	return b.CustomLocations
-}
-
 func (b *Backend) GetCountry() string {
-	if len(b.Countries) > 0 {
-		return b.Countries[0]
-	}
-	return ""
+	return b.Country
+}
+
+func (b *Backend) GetCity() string {
+	return b.City
+}
+
+func (b *Backend) GetASN() string {
+	return b.ASN
 }
 
 func (b *Backend) GetLocation() string {
-	if len(b.CustomLocations) > 0 {
-		return b.CustomLocations[0]
-	}
-	return ""
+	return b.Location
 }
 
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Description     string        `yaml:"description" default:""`
-		Address         string        `yaml:"address" default:"127.0.0.1"`
-		Priority        int           `yaml:"priority" default:"0"`
-		Enable          bool          `yaml:"enable" default:"true"`
-		Timeout         string        `yaml:"timeout" default:"5s"`
-		HealthChecks    []HealthCheck `yaml:"healthchecks"`
-		Countries       []string      `yaml:"location_countries"`
-		Cities          []string      `yaml:"location_cities"`
-		ASNs            []uint        `yaml:"location_asns"`
-		CustomLocations []string      `yaml:"locations_custom"`
+		Description  string        `yaml:"description" default:""`
+		Address      string        `yaml:"address" default:"127.0.0.1"`
+		Priority     int           `yaml:"priority" default:"0"`
+		Enable       bool          `yaml:"enable" default:"true"`
+		Timeout      string        `yaml:"timeout" default:"5s"`
+		HealthChecks []HealthCheck `yaml:"healthchecks"`
+		Country      string        `yaml:"country"`
+		City         string        `yaml:"city"`
+		ASN          string        `yaml:"asn"`
+		Location     string        `yaml:"location"`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -119,10 +106,10 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.Enable = raw.Enable
 	b.Timeout = raw.Timeout
 	b.Description = raw.Description
-	b.Countries = raw.Countries
-	b.Cities = raw.Cities
-	b.ASNs = raw.ASNs
-	b.CustomLocations = raw.CustomLocations
+	b.Country = raw.Country
+	b.City = raw.City
+	b.ASN = raw.ASN
+	b.Location = raw.Location
 
 	for _, hc := range raw.HealthChecks {
 		specificHC, err := hc.ToSpecificHealthCheck()
@@ -165,6 +152,9 @@ func (b *Backend) updateBackend(newBackend BackendInterface) {
 }
 
 func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
+	b.mutex.Lock()
+	b.LastHealthcheck = time.Now()
+	b.mutex.Unlock()
 	var wg sync.WaitGroup
 	results := make([]bool, len(b.HealthChecks))
 
@@ -237,10 +227,10 @@ type BackendInterface interface {
 	IsEnabled() bool
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
-	GetCountries() []string
-	GetCities() []string
-	GetASNs() []uint
-	GetCustomLocations() []string
+	GetCountry() string
+	GetCity() string
+	GetASN() string
+	GetLocation() string
 	IsHealthy() bool
 	runHealthChecks(retries int, timeout time.Duration)
 	removeBackend()

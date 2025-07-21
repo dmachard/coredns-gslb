@@ -16,6 +16,7 @@ services:
       - "8053:53/udp"
       - "8053:53/tcp"
       - "9153:9153/tcp"
+      - "8080:8080/tcp"
     volumes:
       - ./tests/Corefile:/Corefile
       - ./tests/db.gslb.example.com:/db.gslb.example.com
