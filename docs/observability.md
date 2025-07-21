@@ -1,7 +1,7 @@
 
 ## CoreDNS-GSLB: Observability
 
-### Metrics
+### Prometheus Metrics
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
@@ -35,6 +35,8 @@ Available metrics:
 
 You can then scrape metrics at http://localhost:9153/metrics
 
-Dashboard example
+### Grafana dashboard
+
+The dashboard is available in `dashboards/gslb-observability.json`
 
 <img src="dashboard.png" alt="CoreDNS-GSLB"/>
