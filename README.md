@@ -2,7 +2,7 @@
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
   <img src="https://img.shields.io/badge/go%20tests-127-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-71%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/go%20coverage-70%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-2893-blue" alt="Lines of code"/>
 </p>
 

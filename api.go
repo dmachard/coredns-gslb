@@ -1,6 +1,7 @@
 package gslb
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -176,17 +177,9 @@ func bulkSetBackendEnable(yamlFile, location, addressPrefix string, enable bool)
 			}
 			addr, _ := beMap["address"].(string)
 			loc, _ := beMap["location"].(string)
-			locCustom, _ := beMap["location_custom"].([]interface{})
 			match := false
-			if location != "" {
-				if loc == location {
-					match = true
-				}
-				for _, l := range locCustom {
-					if ls, ok := l.(string); ok && ls == location {
-						match = true
-					}
-				}
+			if location != "" && loc == location {
+				match = true
 			}
 			if addressPrefix != "" && strings.HasPrefix(addr, addressPrefix) {
 				match = true
@@ -194,19 +187,24 @@ func bulkSetBackendEnable(yamlFile, location, addressPrefix string, enable bool)
 			if match {
 				beMap["enable"] = enable
 				modified = append(modified, map[string]string{
-					"fqdn":     fqdn,
-					"address":  addr,
-					"location": loc,
+					"fqdn":    fqdn,
+					"address": addr,
 				})
 			}
 		}
 		recMap["backends"] = backends
 	}
-	out, err := yaml.Marshal(raw)
-	if err != nil {
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+
+	if err := encoder.Encode(raw); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(yamlFile, out, 0644); err != nil {
+	encoder.Close()
+
+	if err := os.WriteFile(yamlFile, buf.Bytes(), 0644); err != nil {
 		return nil, err
 	}
 	return modified, nil

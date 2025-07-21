@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -125,13 +124,10 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			var matchedIPs []string
 			for _, backend := range record.Backends {
 				if backend.IsHealthy() && backend.IsEnabled() {
-					countries := backend.GetCountries()
-					for _, c := range countries {
-						if strings.EqualFold(c, countryCode) {
-							matchedIPs = append(matchedIPs, backend.GetAddress())
-							IncBackendSelected(record.Fqdn, backend.GetAddress())
-							break
-						}
+					if backend.GetCountry() == countryCode {
+						matchedIPs = append(matchedIPs, backend.GetAddress())
+						IncBackendSelected(record.Fqdn, backend.GetAddress())
+						break
 					}
 				}
 			}
@@ -150,13 +146,10 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 				var matchedIPs []string
 				for _, backend := range record.Backends {
 					if backend.IsHealthy() && backend.IsEnabled() {
-						cities := backend.GetCities()
-						for _, c := range cities {
-							if strings.EqualFold(c, cityName) {
-								matchedIPs = append(matchedIPs, backend.GetAddress())
-								IncBackendSelected(record.Fqdn, backend.GetAddress())
-								break
-							}
+						if backend.GetCity() == cityName {
+							matchedIPs = append(matchedIPs, backend.GetAddress())
+							IncBackendSelected(record.Fqdn, backend.GetAddress())
+							break
 						}
 					}
 				}
@@ -171,17 +164,14 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 	if g.GeoIPASNDB != nil {
 		recordASN, err := g.GeoIPASNDB.ASN(clientIP)
 		if err == nil && recordASN != nil && recordASN.AutonomousSystemNumber != 0 {
-			asn := recordASN.AutonomousSystemNumber
+			asn := fmt.Sprint(recordASN.AutonomousSystemNumber)
 			var matchedIPs []string
 			for _, backend := range record.Backends {
 				if backend.IsHealthy() && backend.IsEnabled() {
-					asns := backend.GetASNs()
-					for _, a := range asns {
-						if a == asn {
-							matchedIPs = append(matchedIPs, backend.GetAddress())
-							IncBackendSelected(record.Fqdn, backend.GetAddress())
-							break
-						}
+					if backend.GetASN() == asn {
+						matchedIPs = append(matchedIPs, backend.GetAddress())
+						IncBackendSelected(record.Fqdn, backend.GetAddress())
+						break
 					}
 				}
 			}
@@ -199,16 +189,14 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 		var matchedIPs []string
 		for _, backend := range record.Backends {
 			if backend.IsHealthy() && backend.IsEnabled() {
-				customLocs := backend.GetCustomLocations()
+				loc := backend.GetLocation()
 				for subnet, location := range locationMap {
 					_, ipnet, err := net.ParseCIDR(subnet)
 					if err == nil && ipnet.Contains(clientIP) {
-						for _, loc := range customLocs {
-							if loc == location {
-								matchedIPs = append(matchedIPs, backend.GetAddress())
-								IncBackendSelected(record.Fqdn, backend.GetAddress())
-								break
-							}
+						if loc == location {
+							matchedIPs = append(matchedIPs, backend.GetAddress())
+							IncBackendSelected(record.Fqdn, backend.GetAddress())
+							break
 						}
 						break
 					}

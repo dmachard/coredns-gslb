@@ -34,7 +34,7 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 		Enable:          true,
 		Alive:           true,
 		Description:     "backend-desc",
-		CustomLocations: []string{"edge-eu"},
+		Location:        "edge-eu",
 		LastHealthcheck: time.Date(2025, 7, 21, 13, 3, 29, 0, time.UTC),
 	}
 	rec.Backends = []BackendInterface{backend}
@@ -113,15 +113,15 @@ func TestAPIDisableBackendsEndpoint(t *testing.T) {
 	assert.True(t, isList, "backends should be a list (even if empty)")
 	assert.Len(t, beList, 3)
 	expectedBackends := []map[string]string{
-		{"fqdn": "test.example.com.", "address": "1.2.3.4", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "10.0.0.1", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "172.16.0.99", "location": "dc-eu"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.4"},
+		{"fqdn": "test.example.com.", "address": "10.0.0.1"},
+		{"fqdn": "test.example.com.", "address": "172.16.0.99"},
 	}
 	for _, expected := range expectedBackends {
 		found := false
 		for _, actual := range beList {
 			be := actual.(map[string]interface{})
-			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] && be["location"] == expected["location"] {
+			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] {
 				found = true
 				break
 			}
@@ -144,14 +144,14 @@ func TestAPIDisableBackendsEndpoint(t *testing.T) {
 	assert.True(t, isList2, "backends should be a list (even if empty)")
 	assert.Len(t, beList2, 2)
 	expectedBackends2 := []map[string]string{
-		{"fqdn": "test.example.com.", "address": "1.2.3.4", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "1.2.3.5", "location": "dc-us"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.4"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.5"},
 	}
 	for _, expected := range expectedBackends2 {
 		found := false
 		for _, actual := range beList2 {
 			be := actual.(map[string]interface{})
-			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] && be["location"] == expected["location"] {
+			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] {
 				found = true
 				break
 			}
@@ -221,15 +221,15 @@ func TestAPIEnableBackendsEndpoint(t *testing.T) {
 	assert.True(t, isList, "backends should be a list (even if empty)")
 	assert.Len(t, beList, 3)
 	expectedBackends := []map[string]string{
-		{"fqdn": "test.example.com.", "address": "1.2.3.4", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "10.0.0.1", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "172.16.0.99", "location": "dc-eu"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.4"},
+		{"fqdn": "test.example.com.", "address": "10.0.0.1"},
+		{"fqdn": "test.example.com.", "address": "172.16.0.99"},
 	}
 	for _, expected := range expectedBackends {
 		found := false
 		for _, actual := range beList {
 			be := actual.(map[string]interface{})
-			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] && be["location"] == expected["location"] {
+			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] {
 				found = true
 				break
 			}
@@ -252,14 +252,14 @@ func TestAPIEnableBackendsEndpoint(t *testing.T) {
 	assert.True(t, isList2, "backends should be a list (even if empty)")
 	assert.Len(t, beList2, 2)
 	expectedBackends2 := []map[string]string{
-		{"fqdn": "test.example.com.", "address": "1.2.3.4", "location": "dc-eu"},
-		{"fqdn": "test.example.com.", "address": "1.2.3.5", "location": "dc-us"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.4"},
+		{"fqdn": "test.example.com.", "address": "1.2.3.5"},
 	}
 	for _, expected := range expectedBackends2 {
 		found := false
 		for _, actual := range beList2 {
 			be := actual.(map[string]interface{})
-			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] && be["location"] == expected["location"] {
+			if be["fqdn"] == expected["fqdn"] && be["address"] == expected["address"] {
 				found = true
 				break
 			}

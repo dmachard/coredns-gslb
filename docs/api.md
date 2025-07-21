@@ -29,7 +29,7 @@ curl -k https://localhost:8080/api/overview
 
 ## Endpoints
 
-For all request/response schemas and detailed documentation, see [swagger.yaml](../swagger.yaml).You can view and interact with the API using [Swagger Editor](https://editor.swagger.io/) by importing this file.
+For all request/response schemas and detailed documentation, see [swagger.yaml](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/api/swagger.yaml).
 
 ### Example: GET /api/overview
 ```bash

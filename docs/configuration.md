@@ -133,10 +133,10 @@ Example backend with all GeoIP location fields
 
 ~~~yaml
 - address: "172.16.0.12"
-  location_country: [ "FR", "US" ]
-  location_city: [ "Paris", "London" ]
-  location_asn: [ "12345", "67890" ]
-  location_custom: [ "eu-west-1" ]
+  country: "FR"
+  city: "Paris"
+  asn: "12345"
+  location: "eu-west-1"
   enable: true
   priority: 1
   healthchecks:
@@ -146,10 +146,6 @@ Example backend with all GeoIP location fields
         service: ""
         timeout: 5s
 ~~~
-
-- All `location_*` fields must be YAML lists (even if empty or with one value).
-- You can leave a list empty (`[ ]`) if you do not want to filter on that dimension.
-- This allows flexible matching by country, city, ASN, or custom tags.
 
 ### API Server Options
 
