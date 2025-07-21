@@ -29,5 +29,5 @@ stats:
 	CODE_LINES=$$((TOTAL_LINES - COMMENT_LINES)); \
 	echo "Total lines       : $$TOTAL_LINES"; \
 	echo "Comment lines     : $$COMMENT_LINES"; \
-	echo "Effective code lines: $$CODE_LINES"
-
+	echo "Effective code lines: $$CODE_LINES"; \
+	echo "Lint rules enabled: $$($(GOPATH)/bin/golangci-lint linters --json | jq '.Enabled | length')"

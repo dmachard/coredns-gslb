@@ -8,14 +8,13 @@ services:
       - "1053:53/tcp"
       - "9153:9153/tcp"
     volumes:
-      - ./coredns/Corefile:/Corefile
-      - ./coredns/db.gslb.example.com:/db.gslb.example.com
-      - ./coredns/gslb_config.example.com.yml:/gslb_config.example.com.yml
-      - ./coredns/location_map.yml:/coredns/location_map.yml
-      - ./coredns/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
-      - ./coredns/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
-      - ./coredns/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
-      - ./coredns/healthcheck_custom.sh:/coredns/healthcheck_custom.sh:ro
+      - ./Dockerfile:/Dockerfile
+      - ./tests/db.gslb.example.com:/db.gslb.example.com
+      - ./tests/gslb_config.example.com.yml:/gslb_config.example.com.yml
+      - ./tests/location_map.yml:/coredns/location_map.yml
+      - ./tests/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
+      - ./tests/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
+      - ./tests/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
     command: -conf /Corefile
     env_file:
       - docker-example.env
