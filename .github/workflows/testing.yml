@@ -8,6 +8,13 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read # for actions/checkout to fetch code
+  pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+
+env:
+  GOLANGCI_LINT_VERSION: "v2.1.6"
+
 jobs:
   testing:
     runs-on: ubuntu-24.04
@@ -19,8 +26,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
+
+    - uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
+        # workaround: when the files to be extracted are already present, 
+        # tar extraction in Golangci Lint fails with the "File exists"
+        # https://github.com/golangci/golangci-lint-action/issues/807
+        cache: false
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: "${{ env.GOLANGCI_LINT_VERSION }}"
+        args: --timeout 3m --verbose
 
     - name: Test
       run: make tests

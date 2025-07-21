@@ -6,6 +6,7 @@ import ssl
 import argparse
 from concurrent import futures
 import json
+import signal
 
 # gRPC imports
 try:
@@ -16,6 +17,9 @@ except ImportError:
     GRPC_AVAILABLE = False
 
 from http.server import BaseHTTPRequestHandler
+
+shutdown_event = threading.Event()
+httpd_ref = None
 
 def run_https_server(port, name, certfile, keyfile):
     class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -32,11 +36,16 @@ def run_https_server(port, name, certfile, keyfile):
                 msg = f"Welcome to {name}"
                 self.wfile.write(msg.encode())
 
+    global httpd_ref
     httpd = http.server.HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    httpd_ref = httpd
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile=certfile, keyfile=keyfile)
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    finally:
+        httpd.server_close()
 
 def run_grpc_health_server(port):
     import grpc
@@ -47,7 +56,11 @@ def run_grpc_health_server(port):
     health_servicer.set('', health_pb2.HealthCheckResponse.SERVING)
     server.add_insecure_port(f'[::]:{port}')
     server.start()
-    server.wait_for_termination()
+    try:
+        while not shutdown_event.is_set():
+            server.wait_for_termination(timeout=1)
+    finally:
+        server.stop(0)
 
 def main():
     parser = argparse.ArgumentParser(description="HTTPS and optional gRPC Health Server")
@@ -59,6 +72,14 @@ def main():
     args = parser.parse_args()
 
     enable_grpc = os.environ.get('ENABLE_GRPC_HEALTH', '0') == '1'
+
+    def handle_signal(signum, frame):
+        shutdown_event.set()
+        global httpd_ref
+        if httpd_ref is not None:
+            httpd_ref.shutdown()
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
 
     threads = []
     t1 = threading.Thread(target=run_https_server, args=(args.port, args.name, args.certfile, args.keyfile))
