@@ -537,7 +537,7 @@
             "h": 7,
             "w": 10,
             "x": 1,
-            "y": 7
+            "y": 55
           },
           "id": 20,
           "options": {
@@ -634,7 +634,7 @@
             "h": 7,
             "w": 11,
             "x": 11,
-            "y": 7
+            "y": 55
           },
           "id": 21,
           "options": {
@@ -731,7 +731,7 @@
             "h": 7,
             "w": 21,
             "x": 1,
-            "y": 14
+            "y": 62
           },
           "id": 22,
           "options": {
@@ -1102,7 +1102,7 @@
             "h": 3,
             "w": 4,
             "x": 1,
-            "y": 6
+            "y": 35
           },
           "id": 16,
           "options": {
@@ -1177,7 +1177,7 @@
             "h": 3,
             "w": 4,
             "x": 5,
-            "y": 6
+            "y": 35
           },
           "id": 17,
           "options": {
@@ -1276,7 +1276,7 @@
             "h": 8,
             "w": 15,
             "x": 1,
-            "y": 9
+            "y": 38
           },
           "id": 18,
           "options": {
@@ -1377,7 +1377,7 @@
             "h": 8,
             "w": 15,
             "x": 1,
-            "y": 17
+            "y": 46
           },
           "id": 40,
           "options": {
@@ -1472,8 +1472,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 14,
+        "h": 7,
+        "w": 16,
         "x": 1,
         "y": 7
       },
@@ -1552,10 +1552,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 14,
+        "h": 8,
+        "w": 16,
         "x": 1,
-        "y": 11
+        "y": 14
       },
       "id": 31,
       "options": {
@@ -1632,10 +1632,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 14,
+        "h": 8,
+        "w": 16,
         "x": 1,
-        "y": 17
+        "y": 22
       },
       "id": 32,
       "options": {
@@ -1681,6 +1681,16 @@
           "color": {
             "mode": "thresholds"
           },
+          "custom": {
+            "axisPlacement": "auto",
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1689,7 +1699,7 @@
                 "color": "red"
               },
               {
-                "color": "orange",
+                "color": "#EAB839",
                 "value": 1
               },
               {
@@ -1697,34 +1707,31 @@
                 "value": 2
               }
             ]
-          },
-          "unit": "none"
+          }
         },
         "overrides": []
       },
       "gridPos": {
         "h": 9,
-        "w": 14,
+        "w": 16,
         "x": 1,
-        "y": 24
+        "y": 30
       },
       "id": 41,
       "options": {
-        "colorMode": "background_solid",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "colWidth": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "pluginVersion": "12.0.2",
       "targets": [
@@ -1742,7 +1749,7 @@
         }
       ],
       "title": "Active Backends per Record",
-      "type": "stat"
+      "type": "status-history"
     },
     {
       "datasource": {
@@ -1812,7 +1819,7 @@
         "h": 8,
         "w": 14,
         "x": 1,
-        "y": 33
+        "y": 39
       },
       "id": 42,
       "options": {
@@ -1934,5 +1941,5 @@
   "timezone": "browser",
   "title": "GSLB Observability",
   "uid": "gslb-observability",
-  "version": 41
+  "version": 44
 }

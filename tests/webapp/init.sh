@@ -7,4 +7,4 @@ fi
 
 APP_NAME=${APP_NAME:-WebApp}
 
-exec python /app/server.py --certfile /app/certs/cert.pem --keyfile /app/certs/key.pem --name "$APP_NAME"
+python /app/server.py --certfile /app/certs/cert.pem --keyfile /app/certs/key.pem --name "$APP_NAME"

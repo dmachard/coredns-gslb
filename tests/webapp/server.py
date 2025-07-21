@@ -7,6 +7,8 @@ import argparse
 from concurrent import futures
 import json
 import signal
+import time
+from socketserver import ThreadingMixIn
 
 # gRPC imports
 try:
@@ -21,9 +23,16 @@ from http.server import BaseHTTPRequestHandler
 shutdown_event = threading.Event()
 httpd_ref = None
 
+def log(msg):
+    print(f"[server.py][{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}", flush=True)
+
+class ThreadedHTTPServer(ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+
 def run_https_server(port, name, certfile, keyfile):
     class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         def do_GET(self):
+            log(f"HTTP GET {self.path} from {self.client_address}")
             if self.path == "/api/health":
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -37,14 +46,20 @@ def run_https_server(port, name, certfile, keyfile):
                 self.wfile.write(msg.encode())
 
     global httpd_ref
-    httpd = http.server.HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    log(f"Creating Threaded HTTPS server on 0.0.0.0:{port}")
+    httpd = ThreadedHTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     httpd_ref = httpd
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile=certfile, keyfile=keyfile)
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     try:
+        log("Starting Threaded HTTPS server (serve_forever)")
         httpd.serve_forever()
+    except Exception as e:
+        log(f"Exception in HTTPS server: {e}")
+        raise
     finally:
+        log("HTTPS server closed")
         httpd.server_close()
 
 def run_grpc_health_server(port):
@@ -57,12 +72,18 @@ def run_grpc_health_server(port):
     server.add_insecure_port(f'[::]:{port}')
     server.start()
     try:
+        log(f"gRPC health server started on port {port}")
         while not shutdown_event.is_set():
             server.wait_for_termination(timeout=1)
+    except Exception as e:
+        log(f"Exception in gRPC health server: {e}")
+        raise
     finally:
+        log("gRPC health server stopped")
         server.stop(0)
 
 def main():
+    log("Starting server.py main()")
     parser = argparse.ArgumentParser(description="HTTPS and optional gRPC Health Server")
     parser.add_argument('--port', type=int, default=443, help='Port to listen on (HTTPS)')
     parser.add_argument('--certfile', type=str, required=True, help='Path to SSL certificate file')
@@ -74,6 +95,7 @@ def main():
     enable_grpc = os.environ.get('ENABLE_GRPC_HEALTH', '0') == '1'
 
     def handle_signal(signum, frame):
+        log(f"Received signal {signum}, shutting down...")
         shutdown_event.set()
         global httpd_ref
         if httpd_ref is not None:
@@ -88,6 +110,7 @@ def main():
 
     if enable_grpc:
         if not GRPC_AVAILABLE:
+            log("gRPC health server requested but grpcio and grpcio-health-checking are not installed.")
             print("gRPC health server requested but grpcio and grpcio-health-checking are not installed.", file=sys.stderr)
             sys.exit(1)
         t2 = threading.Thread(target=run_grpc_health_server, args=(args.grpc_port,))
