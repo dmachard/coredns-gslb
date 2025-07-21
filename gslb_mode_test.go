@@ -264,7 +264,7 @@ func TestGSLB_PickBackendWithGeoIP_CustomDB(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-Country.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-Country.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-Country.mmdb not found, skipping real MaxMind test")
 	}
@@ -307,7 +307,7 @@ func TestGSLB_PickBackendWithGeoIP_Country_MaxMind(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-City.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-City.mmdb not found, skipping real MaxMind city test")
 	}
@@ -350,7 +350,7 @@ func TestGSLB_PickBackendWithGeoIP_City_MaxMind(t *testing.T) {
 }
 
 func TestGSLB_PickBackendWithGeoIP_ASN_MaxMind(t *testing.T) {
-	db, err := geoip2.Open("coredns/GeoLite2-ASN.mmdb")
+	db, err := geoip2.Open("tests/GeoLite2-ASN.mmdb")
 	if err != nil {
 		t.Skip("GeoLite2-ASN.mmdb not found, skipping real MaxMind ASN test")
 	}

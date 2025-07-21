@@ -34,11 +34,14 @@ func setup(c *caddy.Controller) error {
 		Zones:                     make(map[string]string),
 		Records:                   make(map[string]*Record),
 		LocationMap:               make(map[string]string),
-		MaxStaggerStart:           "60s",   // Total time to start all records over time, in seconds
-		BatchSizeStart:            100,     // Number of record per group (batch)
-		ResolutionIdleTimeout:     "3600s", // Max time before to slow down health check
-		UseEDNSCSubnet:            false,   // Default: disabled
-		HealthcheckIdleMultiplier: 10,      // Default multiplier
+		MaxStaggerStart:           "60s",     // Total time to start all records over time, in seconds
+		BatchSizeStart:            100,       // Number of record per group (batch)
+		ResolutionIdleTimeout:     "3600s",   // Max time before to slow down health check
+		UseEDNSCSubnet:            false,     // Default: disabled
+		HealthcheckIdleMultiplier: 10,        // Default multiplier
+		APIEnable:                 true,      // API enabled by default
+		APIListenAddr:             "0.0.0.0", // Default listen address
+		APIListenPort:             "8080",    // Default listen port
 	}
 
 	for c.Next() {
@@ -145,6 +148,46 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("invalid value for healthcheck_idle_multiplier: %v", c.Val())
 					}
 					g.HealthcheckIdleMultiplier = mult
+				case "api_enable":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					val := c.Val()
+					if val == "false" || val == "0" {
+						g.APIEnable = false
+					} else {
+						g.APIEnable = true
+					}
+				case "api_tls_cert":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APICertPath = c.Val()
+				case "api_tls_key":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APIKeyPath = c.Val()
+				case "api_listen_addr":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APIListenAddr = c.Val()
+				case "api_listen_port":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APIListenPort = c.Val()
+				case "api_basic_user":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APIBasicUser = c.Val()
+				case "api_basic_pass":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.APIBasicPass = c.Val()
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
@@ -167,6 +210,11 @@ func setup(c *caddy.Controller) error {
 			// Start a goroutine to watch for location map modification events
 			if locationMapPath != "" {
 				go watchCustomLocationMap(g, locationMapPath)
+			}
+
+			// Start API server in background if enabled
+			if g.APIEnable {
+				go g.ServeAPI()
 			}
 		}
 	}

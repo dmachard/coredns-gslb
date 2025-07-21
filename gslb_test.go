@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -224,16 +225,24 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	found1, found2 := false, false
 	for _, rr := range w.Msg.Answer {
 		if txt, ok := rr.(*dns.TXT); ok {
-			if txt.Txt[0] == "Backend: 192.168.1.1 | Priority: 10 | Status: healthy | Enabled: true" {
+			if strings.Contains(txt.Txt[0], "Backend: 192.168.1.1") &&
+				strings.Contains(txt.Txt[0], "Priority: 10") &&
+				strings.Contains(txt.Txt[0], "Status: healthy") &&
+				strings.Contains(txt.Txt[0], "Enabled: true") &&
+				strings.Contains(txt.Txt[0], "LastHealthcheck:") {
 				found1 = true
 			}
-			if txt.Txt[0] == "Backend: 192.168.1.2 | Priority: 20 | Status: unhealthy | Enabled: false" {
+			if strings.Contains(txt.Txt[0], "Backend: 192.168.1.2") &&
+				strings.Contains(txt.Txt[0], "Priority: 20") &&
+				strings.Contains(txt.Txt[0], "Status: unhealthy") &&
+				strings.Contains(txt.Txt[0], "Enabled: false") &&
+				strings.Contains(txt.Txt[0], "LastHealthcheck:") {
 				found2 = true
 			}
 		}
 	}
-	assert.True(t, found1, "Expected TXT record for backend1")
-	assert.True(t, found2, "Expected TXT record for backend2")
+	assert.True(t, found1, "Expected TXT record for backend1 with LastHealthcheck")
+	assert.True(t, found2, "Expected TXT record for backend2 with LastHealthcheck")
 }
 
 func TestGetResolutionIdleTimeout_WithCustomValue(t *testing.T) {

@@ -1,0 +1,170 @@
+openapi: 3.0.0
+info:
+  title: CoreDNS-GSLB API
+  version: 1.0.0
+  description: API to retrieve GSLB overview and perform bulk backend enable/disable
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/overview:
+    get:
+      summary: Get a simplified overview of all records and their backends
+      description: Returns a list of records with their health status and backends.
+      responses:
+        '200':
+          description: List of records (overview)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OverviewRecord'
+              examples:
+                overview:
+                  value:
+                    - fqdn: webapp-grpc.gslb.example.com.
+                      status: healthy
+                      backends:
+                        - address: 172.16.0.12
+                          alive: healthy
+                          last_healthcheck: "2025-07-21T13:03:29Z"
+  /api/backends/disable:
+    post:
+      summary: Disable all backends matching a location or IP prefix (persistent)
+      description: >
+        Disables all backends in the YAML config whose `location`, `location_custom`, or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location:
+                  type: string
+                  description: Location or custom location to match (optional)
+                address_prefix:
+                  type: string
+                  description: IP prefix to match (optional)
+              example:
+                location: "eu-west-1"
+                address_prefix: "172.16.0."
+      responses:
+        '200':
+          description: Number of backends disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  disabled:
+                    type: integer
+                    description: Number of backends disabled
+                  backends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        fqdn:
+                          type: string
+                          description: Fully qualified domain name of the record
+                        address:
+                          type: string
+                          description: Backend IP address or hostname
+        '400':
+          description: Invalid request
+        '405':
+          description: Method not allowed
+        '500':
+          description: Internal server error
+  /api/backends/enable:
+    post:
+      summary: Enable all backends matching a location or IP prefix (persistent)
+      description: >
+        Enables all backends in the YAML config whose `location`, `location_custom`, or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location:
+                  type: string
+                  description: Location or custom location to match (optional)
+                address_prefix:
+                  type: string
+                  description: IP prefix to match (optional)
+              example:
+                location: "eu-west-1"
+                address_prefix: "172.16.0."
+      responses:
+        '200':
+          description: Number of backends enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  enabled:
+                    type: integer
+                    description: Number of backends enabled
+                  backends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        fqdn:
+                          type: string
+                          description: Fully qualified domain name of the record
+                        address:
+                          type: string
+                          description: Backend IP address or hostname
+        '400':
+          description: Invalid request
+        '405':
+          description: Method not allowed
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    OverviewRecord:
+      type: object
+      properties:
+        fqdn:
+          type: string
+          description: Fully qualified domain name of the record
+        status:
+          type: string
+          description: Record health status ("healthy" or "unhealthy")
+        backends:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverviewBackend'
+    OverviewBackend:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Backend IP address or hostname
+        alive:
+          type: string
+          description: Backend health status ("healthy" or "unhealthy")
+        last_healthcheck:
+          type: string
+          format: date-time
+          description: Timestamp of the last healthcheck (RFC3339)
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic 

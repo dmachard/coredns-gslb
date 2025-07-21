@@ -23,6 +23,7 @@ type Backend struct {
 	Cities          []string             // List of city names for GeoIP
 	ASNs            []uint               // List of ASNs for GeoIP
 	CustomLocations []string             // List of custom location strings
+	LastHealthcheck time.Time            // Last time a healthcheck was launched
 	mutex           sync.RWMutex
 }
 
@@ -165,6 +166,9 @@ func (b *Backend) updateBackend(newBackend BackendInterface) {
 }
 
 func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
+	b.mutex.Lock()
+	b.LastHealthcheck = time.Now()
+	b.mutex.Unlock()
 	var wg sync.WaitGroup
 	results := make([]bool, len(b.HealthChecks))
 

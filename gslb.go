@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,13 @@ type GSLB struct {
 	GeoIPCountryDB            *geoip2.Reader // Loaded MaxMind DB (country)
 	GeoIPCityDB               *geoip2.Reader // Loaded MaxMind DB (city)
 	GeoIPASNDB                *geoip2.Reader // Loaded MaxMind DB (ASN)
+	APIEnable                 bool           // Enable/disable API HTTP server
+	APICertPath               string         // TLS certificate path for API
+	APIKeyPath                string         // TLS key path for API
+	APIListenAddr             string         // API listen address (default 0.0.0.0)
+	APIListenPort             string         // API listen port (default 8080)
+	APIBasicUser              string         // HTTP Basic Auth username (optional)
+	APIBasicPass              string         // HTTP Basic Auth password (optional)
 }
 
 func (g *GSLB) Name() string { return "gslb" }
@@ -71,6 +79,21 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 		return g.handleTXTRecord(ctx, w, r, domain)
 	default:
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+	}
+}
+
+func (g *GSLB) ServeAPI() {
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	listenAddr := g.APIListenAddr + ":" + g.APIListenPort
+	if g.APICertPath != "" && g.APIKeyPath != "" {
+		go func() {
+			_ = http.ListenAndServeTLS(listenAddr, g.APICertPath, g.APIKeyPath, mux)
+		}()
+	} else {
+		go func() {
+			_ = http.ListenAndServe(listenAddr, mux)
+		}()
 	}
 }
 
@@ -172,10 +195,17 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 			enabled = "false"
 		}
 
-		// Format the backend information as a summary string
+		// Add last healthcheck timestamp if available
+		lastHealthcheck := ""
+		if b, ok := backend.(*Backend); ok {
+			if !b.LastHealthcheck.IsZero() {
+				lastHealthcheck = b.LastHealthcheck.Format(time.RFC3339)
+			}
+		}
+
 		summary := fmt.Sprintf(
-			"Backend: %s | Priority: %d | Status: %s | Enabled: %v",
-			backend.GetAddress(), backend.GetPriority(), status, enabled,
+			"Backend: %s | Priority: %d | Status: %s | Enabled: %v | LastHealthcheck: %s",
+			backend.GetAddress(), backend.GetPriority(), status, enabled, lastHealthcheck,
 		)
 		// Add the summary to the list
 		summaries = append(summaries, summary)

@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-118-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-127-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-71%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-2529-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-2893-blue" alt="Lines of code"/>
 </p>
 
 <p align="center">
@@ -24,6 +24,7 @@ What it does:
 - **Load balancing** with failover, round-robin, random, or GeoIP-based selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
+- **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
 
 Unlike many existing solutions, this plugin is designed for non-Kubernetes infrastructures — including virtual machines, bare metal servers, and hybrid environments.
 
@@ -32,7 +33,6 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 - **Real client IP detection**: EDNS Client Subnet support for accurate GeoIP routing  
 - **Resource efficient**: Adaptive healthchecks reduce load on unused backends
 - **Production ready**: Prometheus metrics and comprehensive observability
-- **Hot reload**: Configuration changes apply instantly
 
 ## 🚀 Quick Start
 
@@ -139,6 +139,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [GeoIP Setup](doc/configuration.md#geoip) | MaxMind databases and custom location mapping |
 | [Configuration Options](doc/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
+| [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [Observability](docs/observability.md) | Prometheus metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
 

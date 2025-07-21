@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -20,14 +21,18 @@ func (h *GRPCHealthCheck) Check() error {
 	addr := fmt.Sprintf("%s:%d", h.Host, h.Port)
 	ctx, cancel := context.WithTimeout(context.Background(), h.Timeout)
 	defer cancel()
-	//nolint:staticcheck // grpc.DialContext est utilisé pour compatibilité, migration possible plus tard
-	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
+
+	cc, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// grpc.WithBlock(), // Not supported by grpc.NewClient, connection is lazy
+	)
 	if err != nil {
 		IncHealthcheckFailures("grpc", addr, "connection")
-		return err
+		return fmt.Errorf("gRPC connection failed: %w", err)
 	}
-	defer conn.Close()
-	client := healthpb.NewHealthClient(conn)
+	defer cc.Close()
+	client := healthpb.NewHealthClient(cc)
 	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{Service: h.Service})
 	if err != nil {
 		IncHealthcheckFailures("grpc", addr, "connection")
