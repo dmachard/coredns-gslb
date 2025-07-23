@@ -96,7 +96,7 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Disable TXT option disables TXT queries",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
 				}
 				disable_txt
 			}`,

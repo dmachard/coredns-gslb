@@ -13,26 +13,38 @@ import (
 )
 
 type mockResponseWriter struct {
-	addr net.Addr
+	msg *dns.Msg
+	ip  net.IP
 }
 
-func (m *mockResponseWriter) WriteMsg(*dns.Msg) error   { return nil }
+func (m *mockResponseWriter) WriteMsg(msg *dns.Msg) error {
+	m.msg = msg
+	return nil
+}
 func (m *mockResponseWriter) Write([]byte) (int, error) { return 0, nil }
 func (m *mockResponseWriter) Close() error              { return nil }
 func (m *mockResponseWriter) TsigStatus() error         { return nil }
 func (m *mockResponseWriter) TsigTimersOnly(bool)       {}
 func (m *mockResponseWriter) Hijack()                   {}
-func (m *mockResponseWriter) LocalAddr() net.Addr       { return nil }
-func (m *mockResponseWriter) RemoteAddr() net.Addr      { return m.addr }
-func (m *mockResponseWriter) SetReply(*dns.Msg)         {}
-func (m *mockResponseWriter) Msg() *dns.Msg             { return nil }
-func (m *mockResponseWriter) Size() int                 { return 512 }
-func (m *mockResponseWriter) Scrub(bool)                {}
-func (m *mockResponseWriter) WroteMsg()                 {}
+func (m *mockResponseWriter) LocalAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 53}
+}
+func (m *mockResponseWriter) RemoteAddr() net.Addr {
+	ip := m.ip
+	if ip == nil {
+		ip = net.ParseIP("127.0.0.1")
+	}
+	return &net.TCPAddr{IP: ip, Port: 12345}
+}
+func (m *mockResponseWriter) SetReply(*dns.Msg) {}
+func (m *mockResponseWriter) Msg() *dns.Msg     { return nil }
+func (m *mockResponseWriter) Size() int         { return 512 }
+func (m *mockResponseWriter) Scrub(bool)        {}
+func (m *mockResponseWriter) WroteMsg()         {}
 
 func TestExtractClientIP_WithECS(t *testing.T) {
 	g := &GSLB{UseEDNSCSubnet: true}
-	w := &mockResponseWriter{addr: &net.UDPAddr{IP: net.ParseIP("9.9.9.9"), Port: 53}}
+	w := &mockResponseWriter{msg: new(dns.Msg)}
 
 	// Create a DNS message with ECS option
 	r := new(dns.Msg)
@@ -55,7 +67,7 @@ func TestExtractClientIP_WithECS(t *testing.T) {
 
 func TestExtractClientIP_FallbackToRemoteAddr_IPv4(t *testing.T) {
 	g := &GSLB{UseEDNSCSubnet: false}
-	w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 53}}
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("192.168.1.1")}
 	r := new(dns.Msg)
 
 	ip, prefixLen := g.extractClientIP(w, r)
@@ -66,7 +78,7 @@ func TestExtractClientIP_FallbackToRemoteAddr_IPv4(t *testing.T) {
 
 func TestExtractClientIP_FallbackToRemoteAddr_IPv6(t *testing.T) {
 	g := &GSLB{UseEDNSCSubnet: false}
-	w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("2001:db8::1"), Port: 53}}
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("2001:db8::1")}
 	r := new(dns.Msg)
 
 	ip, prefixLen := g.extractClientIP(w, r)
@@ -424,7 +436,7 @@ func TestServeDNS(t *testing.T) {
 			}
 			msg := new(dns.Msg)
 			msg.SetQuestion(tc.fqdn, tc.recordQ)
-			w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.100"), Port: 12345}}
+			w := &mockResponseWriter{msg: new(dns.Msg)}
 			code, err := g.ServeDNS(context.Background(), w, msg)
 			if tc.expectSuccess {
 				assert.NoError(t, err)
@@ -446,7 +458,7 @@ func (n *nextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 }
 func (n *nextPlugin) Name() string { return "testnext" }
 
-func TestGSLB_DisableTXTOption(t *testing.T) {
+func TestServeDNS_DisableTXT(t *testing.T) {
 	backend := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
 	backend.On("IsHealthy").Return(true)
 	record := &Record{
@@ -456,24 +468,30 @@ func TestGSLB_DisableTXTOption(t *testing.T) {
 		RecordTTL: 60,
 	}
 
+	n := &nextPlugin{}
 	g := &GSLB{
 		Records:    map[string]*Record{"example.com.": record},
+		Zones:      map[string]string{"example.com.": "dummy.yml"},
 		DisableTXT: true,
+		Next:       n,
 	}
 
 	msg := new(dns.Msg)
 	msg.SetQuestion("example.com.", dns.TypeTXT)
-	w := &TestResponseWriter{}
+	w := &mockResponseWriter{}
 	ctx := context.Background()
 	code, err := g.ServeDNS(ctx, w, msg)
 	assert.NoError(t, err)
-	assert.Equal(t, dns.RcodeSuccess, code) // plugin.NextOrFailure returns Success by default in test
-	assert.Nil(t, w.Msg)                    // Should not write a message
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Nil(t, w.msg)
+	assert.True(t, n.called, "Next plugin should be called when DisableTXT is true")
 
-	// Now test with DisableTXT false (default)
+	// Test sans DisableTXT
+	n.called = false
 	g.DisableTXT = false
 	code, err = g.ServeDNS(ctx, w, msg)
 	assert.NoError(t, err)
 	assert.Equal(t, dns.RcodeSuccess, code)
-	assert.NotNil(t, w.Msg)
+	assert.NotNil(t, w.msg)
+	assert.False(t, n.called, "Next plugin should NOT be called when DisableTXT is false")
 }
