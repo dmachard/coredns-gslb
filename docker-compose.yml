@@ -11,8 +11,8 @@ services:
     volumes:
       - ./Dockerfile:/Dockerfile
       - ./tests/db.gslb.example.com:/db.gslb.example.com
-      - ./tests/appX_records.yml:/coredns/appX_records.yml
-      - ./tests/appY_records.yml:/coredns/appY_records.yml
+      - ./tests/db.app-x.gslb.example.com.yml:/coredns/db.app-x.gslb.example.com.yml
+      - ./tests/db.app-y.gslb.example.com.yml:/coredns/db.app-y.gslb.example.com.yml
       - ./tests/location_map.yml:/coredns/location_map.yml
       - ./tests/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
       - ./tests/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb

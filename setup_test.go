@@ -19,7 +19,7 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Valid config with explicit zone-to-file mapping",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
 				}
 			}`,
 			expectError: false,
@@ -30,7 +30,7 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Valid config with additional options",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
 				}
 				max_stagger_start 120s
 				batch_size_start 50
@@ -44,7 +44,7 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Valid geoip_maxmind block syntax",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
 				}
 				geoip_maxmind {
 				}
@@ -57,8 +57,8 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Valid config with multiple zones and files",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
-					example.net ./tests/appY_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
+					example.net ./tests/db.app-y.gslb.example.com.yml
 				}
 			}`,
 			expectError: false,
@@ -69,7 +69,7 @@ func TestSetupGSLB(t *testing.T) {
 			name: "Valid config with all main parameters",
 			config: `gslb {
 				zones {
-					example.org ./tests/appX_records.yml
+					example.org ./tests/db.app-x.gslb.example.com.yml
 				}
 				max_stagger_start 90s
 				batch_size_start 42
@@ -116,7 +116,7 @@ func TestLoadConfigFile(t *testing.T) {
 		filePath    string
 		expectError bool
 	}{
-		{"Valid config", "./tests/appX_records.yml", false},
+		{"Valid config", "./tests/db.app-x.gslb.example.com.yml", false},
 		{"Non-existent file", "./tests/non_existent_config.yml", true},
 	}
 
