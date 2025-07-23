@@ -20,6 +20,7 @@
 
 What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
+- **Reusable healthcheck profiles**: Define health check templates and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
 - **Load balancing** with failover, round-robin, random, or GeoIP-based selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
@@ -96,6 +97,16 @@ $ORIGIN gslb.example.com.
 4. **Create coredns/gslb_config.yml:**
 
 ```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: "/"
+      expected_code: 200
+      timeout: 5s
+
 records:
   webapp.gslb.example.com.:
     mode: "failover"
@@ -104,22 +115,10 @@ records:
     backends:
     - address: "172.16.0.10"
       priority: 1
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]
     - address: "172.16.0.11"
       priority: 2
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]
 ```
 
 5. **Run and test:**

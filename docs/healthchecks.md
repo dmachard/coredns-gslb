@@ -1,4 +1,32 @@
 
+## Healthcheck Profiles
+
+You can define reusable health check profiles at the top level of your YAML configuration using the `healthcheck_profiles` key. Each profile defines a health check type and its parameters. Backends can then reference these profiles by name in their `healthchecks` list, instead of repeating the same configuration.
+
+**Example:**
+```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+
+records:
+  webapp.example.com.:
+    backends:
+      - address: 10.0.0.1
+        healthchecks: [ https_default ]  # Reference the profile by name
+        priority: 1
+```
+
+You can still use inline healthcheck definitions as before, or mix both approaches. If a backend's `healthchecks` list contains a string, it is interpreted as a profile name.
+
+---
+
 ## CoreDNS-GSLB: Health Checks
 
 

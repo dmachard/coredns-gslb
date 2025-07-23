@@ -63,14 +63,14 @@ Testing GeoIP from specific region selection with EDNS Client Subnet
 Simulate a query coming from subnet 10.0.0.0/24
 
 ~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp-geoip-region.app-x.gslb.example.com +short +subnet=10.1.0.42/24
+$ dig -p 8053 @127.0.0.1 webapp-geoip-region.app-y.gslb.example.com +short +subnet=10.1.0.42/24
 172.16.0.10
 ~~~
 
 Simulate a query coming from subnet 192.168.1.0/24
 
 ~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp-geoip-region.app-x.gslb.example.com +short +subnet=10.2.0.7/24
+$ dig -p 8053 @127.0.0.1 webapp-geoip-region.app-y.gslb.example.com +short +subnet=10.2.0.7/24
 172.16.0.11
 ~~~
 
@@ -79,14 +79,14 @@ Testing GeoIP with country selection, based EDNS Client Subnet
 Simulate a query coming from an US IP
 
 ~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-x.gslb.example.com +short +subnet=8.8.8.8/24
+$ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-y.gslb.example.com +short +subnet=8.8.8.8/24
 172.16.0.11
 ~~~
 
 Simulate a query coming from subnet 192.168.1.0/24
 
 ~~~ bash
-$ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-x.gslb.example.com +short +subnet=90.29.0.0/24
+$ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-y.gslb.example.com +short +subnet=90.29.0.0/24
 172.16.0.10
 ~~~
 

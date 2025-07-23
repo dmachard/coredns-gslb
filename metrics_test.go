@@ -70,7 +70,7 @@ func TestMetrics_HealthcheckFailures(t *testing.T) {
 	IncHealthcheckFailures("http/80", "1.2.3.4", "timeout")
 	IncHealthcheckFailures("http/80", "1.2.3.4", "timeout")
 	IncHealthcheckFailures("tcp/443", "1.2.3.5", "connection")
-	IncHealthcheckFailures("icmp", "1.2.3.6", "protocol")
+	IncHealthcheckFailures(ICMPType, "1.2.3.6", "protocol")
 	IncHealthcheckFailures("grpc", "1.2.3.7", "other")
 
 	timeoutCount := testutil.ToFloat64(healthcheckFailures.WithLabelValues("http/80", "1.2.3.4", "timeout"))
@@ -81,7 +81,7 @@ func TestMetrics_HealthcheckFailures(t *testing.T) {
 	if connCount != 1 {
 		t.Errorf("expected 1, got %v", connCount)
 	}
-	protocolCount := testutil.ToFloat64(healthcheckFailures.WithLabelValues("icmp", "1.2.3.6", "protocol"))
+	protocolCount := testutil.ToFloat64(healthcheckFailures.WithLabelValues(ICMPType, "1.2.3.6", "protocol"))
 	if protocolCount != 1 {
 		t.Errorf("expected 1, got %v", protocolCount)
 	}

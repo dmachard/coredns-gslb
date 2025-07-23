@@ -22,7 +22,7 @@ func TestToSpecificHealthCheck_Unsupported(t *testing.T) {
 
 // Test that all known healthcheck types are handled in ToSpecificHealthCheck
 func TestToSpecificHealthCheck_AllTypesHandled(t *testing.T) {
-	types := []string{"http", "icmp", "tcp", "mysql", "grpc", "lua"}
+	types := []string{"http", ICMPType, "tcp", "mysql", "grpc", "lua"}
 	for _, typ := range types {
 		hc := &HealthCheck{
 			Type:   typ,
@@ -34,7 +34,7 @@ func TestToSpecificHealthCheck_AllTypesHandled(t *testing.T) {
 }
 
 func TestToSpecificHealthCheck_AllKnownTypes(t *testing.T) {
-	types := []string{"http", "icmp", "tcp", "mysql", "grpc", "lua"}
+	types := []string{"http", ICMPType, "tcp", "mysql", "grpc", "lua"}
 	for _, typ := range types {
 		hc := &HealthCheck{
 			Type:   typ,
@@ -58,7 +58,7 @@ func TestHealthCheck_GetType(t *testing.T) {
 
 	// Test ICMP health check
 	icmpHC := &ICMPHealthCheck{}
-	assert.Equal(t, "icmp", icmpHC.GetType())
+	assert.Equal(t, ICMPType, icmpHC.GetType())
 
 	// Test MySQL health check
 	mysqlHC := &MySQLHealthCheck{}

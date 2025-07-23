@@ -99,6 +99,16 @@ $ORIGIN example.org.
 And `gslb_config.example.org.yml` would contain:
 
 ~~~ yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+
 records:
   webapp.example.org.:
     mode: "failover"
@@ -107,14 +117,7 @@ records:
     backends:
     - address: "172.16.0.10"
       priority: 1
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          host: "localhost"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]  # Reference the profile by name
     - address: "172.16.0.11"
       priority: 2
       healthchecks:

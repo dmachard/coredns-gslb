@@ -1,105 +1,67 @@
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      expected_body: ""
+      expected_code: 200
+      port: 443
+      skip_tls_verify: true
+      timeout: 5s
+      uri: /
+      headers: null
+      host: localhost
+      method: GET
+  
+  icmp_default:
+    type: icmp
+    params:
+      count: 3
+      timeout: 2s
+
+  grpc_default:
+    type: grpc
+    params:
+      port: 9090
+      service: ""
+      timeout: 5s
+
+  lua_default:
+    type: lua
+    params:
+      script: |-
+        local body = http_get("https://" .. backend.address .. ":443/api/health", 5, "", "", false)
+        if not body or body == "" then
+          print("DEBUG: http_get failed or empty body for " .. backend.address)
+          return false
+        end
+
+        local health = json_decode(body)
+        if not health then
+          print("DEBUG: json_decode failed for body: " .. tostring(body))
+          return false
+        end
+
+        if health.status ~= "green" then
+          print("DEBUG: health.status is not green: " .. tostring(health.status))
+          return false
+        end
+
+        if not health.number_of_nodes or health.number_of_nodes < 3 then
+          print("DEBUG: number_of_nodes is too low: " .. tostring(health.number_of_nodes))
+          return false
+        end
+
+        return true
+      timeout: 5s
+
 records:
-  webapp-geoip-country.app-y.gslb.example.com.:
-    backends:
-      - address: 172.16.0.10
-        country: FR
-        description: webapp10
-        enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
-        priority: 1
-      - address: 172.16.0.11
-        country: US
-        description: webapp11
-        enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
-        priority: 2
-    description: GeoIP-based routing by country (using MaxMind GeoLite2-Country.mmdb)
-    mode: geoip
-    owner: admin
-    record_ttl: 30
-    scrape_interval: 10s
-    scrape_retries: 1
-    scrape_timeout: 5s
-  webapp-geoip-region.app-y.gslb.example.com.:
-    backends:
-      - address: 172.16.0.10
-        description: webapp10
-        enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
-        location: eu-west-1
-        priority: 1
-      - address: 172.16.0.11
-        description: webapp11
-        enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
-        location: eu-west-2
-        priority: 2
-    description: GeoIP-based routing between Paris and London backends
-    mode: geoip
-    owner: admin
-    record_ttl: 30
-    scrape_interval: 10s
-    scrape_retries: 1
-    scrape_timeout: 5s
   webapp-grpc.gslb.app-y.example.com.:
     backends:
       - address: 172.16.0.12
         description: webapp12
         enable: true
-        healthchecks:
-          - params:
-              port: 9090
-              service: ""
-              timeout: 5s
-            type: grpc
+        healthchecks: [ grpc_default ]
         priority: 1
     description: gRPC health checks for webapp12
     mode: geoip
@@ -112,34 +74,7 @@ records:
     backends:
       - address: 172.16.0.10
         enable: true
-        healthchecks:
-          - params:
-              script: |-
-                local body = http_get("https://" .. backend.address .. ":443/api/health", 5, "", "", false)
-                if not body or body == "" then
-                  print("DEBUG: http_get failed or empty body for " .. backend.address)
-                  return false
-                end
-
-                local health = json_decode(body)
-                if not health then
-                  print("DEBUG: json_decode failed for body: " .. tostring(body))
-                  return false
-                end
-
-                if health.status ~= "green" then
-                  print("DEBUG: health.status is not green: " .. tostring(health.status))
-                  return false
-                end
-
-                if not health.number_of_nodes or health.number_of_nodes < 3 then
-                  print("DEBUG: number_of_nodes is too low: " .. tostring(health.number_of_nodes))
-                  return false
-                end
-
-                return true
-              timeout: 5s
-            type: lua
+        healthchecks: [ lua_default ]
         priority: 1
     description: Backend with Lua healthcheck (JSON via http_get + json_decode)
     mode: failover
@@ -153,41 +88,13 @@ records:
       - address: 172.16.0.10
         description: webapp10
         enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
+        healthchecks: [ https_default ]
         location: eu-west-1
         priority: 1
       - address: 172.16.0.11
         description: webapp11
         enable: true
-        healthchecks:
-          - params:
-              enable_tls: true
-              expected_body: ""
-              expected_code: 200
-              headers: null
-              host: localhost
-              method: GET
-              port: 443
-              skip_tls_verify: true
-              timeout: 5s
-              uri: /
-            type: http
-          - params:
-              count: 3
-              timeout: 2s
-            type: icmp
+        healthchecks: [ https_default, icmp_default ]
         location: eu-west-2
         priority: 2
     description: Dynamic DNS responses based on backend status

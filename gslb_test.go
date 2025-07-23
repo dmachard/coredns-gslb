@@ -10,6 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 type mockResponseWriter struct {
@@ -494,4 +495,285 @@ func TestServeDNS_DisableTXT(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, code)
 	assert.NotNil(t, w.msg)
 	assert.False(t, n.called, "Next plugin should NOT be called when DisableTXT is false")
+}
+
+// Test UnmarshalYAML with healthcheck profiles
+func TestGSLB_UnmarshalYAML_WithHealthcheckProfiles(t *testing.T) {
+	yamlData := `
+healthcheck_profiles:
+  http_profile:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /health
+      expected_code: 200
+  tcp_profile:
+    type: tcp
+    params:
+      port: 80
+      timeout: 5s
+
+records:
+  test.example.com.:
+    backends:
+      - address: 192.168.1.1
+        healthchecks: [ http_profile ]
+        priority: 1
+      - address: 192.168.1.2
+        healthchecks: [ http_profile, tcp_profile ]
+        priority: 2
+    mode: failover
+    record_ttl: 30
+`
+
+	var gslb GSLB
+	err := yaml.Unmarshal([]byte(yamlData), &gslb)
+	assert.NoError(t, err)
+
+	// Verify healthcheck profiles were loaded
+	assert.NotNil(t, gslb.HealthcheckProfiles)
+	assert.Len(t, gslb.HealthcheckProfiles, 2)
+	assert.Contains(t, gslb.HealthcheckProfiles, "http_profile")
+	assert.Contains(t, gslb.HealthcheckProfiles, "tcp_profile")
+
+	// Verify profiles have correct configuration
+	httpProfile := gslb.HealthcheckProfiles["http_profile"]
+	assert.Equal(t, "http", httpProfile.Type)
+	assert.Equal(t, true, httpProfile.Params["enable_tls"])
+	assert.Equal(t, 443, httpProfile.Params["port"])
+
+	tcpProfile := gslb.HealthcheckProfiles["tcp_profile"]
+	assert.Equal(t, "tcp", tcpProfile.Type)
+	assert.Equal(t, 80, tcpProfile.Params["port"])
+
+	// Verify records were processed correctly
+	assert.NotNil(t, gslb.Records)
+	assert.Len(t, gslb.Records, 1)
+
+	record := gslb.Records["test.example.com."]
+	assert.NotNil(t, record)
+	assert.Equal(t, "failover", record.Mode)
+	assert.Len(t, record.Backends, 2)
+
+	// Verify backend 1 has 1 healthcheck (http_profile)
+	backend1 := record.Backends[0]
+	assert.Equal(t, "192.168.1.1", backend1.GetAddress())
+	healthchecks1 := backend1.GetHealthChecks()
+	assert.Len(t, healthchecks1, 1)
+	assert.Equal(t, "https/443", healthchecks1[0].GetType())
+
+	// Verify backend 2 has 2 healthchecks (http_profile + tcp_profile)
+	backend2 := record.Backends[1]
+	assert.Equal(t, "192.168.1.2", backend2.GetAddress())
+	healthchecks2 := backend2.GetHealthChecks()
+	assert.Len(t, healthchecks2, 2)
+}
+
+// Test processRecordHealthchecks method
+func TestGSLB_processRecordHealthchecks(t *testing.T) {
+	gslb := &GSLB{
+		HealthcheckProfiles: map[string]*HealthCheck{
+			"test_profile": {
+				Type: "http",
+				Params: map[string]interface{}{
+					"port": 80,
+					"uri":  "/status",
+				},
+			},
+		},
+	}
+
+	// Test with valid record data containing profile references
+	recordData := map[string]interface{}{
+		"mode": "failover",
+		"backends": []interface{}{
+			map[string]interface{}{
+				"address": "1.2.3.4",
+				"healthchecks": []interface{}{
+					"test_profile",
+				},
+			},
+		},
+	}
+
+	processedData, err := gslb.processRecordHealthchecks(recordData)
+	assert.NoError(t, err)
+
+	processedRecord := processedData.(map[string]interface{})
+	backends := processedRecord["backends"].([]interface{})
+	backend := backends[0].(map[string]interface{})
+	healthchecks := backend["healthchecks"].([]interface{})
+
+	assert.Len(t, healthchecks, 1)
+	hc := healthchecks[0].(map[string]interface{})
+	assert.Equal(t, "http", hc["type"])
+	assert.Equal(t, map[string]interface{}{"port": 80, "uri": "/status"}, hc["params"])
+}
+
+// Test processHealthchecks method
+func TestGSLB_processHealthchecks(t *testing.T) {
+	gslb := &GSLB{
+		HealthcheckProfiles: map[string]*HealthCheck{
+			"profile1": {
+				Type: "http",
+				Params: map[string]interface{}{
+					"port": 443,
+					"uri":  "/health",
+				},
+			},
+			"profile2": {
+				Type: "tcp",
+				Params: map[string]interface{}{
+					"port":    80,
+					"timeout": "5s",
+				},
+			},
+		},
+	}
+
+	t.Run("Profile references only", func(t *testing.T) {
+		healthchecks := []interface{}{"profile1", "profile2"}
+
+		result, err := gslb.processHealthchecks(healthchecks)
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+
+		// Check first healthcheck
+		hc1 := result[0].(map[string]interface{})
+		assert.Equal(t, "http", hc1["type"])
+		assert.Equal(t, map[string]interface{}{"port": 443, "uri": "/health"}, hc1["params"])
+
+		// Check second healthcheck
+		hc2 := result[1].(map[string]interface{})
+		assert.Equal(t, "tcp", hc2["type"])
+		assert.Equal(t, map[string]interface{}{"port": 80, "timeout": "5s"}, hc2["params"])
+	})
+
+	t.Run("Mixed profile references and inline definitions", func(t *testing.T) {
+		healthchecks := []interface{}{
+			"profile1",
+			map[string]interface{}{
+				"type": ICMPType,
+				"params": map[string]interface{}{
+					"count":   3,
+					"timeout": "2s",
+				},
+			},
+		}
+
+		result, err := gslb.processHealthchecks(healthchecks)
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+
+		// Check profile reference
+		hc1 := result[0].(map[string]interface{})
+		assert.Equal(t, "http", hc1["type"])
+
+		// Check inline definition (should be unchanged)
+		hc2 := result[1].(map[string]interface{})
+		assert.Equal(t, ICMPType, hc2["type"])
+		params := hc2["params"].(map[string]interface{})
+		assert.Equal(t, 3, params["count"])
+	})
+
+	t.Run("Invalid profile reference", func(t *testing.T) {
+		healthchecks := []interface{}{"non_existent_profile"}
+
+		result, err := gslb.processHealthchecks(healthchecks)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "healthcheck profile 'non_existent_profile' not found")
+	})
+
+	t.Run("No profiles defined", func(t *testing.T) {
+		gslbNoProfiles := &GSLB{HealthcheckProfiles: nil}
+		healthchecks := []interface{}{"some_profile"}
+
+		result, err := gslbNoProfiles.processHealthchecks(healthchecks)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "healthcheck profile 'some_profile' referenced but no profiles defined")
+	})
+
+	t.Run("Invalid healthchecks format", func(t *testing.T) {
+		// healthchecks should be an array, not a string
+		healthchecks := "invalid_format"
+
+		result, err := gslb.processHealthchecks(healthchecks)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "healthchecks must be an array")
+	})
+}
+
+// Test UnmarshalYAML error cases
+func TestGSLB_UnmarshalYAML_ErrorCases(t *testing.T) {
+	t.Run("Invalid YAML", func(t *testing.T) {
+		yamlData := `
+healthcheck_profiles:
+  invalid: [
+records:
+  test: {}
+`
+		var gslb GSLB
+		err := yaml.Unmarshal([]byte(yamlData), &gslb)
+		assert.Error(t, err)
+	})
+
+	t.Run("Invalid profile reference in record", func(t *testing.T) {
+		yamlData := `
+healthcheck_profiles:
+  valid_profile:
+    type: http
+    params:
+      port: 80
+
+records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+        healthchecks: [invalid_profile]
+    mode: failover
+`
+		var gslb GSLB
+		err := yaml.Unmarshal([]byte(yamlData), &gslb)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "healthcheck profile 'invalid_profile' not found")
+	})
+}
+
+// Test UnmarshalYAML with no profiles (backward compatibility)
+func TestGSLB_UnmarshalYAML_NoProfiles(t *testing.T) {
+	yamlData := `
+records:
+  test.example.com.:
+    backends:
+      - address: 192.168.1.1
+        healthchecks:
+          - type: http
+            params:
+              enable_tls: false
+              port: 80
+              uri: /health
+    mode: failover
+`
+
+	var gslb GSLB
+	err := yaml.Unmarshal([]byte(yamlData), &gslb)
+	assert.NoError(t, err)
+
+	// Should work without profiles
+	assert.Nil(t, gslb.HealthcheckProfiles)
+	assert.NotNil(t, gslb.Records)
+	assert.Len(t, gslb.Records, 1)
+
+	record := gslb.Records["test.example.com."]
+	assert.NotNil(t, record)
+	assert.Len(t, record.Backends, 1)
+
+	backend := record.Backends[0]
+	healthchecks := backend.GetHealthChecks()
+	assert.Len(t, healthchecks, 1)
+	assert.Equal(t, "http/80", healthchecks[0].GetType())
 }

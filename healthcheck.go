@@ -6,6 +6,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const ICMPType = "icmp"
+
 // GenericHealthCheck defines a common interface for health checks
 type GenericHealthCheck interface {
 	// PerformCheck executes the health check for a backend.
@@ -38,6 +40,20 @@ type HealthCheck struct {
 	Params map[string]interface{} `yaml:"params"`
 }
 
+// ResolveProfile resolves a healthcheck profile to a concrete HealthCheck
+func ResolveHealthcheckProfile(profileName string, profiles map[string]*HealthCheck) (*HealthCheck, error) {
+	profile, exists := profiles[profileName]
+	if !exists {
+		return nil, fmt.Errorf("healthcheck profile '%s' not found", profileName)
+	}
+
+	// Return a copy of the profile
+	return &HealthCheck{
+		Type:   profile.Type,
+		Params: profile.Params,
+	}, nil
+}
+
 func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 	switch hc.Type {
 	case "http":
@@ -54,7 +70,7 @@ func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {
 		}
 		return &httpCheck, nil
 
-	case "icmp":
+	case ICMPType:
 		var icmpCheck ICMPHealthCheck
 		icmpCheck.SetDefault()
 
