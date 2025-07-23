@@ -41,17 +41,24 @@ type HealthCheck struct {
 }
 
 // ResolveProfile resolves a healthcheck profile to a concrete HealthCheck
-func ResolveHealthcheckProfile(profileName string, profiles map[string]*HealthCheck) (*HealthCheck, error) {
-	profile, exists := profiles[profileName]
-	if !exists {
-		return nil, fmt.Errorf("healthcheck profile '%s' not found", profileName)
+func ResolveHealthcheckProfile(profileName string, localProfiles map[string]*HealthCheck) (*HealthCheck, error) {
+	if localProfiles != nil {
+		if profile, exists := localProfiles[profileName]; exists {
+			return &HealthCheck{
+				Type:   profile.Type,
+				Params: profile.Params,
+			}, nil
+		}
 	}
-
-	// Return a copy of the profile
-	return &HealthCheck{
-		Type:   profile.Type,
-		Params: profile.Params,
-	}, nil
+	if GlobalHealthcheckProfiles != nil {
+		if profile, exists := GlobalHealthcheckProfiles[profileName]; exists {
+			return &HealthCheck{
+				Type:   profile.Type,
+				Params: profile.Params,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("healthcheck profile '%s' not found", profileName)
 }
 
 func (hc *HealthCheck) ToSpecificHealthCheck() (GenericHealthCheck, error) {

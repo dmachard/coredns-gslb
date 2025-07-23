@@ -20,7 +20,7 @@
 
 What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
-- **Reusable healthcheck profiles**: Define health check templates and reference them by name in your backends
+- **Reusable healthcheck profiles**: Define health check templates globally (in the Corefile) or per zone, and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
 - **Load balancing** with failover, round-robin, random, or GeoIP-based selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
@@ -79,7 +79,9 @@ Create the `Corefile`
 ```
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
-    gslb /coredns/gslb_config.yml gslb.example.com
+    gslb /coredns/gslb_config.yml gslb.example.com {
+        healthcheck_profiles /coredns/healthcheck_profiles.yml
+    }
     prometheus
 }
 ```
@@ -97,6 +99,8 @@ $ORIGIN gslb.example.com.
 4. **Create coredns/gslb_config.yml:**
 
 ```yaml
+# You can omit healthcheck_profiles here to use only the global ones,
+# or override a profile locally (local takes precedence over global)
 healthcheck_profiles:
   https_default:
     type: http

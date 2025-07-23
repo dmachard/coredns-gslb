@@ -187,6 +187,22 @@ func setup(c *caddy.Controller) error {
 						return c.ArgErr()
 					}
 					g.APIBasicPass = c.Val()
+				case "healthcheck_profiles":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					globalProfilesPath := c.Val()
+					data, err := os.ReadFile(globalProfilesPath)
+					if err != nil {
+						return fmt.Errorf("failed to read global healthcheck_profiles: %w", err)
+					}
+					var tmp struct {
+						HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+					}
+					if err := yaml.Unmarshal(data, &tmp); err != nil {
+						return fmt.Errorf("failed to parse global healthcheck_profiles: %w", err)
+					}
+					GlobalHealthcheckProfiles = tmp.HealthcheckProfiles
 				case "zones":
 					if !c.NextBlock() {
 						return c.ArgErr()

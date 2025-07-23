@@ -693,7 +693,7 @@ func TestGSLB_processHealthchecks(t *testing.T) {
 		result, err := gslbNoProfiles.processHealthchecks(healthchecks)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "healthcheck profile 'some_profile' referenced but no profiles defined")
+		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("Invalid healthchecks format", func(t *testing.T) {

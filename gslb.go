@@ -155,9 +155,6 @@ func (g *GSLB) processHealthchecks(healthchecks interface{}) ([]interface{}, err
 			switch v := item.(type) {
 			case string:
 				// It's a profile reference
-				if g.HealthcheckProfiles == nil {
-					return nil, fmt.Errorf("healthcheck profile '%s' referenced but no profiles defined", v)
-				}
 				profile, err := ResolveHealthcheckProfile(v, g.HealthcheckProfiles)
 				if err != nil {
 					return nil, err

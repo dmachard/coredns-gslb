@@ -199,6 +199,63 @@ gslb gslb_config.yml example.com {
 - Use `api_listen_addr` and `api_listen_port` to change the default bind address and port (default: `0.0.0.0:8080`).
 - If `api_basic_user` and `api_basic_pass` are set, HTTP Basic Authentication is required for all API requests.
 
+### Global Healthcheck Profiles
+
+You can define reusable healthcheck profiles globally for all zones using the Corefile directive:
+
+```
+gslb {
+    ...
+    healthcheck_profiles healthcheck_profiles.yml
+}
+```
+
+The referenced file should contain:
+
+```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+```
+
+- These profiles are available to all YAML zone files.
+- If a local profile with the same name exists in a zone YAML, the local one takes precedence.
+- You can reference a profile by name in any backend's `healthchecks` list.
+
+**Example: Combined usage**
+
+```yaml
+# In healthcheck_profiles.yml (global)
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      port: 443
+      uri: /
+      expected_code: 200
+
+# In db.app-x.gslb.example.com.yml (zone file)
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      port: 443
+      uri: /custom
+      expected_code: 200
+
+records:
+  webapp.app-x.gslb.example.com.:
+    backends:
+      - address: 10.0.0.1
+        healthchecks: [ https_default ]  # Uses the local version
+```
+
 
 
 
