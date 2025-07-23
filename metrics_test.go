@@ -210,6 +210,7 @@ func TestMetrics_BackendSelected(t *testing.T) {
 }
 
 func TestMetrics_RecordResolutionDuration(t *testing.T) {
+	recordResolutionDuration.Reset()
 	RegisterMetrics()
 	ObserveRecordResolutionDuration("example.com.", "success", 0.5)
 	ObserveRecordResolutionDuration("example.com.", "success", 1.0)

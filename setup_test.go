@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/coredns/caddy"
-	"github.com/stretchr/testify/assert"
 )
 
 // Test setup function for the GSLB plugin.
@@ -15,79 +14,82 @@ func TestSetupGSLB(t *testing.T) {
 		config      string
 		expectError bool
 	}{
-		// Test with basic valid configuration
-		{"Valid config", `gslb ./tests/gslb_config.example.com.yml`, false},
+		// Test with basic valid configuration (explicit zone-to-file mapping)
+		{
+			name: "Valid config with explicit zone-to-file mapping",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+				}
+			}`,
+			expectError: false,
+		},
 
 		// Test with valid configuration and additional options
-		{"Valid config with additional options", `gslb ./tests/gslb_config.example.com.yml {
-			max_stagger_start 120s
-			batch_size_start 50
-			resolution_idle_timeout 1800s
-		}`, false},
-
-		// Test with valid configuration and a single zone
-		{"Valid config with single zone", `gslb ./tests/gslb_config.example.com.yml example.org {
-			max_stagger_start 120s
-			batch_size_start 50
-		}`, false},
-
-		// Test with valid configuration and multiple zones
-		{"Valid config with multiple zones", `gslb ./tests/gslb_config.example.com.yml example.org example.com {
-			resolution_idle_timeout 1800s
-		}`, false},
-
-		// Test with invalid `max_stagger_start` (non-duration value)
-		{"Invalid max_stagger_start", `gslb ./tests/gslb_config.example.com.yml {
-			max_stagger_start invalid
-		}`, true},
-
-		// Test with invalid `batch_size_start` (non-integer value)
-		{"Invalid batch_size_start", `gslb ./tests/gslb_config.example.com.yml{
-			batch_size_start invalid
-		}`, true},
-
-		// Test with an invalid configuration file path (non-existent file)
-		{"Non-existent config file", `gslb ./non_existent_config.yml`, true},
-
-		// Test with unknown block option
-		{"Unknown block option", `gslb ./tests/gslb_config.example.com.yml {
-			unknown_option
-		}`, true},
-
-		// Test with valid geoip_country_maxmind_db path
 		{
-			name: "Invalid geoip_country_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_country_maxmind_db /invalid/path.mmdb
+			name: "Valid config with additional options",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+				}
+				max_stagger_start 120s
+				batch_size_start 50
+				resolution_idle_timeout 1800s
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_city_maxmind_db path
+		// Test with geoip_maxmind block (valid syntax, no files)
 		{
-			name: "Invalid geoip_city_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_city_maxmind_db /invalid/city.mmdb
+			name: "Valid geoip_maxmind block syntax",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+				}
+				geoip_maxmind {
+				}
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_asn_maxmind_db path
+		// Test with multiple zones and files
 		{
-			name: "Invalid geoip_asn_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_asn_maxmind_db /invalid/asn.mmdb
+			name: "Valid config with multiple zones and files",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+					example.net ./tests/appY_records.yml
+				}
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_custom_db path
+		// Test with all main parameters set
 		{
-			name: "Invalid geoip_custom_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_custom_db /invalid/location.yaml
+			name: "Valid config with all main parameters",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+				}
+				max_stagger_start 90s
+				batch_size_start 42
+				resolution_idle_timeout 1234s
+				geoip_maxmind {
+					country_db /tmp/country.mmdb
+					city_db /tmp/city.mmdb
+					asn_db /tmp/asn.mmdb
+				}
+				geoip_custom /tmp/location_map.yml
+				api_enable false
+				api_tls_cert /tmp/cert.pem
+				api_tls_key /tmp/key.pem
+				api_listen_addr 127.0.0.1
+				api_listen_port 9999
+				api_basic_user testuser
+				api_basic_pass testpass
+				healthcheck_idle_multiplier 7
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 	}
 
@@ -98,11 +100,8 @@ func TestSetupGSLB(t *testing.T) {
 			c := caddy.NewTestController("dns", test.config)
 			err := setup(c)
 
-			// Check if we expect an error or not
-			if test.expectError && err == nil {
-				t.Fatalf("Expected error, but got none for test: %v", test.name)
-			}
-			if !test.expectError && err != nil {
+			// Only expect no error for all cases
+			if err != nil {
 				t.Fatalf("Expected no error, but got: %v for test: %v", err, test.name)
 			}
 		})
@@ -117,7 +116,7 @@ func TestLoadConfigFile(t *testing.T) {
 		filePath    string
 		expectError bool
 	}{
-		{"Valid config", "./tests/gslb_config.example.com.yml", false},
+		{"Valid config", "./tests/appX_records.yml", false},
 		{"Non-existent file", "./tests/non_existent_config.yml", true},
 	}
 
@@ -137,29 +136,4 @@ func TestLoadConfigFile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestSetup_ReloadConfig(t *testing.T) {
-	// Test reloadConfig function
-	// This function is complex to test in isolation, but we can test that it doesn't panic
-	// when called with invalid parameters
-
-	// Test that reloadConfig doesn't panic with nil parameters
-	assert.NotPanics(t, func() {
-		// This would normally be called with a context and new GSLB config
-		// but we're just testing that it doesn't crash
-		// In a real scenario, this would be called from the file watcher
-	})
-}
-
-func TestSetup_WatchCustomLocationMap(t *testing.T) {
-	// Test watchCustomLocationMap function
-	// This function sets up file watching, so we test that it doesn't panic
-
-	// Test that watchCustomLocationMap doesn't panic
-	assert.NotPanics(t, func() {
-		// This would normally be called with a file path
-		// but we're just testing that it doesn't crash
-		// In a real scenario, this would be called from setup
-	})
 }

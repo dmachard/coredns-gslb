@@ -392,3 +392,47 @@ func TestGSLB_SendAddressRecordResponse(t *testing.T) {
 		}
 	}
 }
+
+// TestServeDNS validates the ServeDNS method for various FQDN cases
+func TestServeDNS(t *testing.T) {
+	backend := &Backend{Address: "192.168.1.1", Enable: true, Priority: 1}
+	record := &Record{
+		Fqdn:      "test.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	testCases := []struct {
+		name          string
+		fqdn          string
+		zone          string
+		recordQ       uint16
+		expectSuccess bool
+	}{
+		{"lowercase fqdn, lowercase zone", "test.example.org.", "example.org.", dns.TypeA, true},
+		{"uppercase fqdn, lowercase zone", "TEST.EXAMPLE.ORG.", "example.org.", dns.TypeA, true},
+		{"mixedcase fqdn, lowercase zone", "Test.Example.Org.", "example.org.", dns.TypeA, true},
+		{"fqdn not in zone", "test.otherzone.org.", "example.org.", dns.TypeA, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &GSLB{
+				Zones:   map[string]string{tc.zone: "dummy.yml"},
+				Records: map[string]*Record{"test.example.org.": record},
+			}
+			msg := new(dns.Msg)
+			msg.SetQuestion(tc.fqdn, tc.recordQ)
+			w := &mockResponseWriter{addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.100"), Port: 12345}}
+			code, err := g.ServeDNS(context.Background(), w, msg)
+			if tc.expectSuccess {
+				assert.NoError(t, err)
+				assert.Equal(t, dns.RcodeSuccess, code)
+			} else {
+				assert.Error(t, err)
+				assert.Equal(t, 2, code) // plugin.NextOrFailure returns 2 for non-authoritative
+			}
+		})
+	}
+}

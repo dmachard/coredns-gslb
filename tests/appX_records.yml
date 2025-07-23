@@ -1,5 +1,5 @@
 records:
-  webapp-geoip-country.gslb.example.com.:
+  webapp-geoip-country.app-y.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         country: FR
@@ -44,7 +44,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp-geoip-region.gslb.example.com.:
+  webapp-geoip-region.app-y.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         description: webapp10
@@ -89,7 +89,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp-grpc.gslb.example.com.:
+  webapp-grpc.gslb.app-y.example.com.:
     backends:
       - address: 172.16.0.12
         description: webapp12
@@ -108,7 +108,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp-lua.gslb.example.com.:
+  webapp-lua.app-y.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         enable: true
@@ -148,7 +148,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp.gslb.example.com.:
+  webapp.app-y.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         description: webapp10

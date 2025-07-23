@@ -51,7 +51,7 @@ func (g *GSLB) Name() string { return "gslb" }
 func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	// Get domain and ensure it is fully qualified
 	q := r.Question[0]
-	domain := dns.Fqdn(strings.TrimSuffix(q.Name, "."))
+	domain := strings.ToLower(dns.Fqdn(strings.TrimSuffix(q.Name, ".")))
 
 	// If the domain doesn't match any authoritative domain, pass to the next plugin
 	if !g.isAuthoritative(domain) {
@@ -134,8 +134,9 @@ func (g *GSLB) extractClientIP(w dns.ResponseWriter, r *dns.Msg) (net.IP, uint8)
 }
 
 func (g *GSLB) isAuthoritative(domain string) bool {
-	for authDomain := range g.Zones {
-		if strings.HasSuffix(domain, authDomain) {
+	domainNorm := strings.ToLower(strings.TrimSuffix(domain, ".")) + "."
+	for authZone := range g.Zones {
+		if strings.HasSuffix(domainNorm, authZone) {
 			return true
 		}
 	}
@@ -375,8 +376,25 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 }
 
 func (g *GSLB) initializeRecords(ctx context.Context) {
-	groups := g.batchRecords(g.BatchSizeStart)
+	// Load records from all files in g.Zones
+	for zone, file := range g.Zones {
+		tmpG := &GSLB{Records: make(map[string]*Record)}
+		if err := loadConfigFile(tmpG, file); err != nil {
+			log.Errorf("Failed to load records for zone %s from %s: %v", zone, file, err)
+			continue
+		}
+		for fqdn, rec := range tmpG.Records {
+			if _, exists := g.Records[fqdn]; exists {
+				log.Warningf("Record %s already exists, skipping duplicate from zone %s", fqdn, zone)
+				continue
+			}
+			rec.Fqdn = fqdn
+			g.Records[fqdn] = rec
+		}
+	}
 
+	// Batch records and start health checks
+	groups := g.batchRecords(g.BatchSizeStart)
 	for i, group := range groups {
 		go func(group []*Record, delay time.Duration) {
 			time.Sleep(delay)
@@ -384,7 +402,6 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 				domain := record.Fqdn
 				recordCtx, cancel := context.WithCancel(ctx)
 				record.cancelFunc = cancel
-
 				log.Debugf("[%s] Starting health checks for backends", domain)
 				// Initialize health status for existing record
 				record.updateRecordHealthStatus()
