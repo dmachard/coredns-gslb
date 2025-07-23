@@ -91,6 +91,17 @@ func TestSetupGSLB(t *testing.T) {
 			}`,
 			expectError: false,
 		},
+		// Test with disable_txt option
+		{
+			name: "Disable TXT option disables TXT queries",
+			config: `gslb {
+				zones {
+					example.org ./tests/appX_records.yml
+				}
+				disable_txt
+			}`,
+			expectError: false,
+		},
 	}
 
 	// Iterate over test cases

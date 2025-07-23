@@ -28,6 +28,8 @@ gslb {
     api_tls_key /path/to/key.pem     # Enable HTTPS (optional)
     api_listen_addr 0.0.0.0
     api_listen_port 8080
+    
+    disable_txt                        # Disable TXT record resolution for GSLB zones
 }
 ~~~
 
@@ -50,6 +52,7 @@ gslb {
 * `api_listen_port`: Port to bind the API server to (default: `8080`).
 * `api_basic_user`: HTTP Basic Auth username for the API (optional, if set, authentication is required).
 * `api_basic_pass`: HTTP Basic Auth password for the API (optional, if set, authentication is required).
+* `disable_txt`: If set, disables TXT record resolution for GSLB-managed zones. TXT queries will be passed to the next plugin or return empty if none.
 
 ### Full example
 
@@ -73,6 +76,7 @@ Load the `example.org.` and `test.org.` zones from their respective YAML files a
         geoip_maxmind {
             country_db /coredns/GeoLite2-Country.mmdb
         }
+        disable_txt
     }
 }
 ~~~

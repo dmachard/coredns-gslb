@@ -436,3 +436,44 @@ func TestServeDNS(t *testing.T) {
 		})
 	}
 }
+
+// Plugin suivant qui capture l'appel pour les tests ServeDNS
+type nextPlugin struct{ called bool }
+
+func (n *nextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+	n.called = true
+	return dns.RcodeSuccess, nil
+}
+func (n *nextPlugin) Name() string { return "testnext" }
+
+func TestGSLB_DisableTXTOption(t *testing.T) {
+	backend := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 10}}
+	backend.On("IsHealthy").Return(true)
+	record := &Record{
+		Fqdn:      "example.com.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Records:    map[string]*Record{"example.com.": record},
+		DisableTXT: true,
+	}
+
+	msg := new(dns.Msg)
+	msg.SetQuestion("example.com.", dns.TypeTXT)
+	w := &TestResponseWriter{}
+	ctx := context.Background()
+	code, err := g.ServeDNS(ctx, w, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code) // plugin.NextOrFailure returns Success by default in test
+	assert.Nil(t, w.Msg)                    // Should not write a message
+
+	// Now test with DisableTXT false (default)
+	g.DisableTXT = false
+	code, err = g.ServeDNS(ctx, w, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.Msg)
+}

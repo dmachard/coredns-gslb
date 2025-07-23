@@ -205,6 +205,11 @@ func setup(c *caddy.Controller) error {
 						g.Zones[zoneNorm] = file
 						go startConfigWatcher(g, file)
 					}
+				case "disable_txt":
+					if c.NextArg() {
+						return c.ArgErr()
+					}
+					g.DisableTXT = true
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}

@@ -44,6 +44,8 @@ type GSLB struct {
 	APIListenPort             string         // API listen port (default 8080)
 	APIBasicUser              string         // HTTP Basic Auth username (optional)
 	APIBasicPass              string         // HTTP Basic Auth password (optional)
+	// DisableTXT disables TXT record resolution if set to true
+	DisableTXT bool
 }
 
 func (g *GSLB) Name() string { return "gslb" }
@@ -76,6 +78,9 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	case dns.TypeAAAA:
 		return g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA)
 	case dns.TypeTXT:
+		if g.DisableTXT {
+			return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+		}
 		return g.handleTXTRecord(ctx, w, r, domain)
 	default:
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
