@@ -56,7 +56,7 @@ healthcheck_profiles:
       timeout: 5s
 
 records:
-  webapp-grpc.gslb.app-y.example.com.:
+  webapp-grpc.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.12
         description: webapp12
@@ -70,7 +70,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp-lua.app-y.gslb.example.com.:
+  webapp-lua.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         enable: true
@@ -83,7 +83,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp.app-y.gslb.example.com.:
+  webapp.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         description: webapp10

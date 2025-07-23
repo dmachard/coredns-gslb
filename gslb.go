@@ -26,6 +26,7 @@ type GSLB struct {
 	Records             map[string]*Record      `yaml:"records"`
 	HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
 
+	Zone                      string   // Zone attendue pour la vérification des records
 	LastResolution            sync.Map // key: domain (string), value: time.Time
 	RoundRobinIndex           sync.Map
 	MaxStaggerStart           string
@@ -71,7 +72,12 @@ func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Process records with healthcheck profile resolution
 	if raw.Records != nil {
 		g.Records = make(map[string]*Record)
+		// On attend que g.Zone soit renseignée avant l'appel (par le chargeur)
+		zone := g.Zone // zone attendue, ex: ".example.org."
 		for fqdn, recordData := range raw.Records {
+			if zone != "" && !strings.HasSuffix(fqdn, zone) {
+				return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
+			}
 			// Pre-process the record data to resolve healthcheck profiles
 			processedRecordData, err := g.processRecordHealthchecks(recordData)
 			if err != nil {

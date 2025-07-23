@@ -287,6 +287,14 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 
 // loadConfigFile loads and parses the YAML configuration file.
 func loadConfigFile(g *GSLB, fileName string) error {
+	// Déduire la zone attendue à partir du nom du fichier (ex: db.app-x.gslb.example.com.yml -> .app-x.gslb.example.com.)
+	base := filepath.Base(fileName)
+	zone := ""
+	if strings.HasPrefix(base, "db.") && strings.HasSuffix(base, ".yml") {
+		zone = "." + strings.TrimSuffix(strings.TrimPrefix(base, "db."), ".yml") + "."
+	}
+	g.Zone = zone
+
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to read YAML configuration: %w", err)

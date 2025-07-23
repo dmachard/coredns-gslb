@@ -169,7 +169,8 @@ func TestLoadRealConfig(t *testing.T) {
 	assert.NotNil(t, g.Records)
 	assert.Len(t, g.Records, 3)
 
-	record := g.Records["webapp.app-y.gslb.example.com."]
+	record, ok := g.Records["webapp.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp.app-x.gslb.example.com. should exist")
 	assert.NotNil(t, record)
 	assert.Equal(t, "failover", record.Mode)
 	assert.Len(t, record.Backends, 2)
@@ -200,4 +201,10 @@ func TestLoadRealConfig(t *testing.T) {
 	}
 	assert.True(t, found_https, "Should have HTTPS healthcheck")
 	assert.True(t, found_icmp, "Should have ICMP healthcheck")
+
+	// Vérifier la présence des autres records
+	_, ok = g.Records["webapp-lua.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-lua.app-x.gslb.example.com. should exist")
+	_, ok = g.Records["webapp-grpc.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-grpc.app-x.gslb.example.com. should exist")
 }

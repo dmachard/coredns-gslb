@@ -777,3 +777,70 @@ records:
 	assert.Len(t, healthchecks, 1)
 	assert.Equal(t, "http/80", healthchecks[0].GetType())
 }
+
+func TestGSLB_RecordsMatchZone(t *testing.T) {
+	testCases := []struct {
+		name      string
+		yamlData  string
+		zone      string
+		shouldErr bool
+	}{
+		{
+			name: "All records match zone",
+			yamlData: `
+records:
+  valid1.example.org.:
+    backends:
+      - address: 1.1.1.1
+  valid2.example.org.:
+    backends:
+      - address: 2.2.2.2
+`,
+			zone:      ".example.org.",
+			shouldErr: false,
+		},
+		{
+			name: "One record does not match zone",
+			yamlData: `
+records:
+  valid1.example.org.:
+    backends:
+      - address: 1.1.1.1
+  invalid.example.com.:
+    backends:
+      - address: 3.3.3.3
+`,
+			zone:      ".example.org.",
+			shouldErr: true,
+		},
+		{
+			name: "All records do not match zone",
+			yamlData: `
+records:
+  invalid1.example.com.:
+    backends:
+      - address: 4.4.4.4
+  invalid2.example.net.:
+    backends:
+      - address: 5.5.5.5
+`,
+			zone:      ".example.org.",
+			shouldErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gslb := &GSLB{Zone: tc.zone}
+			err := yaml.Unmarshal([]byte(tc.yamlData), gslb)
+			if tc.shouldErr {
+				assert.Error(t, err, "Expected error for zone mismatch")
+			} else {
+				assert.NoError(t, err, "Expected no error for matching records")
+				for fqdn := range gslb.Records {
+					assert.True(t, strings.HasSuffix(fqdn, tc.zone), "Record %s does not match zone %s", fqdn, tc.zone)
+				}
+			}
+		})
+	}
+}
