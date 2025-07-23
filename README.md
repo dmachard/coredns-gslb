@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-127-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-142-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-70%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-2893-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-3032-blue" alt="Lines of code"/>
 </p>
 
 <p align="center">
@@ -20,6 +20,7 @@
 
 What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
+- **Reusable healthcheck profiles**: Define health check templates globally (in the Corefile) or per zone, and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
 - **Load balancing** with failover, round-robin, random, or GeoIP-based selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
@@ -78,7 +79,9 @@ Create the `Corefile`
 ```
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
-    gslb /coredns/gslb_config.yml gslb.example.com
+    gslb /coredns/gslb_config.yml gslb.example.com {
+        healthcheck_profiles /coredns/healthcheck_profiles.yml
+    }
     prometheus
 }
 ```
@@ -96,6 +99,18 @@ $ORIGIN gslb.example.com.
 4. **Create coredns/gslb_config.yml:**
 
 ```yaml
+# You can omit healthcheck_profiles here to use only the global ones,
+# or override a profile locally (local takes precedence over global)
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: "/"
+      expected_code: 200
+      timeout: 5s
+
 records:
   webapp.gslb.example.com.:
     mode: "failover"
@@ -104,22 +119,10 @@ records:
     backends:
     - address: "172.16.0.10"
       priority: 1
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]
     - address: "172.16.0.11"
       priority: 2
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]
 ```
 
 5. **Run and test:**
@@ -136,8 +139,8 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 |-------|-------------|
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
-| [GeoIP Setup](doc/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Configuration Options](doc/configuration.md) | Complete parameter reference |
+| [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
+| [Configuration](docs/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [Observability](docs/observability.md) | Prometheus metrics |

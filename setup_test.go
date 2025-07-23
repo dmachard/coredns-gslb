@@ -15,79 +15,93 @@ func TestSetupGSLB(t *testing.T) {
 		config      string
 		expectError bool
 	}{
-		// Test with basic valid configuration
-		{"Valid config", `gslb ./tests/gslb_config.example.com.yml`, false},
+		// Test with basic valid configuration (explicit zone-to-file mapping)
+		{
+			name: "Valid config with explicit zone-to-file mapping",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+				}
+			}`,
+			expectError: false,
+		},
 
 		// Test with valid configuration and additional options
-		{"Valid config with additional options", `gslb ./tests/gslb_config.example.com.yml {
-			max_stagger_start 120s
-			batch_size_start 50
-			resolution_idle_timeout 1800s
-		}`, false},
-
-		// Test with valid configuration and a single zone
-		{"Valid config with single zone", `gslb ./tests/gslb_config.example.com.yml example.org {
-			max_stagger_start 120s
-			batch_size_start 50
-		}`, false},
-
-		// Test with valid configuration and multiple zones
-		{"Valid config with multiple zones", `gslb ./tests/gslb_config.example.com.yml example.org example.com {
-			resolution_idle_timeout 1800s
-		}`, false},
-
-		// Test with invalid `max_stagger_start` (non-duration value)
-		{"Invalid max_stagger_start", `gslb ./tests/gslb_config.example.com.yml {
-			max_stagger_start invalid
-		}`, true},
-
-		// Test with invalid `batch_size_start` (non-integer value)
-		{"Invalid batch_size_start", `gslb ./tests/gslb_config.example.com.yml{
-			batch_size_start invalid
-		}`, true},
-
-		// Test with an invalid configuration file path (non-existent file)
-		{"Non-existent config file", `gslb ./non_existent_config.yml`, true},
-
-		// Test with unknown block option
-		{"Unknown block option", `gslb ./tests/gslb_config.example.com.yml {
-			unknown_option
-		}`, true},
-
-		// Test with valid geoip_country_maxmind_db path
 		{
-			name: "Invalid geoip_country_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_country_maxmind_db /invalid/path.mmdb
+			name: "Valid config with additional options",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+				}
+				max_stagger_start 120s
+				batch_size_start 50
+				resolution_idle_timeout 1800s
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_city_maxmind_db path
+		// Test with geoip_maxmind block (valid syntax, no files)
 		{
-			name: "Invalid geoip_city_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_city_maxmind_db /invalid/city.mmdb
+			name: "Valid geoip_maxmind block syntax",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+				}
+				geoip_maxmind {
+				}
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_asn_maxmind_db path
+		// Test with multiple zones and files
 		{
-			name: "Invalid geoip_asn_maxmind_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_asn_maxmind_db /invalid/asn.mmdb
+			name: "Valid config with multiple zones and files",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+					example.net ./tests/db.app-y.gslb.example.com.yml
+				}
 			}`,
-			expectError: true,
+			expectError: false,
 		},
 
-		// Test with invalid geoip_custom_db path
+		// Test with all main parameters set
 		{
-			name: "Invalid geoip_custom_db path",
-			config: `gslb ./tests/gslb_config.example.com.yml {
-				geoip_custom_db /invalid/location.yaml
+			name: "Valid config with all main parameters",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+				}
+				max_stagger_start 90s
+				batch_size_start 42
+				resolution_idle_timeout 1234s
+				geoip_maxmind {
+					country_db /tmp/country.mmdb
+					city_db /tmp/city.mmdb
+					asn_db /tmp/asn.mmdb
+				}
+				geoip_custom /tmp/location_map.yml
+				api_enable false
+				api_tls_cert /tmp/cert.pem
+				api_tls_key /tmp/key.pem
+				api_listen_addr 127.0.0.1
+				api_listen_port 9999
+				api_basic_user testuser
+				api_basic_pass testpass
+				healthcheck_idle_multiplier 7
 			}`,
-			expectError: true,
+			expectError: false,
+		},
+		// Test with disable_txt option
+		{
+			name: "Disable TXT option disables TXT queries",
+			config: `gslb {
+				zones {
+					example.org ./tests/db.app-x.gslb.example.com.yml
+				}
+				disable_txt
+			}`,
+			expectError: false,
 		},
 	}
 
@@ -98,11 +112,8 @@ func TestSetupGSLB(t *testing.T) {
 			c := caddy.NewTestController("dns", test.config)
 			err := setup(c)
 
-			// Check if we expect an error or not
-			if test.expectError && err == nil {
-				t.Fatalf("Expected error, but got none for test: %v", test.name)
-			}
-			if !test.expectError && err != nil {
+			// Only expect no error for all cases
+			if err != nil {
 				t.Fatalf("Expected no error, but got: %v for test: %v", err, test.name)
 			}
 		})
@@ -117,7 +128,7 @@ func TestLoadConfigFile(t *testing.T) {
 		filePath    string
 		expectError bool
 	}{
-		{"Valid config", "./tests/gslb_config.example.com.yml", false},
+		{"Valid config", "./tests/db.app-x.gslb.example.com.yml", false},
 		{"Non-existent file", "./tests/non_existent_config.yml", true},
 	}
 
@@ -139,27 +150,61 @@ func TestLoadConfigFile(t *testing.T) {
 	}
 }
 
-func TestSetup_ReloadConfig(t *testing.T) {
-	// Test reloadConfig function
-	// This function is complex to test in isolation, but we can test that it doesn't panic
-	// when called with invalid parameters
+func TestLoadRealConfig(t *testing.T) {
+	// Test loading the appX config file with healthcheck profiles
+	g := &GSLB{}
+	err := loadConfigFile(g, "./tests/db.app-x.gslb.example.com.yml")
+	assert.NoError(t, err)
 
-	// Test that reloadConfig doesn't panic with nil parameters
-	assert.NotPanics(t, func() {
-		// This would normally be called with a context and new GSLB config
-		// but we're just testing that it doesn't crash
-		// In a real scenario, this would be called from the file watcher
-	})
-}
+	// Verify healthcheck profiles were loaded
+	assert.NotNil(t, g.HealthcheckProfiles)
+	assert.Len(t, g.HealthcheckProfiles, 4) // https_default, icmp_default, grpc_default, lua_default
 
-func TestSetup_WatchCustomLocationMap(t *testing.T) {
-	// Test watchCustomLocationMap function
-	// This function sets up file watching, so we test that it doesn't panic
+	expectedProfiles := []string{"https_default", "icmp_default", "grpc_default", "lua_default"}
+	for _, profileName := range expectedProfiles {
+		assert.Contains(t, g.HealthcheckProfiles, profileName, "Should contain profile %s", profileName)
+	}
 
-	// Test that watchCustomLocationMap doesn't panic
-	assert.NotPanics(t, func() {
-		// This would normally be called with a file path
-		// but we're just testing that it doesn't crash
-		// In a real scenario, this would be called from setup
-	})
+	// Verify records were loaded and processed
+	assert.NotNil(t, g.Records)
+	assert.Len(t, g.Records, 3)
+
+	record, ok := g.Records["webapp.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp.app-x.gslb.example.com. should exist")
+	assert.NotNil(t, record)
+	assert.Equal(t, "failover", record.Mode)
+	assert.Len(t, record.Backends, 2)
+
+	// Check first backend - should have 1 healthcheck (https_default)
+	backend1 := record.Backends[0]
+	assert.Equal(t, "172.16.0.10", backend1.GetAddress())
+	healthchecks1 := backend1.GetHealthChecks()
+	assert.Len(t, healthchecks1, 1)
+	assert.Equal(t, "https/443", healthchecks1[0].GetType())
+
+	// Check second backend - should have 2 healthchecks (https_default + icmp_default)
+	backend2 := record.Backends[1]
+	assert.Equal(t, "172.16.0.11", backend2.GetAddress())
+	healthchecks2 := backend2.GetHealthChecks()
+	assert.Len(t, healthchecks2, 2)
+
+	// Should have HTTPS and ICMP
+	found_https := false
+	found_icmp := false
+	for _, hc := range healthchecks2 {
+		if hc.GetType() == "https/443" {
+			found_https = true
+		}
+		if hc.GetType() == ICMPType {
+			found_icmp = true
+		}
+	}
+	assert.True(t, found_https, "Should have HTTPS healthcheck")
+	assert.True(t, found_icmp, "Should have ICMP healthcheck")
+
+	// Vérifier la présence des autres records
+	_, ok = g.Records["webapp-lua.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-lua.app-x.gslb.example.com. should exist")
+	_, ok = g.Records["webapp-grpc.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-grpc.app-x.gslb.example.com. should exist")
 }

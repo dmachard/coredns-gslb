@@ -20,7 +20,7 @@ func (h *ICMPHealthCheck) SetDefault() {
 
 // GetType returns the type of the health check as a string.
 func (h *ICMPHealthCheck) GetType() string {
-	return "icmp"
+	return ICMPType
 }
 
 // PerformCheck executes the ICMP health check for a backend.

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coredns/caddy"
@@ -47,18 +48,8 @@ func setup(c *caddy.Controller) error {
 	for c.Next() {
 		if c.Val() == "gslb" {
 			// yaml file [zones...]
-			if !c.NextArg() {
-				return c.ArgErr()
-			}
-			fileName := c.Val()
-
-			origins := plugin.OriginsFromArgsOrServerBlock(c.RemainingArgs(), c.ServerBlockKeys)
-			if !filepath.IsAbs(fileName) && config.Root != "" {
-				fileName = filepath.Join(config.Root, fileName)
-			}
-
+			var hasZonesBlock bool
 			locationMapPath := ""
-			// Parse additional options
 			for c.NextBlock() {
 				switch c.Val() {
 				case "use_edns_csubnet":
@@ -70,7 +61,6 @@ func setup(c *caddy.Controller) error {
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
-					// Validate duration format for max_stagger_start
 					_, err := time.ParseDuration(c.Val())
 					if err != nil {
 						return fmt.Errorf("invalid value for max_stagger_start, expected duration format: %v", c.Val())
@@ -89,13 +79,12 @@ func setup(c *caddy.Controller) error {
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
-					// Validate duration format for resolution_idle_timeout
 					_, err := time.ParseDuration(c.Val())
 					if err != nil {
 						return fmt.Errorf("invalid value for resolution_idle_timeout, expected duration format: %v", c.Val())
 					}
 					g.ResolutionIdleTimeout = c.Val()
-				case "geoip_custom_db":
+				case "geoip_custom":
 					if !c.NextArg() {
 						return c.ArgErr()
 					}
@@ -103,41 +92,51 @@ func setup(c *caddy.Controller) error {
 					if err := g.loadCustomLocationsMap(locationMapPath); err != nil {
 						return fmt.Errorf("failed to load location map: %w", err)
 					}
-				case "geoip_country_maxmind_db":
-					if !c.NextArg() {
+				case "geoip_maxmind":
+					if !c.NextBlock() {
 						return c.ArgErr()
 					}
-					countryPath := c.Val()
-					if countryPath != "" {
-						countryDB, err := geoip2.Open(countryPath)
-						if err != nil {
-							return fmt.Errorf("failed to open country MaxMind DB: %w", err)
+					for c.NextBlock() {
+						switch c.Val() {
+						case "country_db":
+							if !c.NextArg() {
+								return c.ArgErr()
+							}
+							countryPath := c.Val()
+							if countryPath != "" {
+								countryDB, err := geoip2.Open(countryPath)
+								if err != nil {
+									return fmt.Errorf("failed to open country MaxMind DB: %w", err)
+								}
+								g.GeoIPCountryDB = countryDB
+							}
+						case "city_db":
+							if !c.NextArg() {
+								return c.ArgErr()
+							}
+							cityPath := c.Val()
+							if cityPath != "" {
+								cityDB, err := geoip2.Open(cityPath)
+								if err != nil {
+									return fmt.Errorf("failed to open city MaxMind DB: %w", err)
+								}
+								g.GeoIPCityDB = cityDB
+							}
+						case "asn_db":
+							if !c.NextArg() {
+								return c.ArgErr()
+							}
+							asnPath := c.Val()
+							if asnPath != "" {
+								asnDB, err := geoip2.Open(asnPath)
+								if err != nil {
+									return fmt.Errorf("failed to open ASN MaxMind DB: %w", err)
+								}
+								g.GeoIPASNDB = asnDB
+							}
+						default:
+							return c.Errf("unknown option for geoip_maxmind: %s", c.Val())
 						}
-						g.GeoIPCountryDB = countryDB
-					}
-				case "geoip_city_maxmind_db":
-					if !c.NextArg() {
-						return c.ArgErr()
-					}
-					cityPath := c.Val()
-					if cityPath != "" {
-						cityDB, err := geoip2.Open(cityPath)
-						if err != nil {
-							return fmt.Errorf("failed to open city MaxMind DB: %w", err)
-						}
-						g.GeoIPCityDB = cityDB
-					}
-				case "geoip_asn_maxmind_db":
-					if !c.NextArg() {
-						return c.ArgErr()
-					}
-					asnPath := c.Val()
-					if asnPath != "" {
-						asnDB, err := geoip2.Open(asnPath)
-						if err != nil {
-							return fmt.Errorf("failed to open ASN MaxMind DB: %w", err)
-						}
-						g.GeoIPASNDB = asnDB
 					}
 				case "healthcheck_idle_multiplier":
 					if !c.NextArg() {
@@ -188,31 +187,55 @@ func setup(c *caddy.Controller) error {
 						return c.ArgErr()
 					}
 					g.APIBasicPass = c.Val()
+				case "healthcheck_profiles":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					globalProfilesPath := c.Val()
+					data, err := os.ReadFile(globalProfilesPath)
+					if err != nil {
+						return fmt.Errorf("failed to read global healthcheck_profiles: %w", err)
+					}
+					var tmp struct {
+						HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+					}
+					if err := yaml.Unmarshal(data, &tmp); err != nil {
+						return fmt.Errorf("failed to parse global healthcheck_profiles: %w", err)
+					}
+					GlobalHealthcheckProfiles = tmp.HealthcheckProfiles
+				case "zones":
+					if !c.NextBlock() {
+						return c.ArgErr()
+					}
+					hasZonesBlock = true
+					for c.NextBlock() {
+						zone := c.Val()
+						if !c.NextArg() {
+							return c.ArgErr()
+						}
+						file := c.Val()
+						if !filepath.IsAbs(file) && config.Root != "" {
+							file = filepath.Join(config.Root, file)
+						}
+						zoneNorm := strings.ToLower(strings.TrimSuffix(zone, ".")) + "."
+						g.Zones[zoneNorm] = file
+						go startConfigWatcher(g, file)
+					}
+				case "disable_txt":
+					if c.NextArg() {
+						return c.ArgErr()
+					}
+					g.DisableTXT = true
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
 			}
-
-			// Read YAML configuration
-			if err := loadConfigFile(g, fileName); err != nil {
-				return err
+			if !hasZonesBlock || len(g.Zones) == 0 {
+				return c.Errf("zones block is required and must not be empty")
 			}
-
-			// Read zones
-
-			for i := range origins {
-				g.Zones[origins[i]] = fileName
-			}
-
-			// Start a goroutine to watch for file modification events
-			go startConfigWatcher(g, fileName)
-
-			// Start a goroutine to watch for location map modification events
 			if locationMapPath != "" {
 				go watchCustomLocationMap(g, locationMapPath)
 			}
-
-			// Start API server in background if enabled
 			if g.APIEnable {
 				go g.ServeAPI()
 			}
@@ -280,6 +303,14 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 
 // loadConfigFile loads and parses the YAML configuration file.
 func loadConfigFile(g *GSLB, fileName string) error {
+	// Déduire la zone attendue à partir du nom du fichier (ex: db.app-x.gslb.example.com.yml -> .app-x.gslb.example.com.)
+	base := filepath.Base(fileName)
+	zone := ""
+	if strings.HasPrefix(base, "db.") && strings.HasSuffix(base, ".yml") {
+		zone = "." + strings.TrimSuffix(strings.TrimPrefix(base, "db."), ".yml") + "."
+	}
+	g.Zone = zone
+
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to read YAML configuration: %w", err)

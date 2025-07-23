@@ -3,27 +3,37 @@
 ### Syntax
 
 ~~~
-gslb DB_YAML_FILE [ZONES...] {
+gslb {
+    zones {
+        example.org.   db.example.org.yml
+        test.org.     db.test.org.yml
+    }
+
     max_stagger_start "120s"
     resolution_idle_timeout "3600s"   # Duration before slow healthcheck (default: 3600s)
     healthcheck_idle_multiplier 10      # Multiplier for slow healthcheck interval (default: 10)
     batch_size_start 100
-    geoip_country_maxmind_db /coredns/GeoLite2-Country.mmdb   # Enable GeoIP by country (MaxMind)
-    geoip_city_maxmind_db /coredns/GeoLite2-City.mmdb         # Enable GeoIP by city (MaxMind)
-    geoip_asn_maxmind_db /coredns/GeoLite2-ASN.mmdb           # Enable GeoIP by ASN (MaxMind)
-    geoip_custom_db /coredns/location_map.yml                 # Enable GeoIP by region/subnet (YAML map)
+
+    geoip_maxmind {
+        country_db /coredns/GeoLite2-Country.mmdb
+        city_db /coredns/GeoLite2-City.mmdb
+        asn_db /coredns/GeoLite2-ASN.mmdb
+    }
+    geoip_custom_db /coredns/location_map.yml              # Enable GeoIP by region/subnet (YAML map)
+    
     use_edns_csubnet
+
     api_enable false           # Disable the API (default: true)
     api_tls_cert /path/to/cert.pem   # Enable HTTPS (optional)
     api_tls_key /path/to/key.pem     # Enable HTTPS (optional)
     api_listen_addr 0.0.0.0
     api_listen_port 8080
+    
+    disable_txt                        # Disable TXT record resolution for GSLB zones
 }
 ~~~
 
-* **DB_YAML_FILE** The GSLB configuration file in YAML format. If the path is relative, the path from the *root*
-  plugin will be prepended to it.
-* **ZONES** Specifies the zones the plugin should be authoritative for. If not provided, the zones from the CoreDNS configuration block are used.
+* **zones**: Block mapping each DNS zone (with trailing dot) to its YAML record file. All records for a zone are loaded from the specified file. This block is required.
 
 ### Configuration Options
 
@@ -31,9 +41,8 @@ gslb DB_YAML_FILE [ZONES...] {
 * `resolution_idle_timeout`: The duration to wait before idle resolution times out (default: "3600s").
 * `healthcheck_idle_multiplier`: The multiplier for the healthcheck interval when a record is idle (default: 10).
 * `batch_size_start`: The number of backends to process simultaneously during startup (default: 100).
-* `geoip_country_maxmind_db`: Path to a MaxMind GeoLite2-Country.mmdb file for country-based GeoIP backend selection. Used for `geoip` mode (country-based routing).
-* `geoip_city_maxmind_db`: Path to a MaxMind GeoLite2-City.mmdb file for city-based GeoIP backend selection. Used for `geoip` mode (city-based routing).
-* `geoip_asn_maxmind_db`: Path to a MaxMind GeoLite2-ASN.mmdb file for ASN-based GeoIP backend selection. Used for `geoip` mode (ASN-based routing).
+* `geoip_maxmind <type> <path>`: Path to a MaxMind GeoLite2 database for GeoIP backend selection. `<type>` can be `country`, `city`, or `asn`.
+* `geoip_maxmind { ... }`: Block syntax for MaxMind DBs. Use `country_db`, `city_db`, and/or `asn_db` as keys inside the block to specify the database paths. Both syntaxes are supported and can be used interchangeably.
 * `geoip_custom_db`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Used for `geoip` mode (location-based routing).
 * `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging. Recommended for deployments behind DNS forwarders or public resolvers.
 * `api_enable`: Enable or disable the HTTP API server (default: true). Set to `false` to disable the API endpoint.
@@ -43,56 +52,72 @@ gslb DB_YAML_FILE [ZONES...] {
 * `api_listen_port`: Port to bind the API server to (default: `8080`).
 * `api_basic_user`: HTTP Basic Auth username for the API (optional, if set, authentication is required).
 * `api_basic_pass`: HTTP Basic Auth password for the API (optional, if set, authentication is required).
+* `disable_txt`: If set, disables TXT record resolution for GSLB-managed zones. TXT queries will be passed to the next plugin or return empty if none.
 
 ### Full example
 
-Load the `gslb.example.com` zone from `db.gslb.example.com` and enable GSLB records on it
+Load the `example.org.` and `test.org.` zones from their respective YAML files and enable GSLB records on them:
 
 ~~~ corefile
 . {
-    file db.gslb.example.com
-    gslb gslb_config.example.com.yml gslb.example.com {
+    file db.example.org
+    file db.test.org
+    gslb {
+        zones {
+            example.org.   gslb_config.example.org.yml
+            test.org.      gslb_config.test.org.yml
+        }
         max_stagger_start "120s"
         resolution_idle_timeout "3600s"
         batch_size_start 100
+        # Either single-line or block syntax for geoip_maxmind:
+        geoip_maxmind country /coredns/GeoLite2-Country.mmdb
+        # or
+        geoip_maxmind {
+            country_db /coredns/GeoLite2-Country.mmdb
+        }
+        disable_txt
     }
 }
 ~~~
 
-Where `db.gslb.example.com` would contain 
+Where `db.example.org` would contain:
 
 ~~~ text
-$ORIGIN gslb.example.com.
-@       3600    IN      SOA     ns1.example.com. admin.example.com. (
+$ORIGIN example.org.
+@       3600    IN      SOA     ns1.example.org. admin.example.org. (
                                 2024010101 ; Serial
                                 7200       ; Refresh
                                 3600       ; Retry
                                 1209600    ; Expire
                                 3600       ; Minimum TTL
                                 )
-        3600    IN      NS      ns1.gslb.example.com.
-        3600    IN      NS      ns2.gslb.example.com.
+        3600    IN      NS      ns1.example.org.
+        3600    IN      NS      ns2.example.org.
 ~~~
 
-And `gslb_config.example.com.yml` would contain 
+And `gslb_config.example.org.yml` would contain:
 
 ~~~ yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+
 records:
-  webapp.gslb.example.com.:
+  webapp.example.org.:
     mode: "failover"
     record_ttl: 30
     scrape_interval: 10s
     backends:
     - address: "172.16.0.10"
       priority: 1
-      healthchecks:
-      - type: http
-        params:
-          port: 443
-          uri: "/"
-          host: "localhost"
-          expected_code: 200
-          enable_tls: true
+      healthchecks: [ https_default ]  # Reference the profile by name
     - address: "172.16.0.11"
       priority: 2
       healthchecks:
@@ -112,7 +137,12 @@ records:
 Download from MaxMind and configure paths:
 ```
 gslb config.yml {
-    geoip_country_maxmind_db /coredns/GeoLite2-Country.mmdb
+    # Either single-line or block syntax for geoip_maxmind:
+    geoip_maxmind country /coredns/GeoLite2-Country.mmdb
+    # or
+    geoip_maxmind {
+        country_db /coredns/GeoLite2-Country.mmdb
+    }
     geoip_city_maxmind_db /coredns/GeoLite2-City.mmdb
     geoip_asn_maxmind_db /coredns/GeoLite2-ASN.mmdb
 }
@@ -168,6 +198,63 @@ gslb gslb_config.yml example.com {
 - If neither is set, the API will be served over HTTP on the configured address/port.
 - Use `api_listen_addr` and `api_listen_port` to change the default bind address and port (default: `0.0.0.0:8080`).
 - If `api_basic_user` and `api_basic_pass` are set, HTTP Basic Authentication is required for all API requests.
+
+### Global Healthcheck Profiles
+
+You can define reusable healthcheck profiles globally for all zones using the Corefile directive:
+
+```
+gslb {
+    ...
+    healthcheck_profiles healthcheck_profiles.yml
+}
+```
+
+The referenced file should contain:
+
+```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+```
+
+- These profiles are available to all YAML zone files.
+- If a local profile with the same name exists in a zone YAML, the local one takes precedence.
+- You can reference a profile by name in any backend's `healthchecks` list.
+
+**Example: Combined usage**
+
+```yaml
+# In healthcheck_profiles.yml (global)
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      port: 443
+      uri: /
+      expected_code: 200
+
+# In db.app-x.gslb.example.com.yml (zone file)
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      port: 443
+      uri: /custom
+      expected_code: 200
+
+records:
+  webapp.app-x.gslb.example.com.:
+    backends:
+      - address: 10.0.0.1
+        healthchecks: [ https_default ]  # Uses the local version
+```
 
 
 

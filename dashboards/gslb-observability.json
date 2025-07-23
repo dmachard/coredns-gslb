@@ -1449,7 +1449,9 @@
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -1479,12 +1481,14 @@
       },
       "id": 29,
       "options": {
-        "colWidth": 0.9,
+        "alignValue": "left",
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
         },
+        "mergeValues": true,
+        "perPage": 5,
         "rowHeight": 0.9,
         "showValue": "never",
         "tooltip": {
@@ -1502,14 +1506,15 @@
           },
           "editorMode": "code",
           "expr": "gslb_record_health_status{status=\"healthy\", name=~\"$name\"}",
-          "interval": "$sampling",
+          "format": "time_series",
+          "interval": "",
           "legendFormat": "{{name}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Record Health Status History",
-      "type": "status-history"
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -1529,7 +1534,9 @@
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -1559,12 +1566,14 @@
       },
       "id": 31,
       "options": {
-        "colWidth": 0.9,
+        "alignValue": "left",
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
         },
+        "mergeValues": true,
+        "perPage": 5,
         "rowHeight": 0.9,
         "showValue": "never",
         "tooltip": {
@@ -1589,7 +1598,7 @@
         }
       ],
       "title": "Backend Health Status (Filtered by Record)",
-      "type": "status-history"
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -1609,7 +1618,9 @@
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -1639,12 +1650,14 @@
       },
       "id": 32,
       "options": {
-        "colWidth": 0.9,
+        "alignValue": "left",
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
+        "mergeValues": true,
+        "perPage": 5,
         "rowHeight": 0.9,
         "showValue": "never",
         "tooltip": {
@@ -1669,7 +1682,7 @@
         }
       ],
       "title": "Backend Healthcheck Status (Filtered by Record & Backend)",
-      "type": "status-history"
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -1689,9 +1702,21 @@
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "2+": {
+                  "index": 0,
+                  "text": "2"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1719,14 +1744,16 @@
       },
       "id": 41,
       "options": {
-        "colWidth": 0.9,
+        "alignValue": "center",
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
+        "mergeValues": true,
+        "perPage": 5,
         "rowHeight": 0.9,
-        "showValue": "auto",
+        "showValue": "always",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
@@ -1749,7 +1776,7 @@
         }
       ],
       "title": "Active Backends per Record",
-      "type": "status-history"
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -1817,7 +1844,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 14,
+        "w": 16,
         "x": 1,
         "y": 39
       },
@@ -1941,5 +1968,5 @@
   "timezone": "browser",
   "title": "GSLB Observability",
   "uid": "gslb-observability",
-  "version": 44
+  "version": 47
 }
