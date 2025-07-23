@@ -146,6 +146,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [Observability](docs/observability.md) | Prometheus metrics |
+| [Benchmarking](docs/benchmark.md) | Performance |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
 
 ## 👥 Contributions

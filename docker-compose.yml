@@ -9,14 +9,7 @@ services:
       - "9153:9153/tcp"
       - "8080:8080/tcp"
     volumes:
-      - ./Dockerfile:/Dockerfile
-      - ./tests/db.gslb.example.com:/db.gslb.example.com
-      - ./tests/db.app-x.gslb.example.com.yml:/coredns/db.app-x.gslb.example.com.yml
-      - ./tests/db.app-y.gslb.example.com.yml:/coredns/db.app-y.gslb.example.com.yml
-      - ./tests/location_map.yml:/coredns/location_map.yml
-      - ./tests/GeoLite2-Country.mmdb:/coredns/GeoLite2-Country.mmdb
-      - ./tests/GeoLite2-City.mmdb:/coredns/GeoLite2-City.mmdb
-      - ./tests/GeoLite2-ASN.mmdb:/coredns/GeoLite2-ASN.mmdb
+      - ./coredns:/coredns
     command: -conf /Corefile
     env_file:
       - docker-example.env

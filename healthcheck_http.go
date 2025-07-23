@@ -1,9 +1,11 @@
 package gslb
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"time"
@@ -38,20 +40,30 @@ func (h *HTTPHealthCheck) GetType() string {
 
 // createHTTPClient returns an http client with appropriate transport settings, including timeout and TLS configuration.
 func createHTTPClient(enableTLS bool, skipTLSVerify bool, timeout time.Duration) *http.Client {
-	// Create the HTTP transport configuration
-	var transport http.RoundTripper = &http.Transport{}
+	// Configure net.Dialer with sensible defaults
+	dialer := &net.Dialer{
+		Timeout:   timeout,
+		KeepAlive: 30 * time.Second,
+	}
+
+	// Configure TLS settings if needed
+	var tlsConfig *tls.Config
 	if enableTLS {
-		// Configure TLS settings if enabled
-		tlsConfig := &tls.Config{}
-		if skipTLSVerify {
-			tlsConfig.InsecureSkipVerify = true
-		}
-		transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: skipTLSVerify,
 		}
 	}
 
-	// Return the HTTP client with the specified transport and timeout
+	// Construct custom transport with the dialer and TLS config
+	transport := &http.Transport{
+		DialContext:           dialer.DialContext,
+		TLSClientConfig:       tlsConfig,
+		TLSHandshakeTimeout:   10 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	// Return the configured HTTP client
 	return &http.Client{
 		Transport: transport,
 		Timeout:   timeout,
@@ -144,7 +156,10 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 	client := createHTTPClient(h.EnableTLS, h.SkipTLSVerify, t)
 
 	// Create HTTP request
-	req, err := http.NewRequest(h.Method, url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), t)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, h.Method, url, nil)
 	if err != nil {
 		log.Debugf("[%s] HTTP healthcheck failed: [backend=%s:%d scheme:%s uri:%s method:%s host:%s] error to create http request: %v", fqdn, backend.Address, h.Port, scheme, h.URI, h.Method, h.Host, err)
 		IncHealthcheckFailures(typeStr, address, "other")
