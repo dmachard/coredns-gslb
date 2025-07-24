@@ -19,9 +19,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with explicit zone-to-file mapping",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
 			}`,
 			expectError: false,
 		},
@@ -30,9 +28,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with additional options",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
 				max_stagger_start 120s
 				batch_size_start 50
 				resolution_idle_timeout 1800s
@@ -44,11 +40,10 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid geoip_maxmind block syntax",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-				}
-				geoip_maxmind {
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				geoip_maxmind country_db ./tests/GeoLite2-Country.mmdb
+				geoip_maxmind city_db ./tests/GeoLite2-City.mmdb
+				geoip_maxmind asn_db ./tests/GeoLite2-ASN.mmdb
 			}`,
 			expectError: false,
 		},
@@ -57,10 +52,8 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with multiple zones and files",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-					example.net ./tests/db.app-y.gslb.example.com.yml
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone example.net ./tests/db.app-y.gslb.example.com.yml
 			}`,
 			expectError: false,
 		},
@@ -69,18 +62,14 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with all main parameters",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
 				max_stagger_start 90s
 				batch_size_start 42
 				resolution_idle_timeout 1234s
-				geoip_maxmind {
-					country_db /tmp/country.mmdb
-					city_db /tmp/city.mmdb
-					asn_db /tmp/asn.mmdb
-				}
-				geoip_custom /tmp/location_map.yml
+				geoip_maxmind country_db ./tests/GeoLite2-Country.mmdb
+				geoip_maxmind city_db ./tests/GeoLite2-City.mmdb
+				geoip_maxmind asn_db ./tests/GeoLite2-ASN.mmdb
+				geoip_custom ./tests/location_map.yml
 				api_enable false
 				api_tls_cert /tmp/cert.pem
 				api_tls_key /tmp/key.pem
@@ -96,9 +85,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Disable TXT option disables TXT queries",
 			config: `gslb {
-				zones {
-					example.org ./tests/db.app-x.gslb.example.com.yml
-				}
+				zone example.org ./tests/db.app-x.gslb.example.com.yml
 				disable_txt
 			}`,
 			expectError: false,

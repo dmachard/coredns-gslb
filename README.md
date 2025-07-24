@@ -80,9 +80,7 @@ Create the `Corefile`
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
     gslb {
-        zones {
-            gslb.example.com.   db.gslb_config.yml
-        }
+        zone  gslb.example.com. db.gslb_config.yml
     }
     prometheus
 }

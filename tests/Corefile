@@ -6,22 +6,28 @@
     prometheus :9153
 
     # Load SOA zone from a file
-    file db.gslb.example.com gslb.example.com
+    file /coredns/db.gslb.example.com gslb.example.com
 
     # Configure the GSLB plugin with the specified parameters
     gslb {
-        zones {
-            app-x.gslb.example.com /coredns/db.app-x.gslb.example.com.yml
-            app-y.gslb.example.com /coredns/db.app-y.gslb.example.com.yml
-        }
-        geoip_maxmind {
-            country_db /coredns/GeoLite2-Country.mmdb
-            city_db /coredns/GeoLite2-City.mmdb
-            asn_db /coredns/GeoLite2-ASN.mmdb
-        }
-        geoip_custom /coredns/location_map.yml # Enable GeoIP by region/subnet (YAML map)
-        use_edns_csubnet
-        max_stagger_start 120s # Maximum delay for staggered start
+        # Zones
+        zone app-x.gslb.example.com /coredns/db.app-x.gslb.example.com.yml
+        zone app-y.gslb.example.com /coredns/db.app-y.gslb.example.com.yml
+        zone bench.gslb.example.com coredns/gslb_bench_5000.yml
+
+        # GeoIP MaxMind databases
+        geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
+        geoip_maxmind city_db /coredns/GeoLite2-City.mmdb
+        geoip_maxmind asn_db /coredns/GeoLite2-ASN.mmdb 
+
+        # Enable GeoIP by region/subnet (YAML map)
+        geoip_custom /coredns/location_map.yml 
+        
+        # Use EDNS Client Subnet
+        use_edns_csubnet 
+
+        # Maximum delay for staggered start
+        max_stagger_start 120s
         resolution_idle_timeout 3600s # Idle timeout for resolution
         batch_size_start 100 # Number of records to start on each batch
     }

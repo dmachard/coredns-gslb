@@ -35,7 +35,7 @@ records:
     scrape_interval: 10s
     scrape_retries: 1
     scrape_timeout: 5s
-  webapp-geoip-region.app-y.gslb.example.com.:
+  webapp-geoip-loc.app-y.gslb.example.com.:
     backends:
       - address: 172.16.0.10
         description: webapp10

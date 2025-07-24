@@ -2,7 +2,8 @@
 
 ##  HTTP healthchecks
 
-Below is a summary of resource usage (CPU, memory, goroutines) for different scales with HTTP healthchecks (scrape_interval/timeout/retry = 10s/2s/1) and in worse case (no backend response):
+Below is a summary of resource usage (CPU, memory, goroutines) for different scales (scrape_interval/timeout/retry = 10s/2s/1)
+and in worse case (no backend response):
 
 | Records | Backends/record | Healthchecks/backend | CPU    | Memory    | Goroutines |
 |---------|-----------------|----------------------|--------|-----------|------------|
@@ -12,6 +13,16 @@ Below is a summary of resource usage (CPU, memory, goroutines) for different sca
 | 5000    | 3 (15000)       | 1 (15000)            | ~38%   | ~375 MB   | ~5500      |
 | 10000   | 2 (20000)       | 1 (20000)            | ~58%   | ~433 MB   | ~10500     |
 | 10000   | 3 (30000)       | 1 (30000)            | ~85%   | ~620 MB   | ~10700     |
+
+##  TCP healthchecks
+
+Below is a summary of resource usage (CPU, memory, goroutines) for different scales(scrape_interval/timeout/retry = 10s/2s/1) 
+and in worse case (no backend response):
+
+| Records | Backends/record | Healthchecks/backend | CPU    | Memory    | Goroutines |
+|---------|-----------------|----------------------|--------|-----------|------------|
+| xxx     | x (xx)          | x (xx)                | ~x%  | ~x MB  | ~x      |
+
 
 ## Benchmarking CoreDNS-GSLB
 

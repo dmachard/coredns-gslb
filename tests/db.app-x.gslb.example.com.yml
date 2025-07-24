@@ -1,33 +1,29 @@
 healthcheck_profiles:
-  https_default:
-    type: http
-    params:
-      enable_tls: true
-      expected_body: ""
-      expected_code: 200
-      port: 443
-      skip_tls_verify: true
-      timeout: 5s
-      uri: /
-      headers: null
-      host: localhost
-      method: GET
-  
-  icmp_default:
-    type: icmp
-    params:
-      count: 3
-      timeout: 2s
-
   grpc_default:
-    type: grpc
     params:
       port: 9090
       service: ""
       timeout: 5s
-
+    type: grpc
+  https_default:
+    params:
+      enable_tls: true
+      expected_body: ""
+      expected_code: 200
+      headers: null
+      host: localhost
+      method: GET
+      port: 443
+      skip_tls_verify: true
+      timeout: 5s
+      uri: /
+    type: http
+  icmp_default:
+    params:
+      count: 3
+      timeout: 2s
+    type: icmp
   lua_default:
-    type: lua
     params:
       script: |-
         local body = http_get("https://" .. backend.address .. ":443/api/health", 5, "", "", false)
@@ -54,14 +50,15 @@ healthcheck_profiles:
 
         return true
       timeout: 5s
-
+    type: lua
 records:
   webapp-grpc.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.12
         description: webapp12
         enable: true
-        healthchecks: [ grpc_default ]
+        healthchecks:
+          - grpc_default
         priority: 1
     description: gRPC health checks for webapp12
     mode: geoip
@@ -74,7 +71,8 @@ records:
     backends:
       - address: 172.16.0.10
         enable: true
-        healthchecks: [ lua_default ]
+        healthchecks:
+          - lua_default
         priority: 1
     description: Backend with Lua healthcheck (JSON via http_get + json_decode)
     mode: failover
@@ -88,13 +86,16 @@ records:
       - address: 172.16.0.10
         description: webapp10
         enable: true
-        healthchecks: [ https_default ]
+        healthchecks:
+          - https_default
         location: eu-west-1
         priority: 1
       - address: 172.16.0.11
         description: webapp11
         enable: true
-        healthchecks: [ https_default, icmp_default ]
+        healthchecks:
+          - https_default
+          - icmp_default
         location: eu-west-2
         priority: 2
     description: Dynamic DNS responses based on backend status

@@ -4,36 +4,26 @@
 
 ~~~
 gslb {
-    zones {
-        example.org.   db.example.org.yml
-        test.org.     db.test.org.yml
-    }
+    zone example.org.   db.example.org.yml
+    zone test.org.      db.test.org.yml
 
-    max_stagger_start "120s"
-    resolution_idle_timeout "3600s"   # Duration before slow healthcheck (default: 3600s)
-    healthcheck_idle_multiplier 10      # Multiplier for slow healthcheck interval (default: 10)
-    batch_size_start 100
-
-    geoip_maxmind {
-        country_db /coredns/GeoLite2-Country.mmdb
-        city_db /coredns/GeoLite2-City.mmdb
-        asn_db /coredns/GeoLite2-ASN.mmdb
-    }
-    geoip_custom_db /coredns/location_map.yml              # Enable GeoIP by region/subnet (YAML map)
+    geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
+    geoip_maxmind city_db /coredns/GeoLite2-City.mmdb
+    geoip_maxmind asn_db /coredns/GeoLite2-ASN.mmdb
+    geoip_custom_db /coredns/location_map.yml
     
     use_edns_csubnet
-
-    api_enable false           # Disable the API (default: true)
-    api_tls_cert /path/to/cert.pem   # Enable HTTPS (optional)
-    api_tls_key /path/to/key.pem     # Enable HTTPS (optional)
-    api_listen_addr 0.0.0.0
-    api_listen_port 8080
-    
-    disable_txt                        # Disable TXT record resolution for GSLB zones
+    max_stagger_start "120s"
+    resolution_idle_timeout "3600s"
+    healthcheck_idle_multiplier 10
+    batch_size_start 100
+    disable_txt
 }
 ~~~
 
-* **zones**: Block mapping each DNS zone (with trailing dot) to its YAML record file. All records for a zone are loaded from the specified file. This block is required.
+* **zone**: Declare each DNS zone (with trailing dot) and its YAML record file. All records for a zone are loaded from the specified file. This directive can be repeated for multiple zones.
+* **geoip_maxmind <type> <path>**: Load a MaxMind GeoIP database. `<type>` can be `country_db`, `city_db`, or `asn_db`.
+* **geoip_custom_db**: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection.
 
 ### Configuration Options
 
@@ -63,19 +53,11 @@ Load the `example.org.` and `test.org.` zones from their respective YAML files a
     file db.example.org
     file db.test.org
     gslb {
-        zones {
-            example.org.   gslb_config.example.org.yml
-            test.org.      gslb_config.test.org.yml
-        }
-        max_stagger_start "120s"
-        resolution_idle_timeout "3600s"
-        batch_size_start 100
-        # Either single-line or block syntax for geoip_maxmind:
-        geoip_maxmind country /coredns/GeoLite2-Country.mmdb
-        # or
-        geoip_maxmind {
-            country_db /coredns/GeoLite2-Country.mmdb
-        }
+        zone example.org.   gslb_config.example.org.yml
+        zone test.org.      gslb_config.test.org.yml
+        geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
+        geoip_maxmind city_db /coredns/GeoLite2-City.mmdb
+        geoip_maxmind asn_db /coredns/GeoLite2-ASN.mmdb
         disable_txt
     }
 }
@@ -213,25 +195,6 @@ gslb {
 The referenced file should contain:
 
 ```yaml
-healthcheck_profiles:
-  https_default:
-    type: http
-    params:
-      enable_tls: true
-      port: 443
-      uri: /
-      expected_code: 200
-      timeout: 5s
-```
-
-- These profiles are available to all YAML zone files.
-- If a local profile with the same name exists in a zone YAML, the local one takes precedence.
-- You can reference a profile by name in any backend's `healthchecks` list.
-
-**Example: Combined usage**
-
-```yaml
-# In healthcheck_profiles.yml (global)
 healthcheck_profiles:
   https_default:
     type: http
