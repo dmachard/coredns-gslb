@@ -47,11 +47,24 @@ func setup(c *caddy.Controller) error {
 
 	for c.Next() {
 		if c.Val() == "gslb" {
-			// yaml file [zones...]
-			var hasZonesBlock bool
 			locationMapPath := ""
 			for c.NextBlock() {
 				switch c.Val() {
+				case "zone":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					zone := c.Val()
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					file := c.Val()
+					if !filepath.IsAbs(file) && config.Root != "" {
+						file = filepath.Join(config.Root, file)
+					}
+					zoneNorm := strings.ToLower(strings.TrimSuffix(zone, ".")) + "."
+					g.Zones[zoneNorm] = file
+					go startConfigWatcher(g, file)
 				case "use_edns_csubnet":
 					if c.NextArg() {
 						return c.ArgErr()
@@ -93,49 +106,33 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("failed to load location map: %w", err)
 					}
 				case "geoip_maxmind":
-					if !c.NextBlock() {
-						return c.ArgErr()
-					}
-					for c.NextBlock() {
-						switch c.Val() {
+					if c.NextArg() {
+						typeArg := c.Val()
+						if !c.NextArg() {
+							return c.ArgErr()
+						}
+						pathArg := c.Val()
+						switch typeArg {
 						case "country_db":
-							if !c.NextArg() {
-								return c.ArgErr()
+							countryDB, err := geoip2.Open(pathArg)
+							if err != nil {
+								return fmt.Errorf("failed to open country MaxMind DB: %w", err)
 							}
-							countryPath := c.Val()
-							if countryPath != "" {
-								countryDB, err := geoip2.Open(countryPath)
-								if err != nil {
-									return fmt.Errorf("failed to open country MaxMind DB: %w", err)
-								}
-								g.GeoIPCountryDB = countryDB
-							}
+							g.GeoIPCountryDB = countryDB
 						case "city_db":
-							if !c.NextArg() {
-								return c.ArgErr()
+							cityDB, err := geoip2.Open(pathArg)
+							if err != nil {
+								return fmt.Errorf("failed to open city MaxMind DB: %w", err)
 							}
-							cityPath := c.Val()
-							if cityPath != "" {
-								cityDB, err := geoip2.Open(cityPath)
-								if err != nil {
-									return fmt.Errorf("failed to open city MaxMind DB: %w", err)
-								}
-								g.GeoIPCityDB = cityDB
-							}
+							g.GeoIPCityDB = cityDB
 						case "asn_db":
-							if !c.NextArg() {
-								return c.ArgErr()
+							asnDB, err := geoip2.Open(pathArg)
+							if err != nil {
+								return fmt.Errorf("failed to open ASN MaxMind DB: %w", err)
 							}
-							asnPath := c.Val()
-							if asnPath != "" {
-								asnDB, err := geoip2.Open(asnPath)
-								if err != nil {
-									return fmt.Errorf("failed to open ASN MaxMind DB: %w", err)
-								}
-								g.GeoIPASNDB = asnDB
-							}
+							g.GeoIPASNDB = asnDB
 						default:
-							return c.Errf("unknown option for geoip_maxmind: %s", c.Val())
+							return c.Errf("unknown geoip_maxmind type: %s", typeArg)
 						}
 					}
 				case "healthcheck_idle_multiplier":
@@ -203,24 +200,6 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("failed to parse global healthcheck_profiles: %w", err)
 					}
 					GlobalHealthcheckProfiles = tmp.HealthcheckProfiles
-				case "zones":
-					if !c.NextBlock() {
-						return c.ArgErr()
-					}
-					hasZonesBlock = true
-					for c.NextBlock() {
-						zone := c.Val()
-						if !c.NextArg() {
-							return c.ArgErr()
-						}
-						file := c.Val()
-						if !filepath.IsAbs(file) && config.Root != "" {
-							file = filepath.Join(config.Root, file)
-						}
-						zoneNorm := strings.ToLower(strings.TrimSuffix(zone, ".")) + "."
-						g.Zones[zoneNorm] = file
-						go startConfigWatcher(g, file)
-					}
 				case "disable_txt":
 					if c.NextArg() {
 						return c.ArgErr()
@@ -230,8 +209,8 @@ func setup(c *caddy.Controller) error {
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
 			}
-			if !hasZonesBlock || len(g.Zones) == 0 {
-				return c.Errf("zones block is required and must not be empty")
+			if len(g.Zones) == 0 {
+				return c.Errf("at least one 'zone' directive is required in gslb block")
 			}
 			if locationMapPath != "" {
 				go watchCustomLocationMap(g, locationMapPath)

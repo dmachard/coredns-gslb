@@ -13,7 +13,7 @@ You can enable HTTPS for the REST API by specifying the following options in you
 
 Example in Corefile:
 ```
-gslb gslb_config.yml example.com {
+gslb {
     api_tls_cert /etc/ssl/certs/mycert.pem
     api_tls_key /etc/ssl/private/mykey.pem
 }

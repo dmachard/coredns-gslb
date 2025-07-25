@@ -1,8 +1,8 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-142-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-70%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/go%20tests-139-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-75%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-3032-blue" alt="Lines of code"/>
 </p>
 
@@ -80,9 +80,7 @@ Create the `Corefile`
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
     gslb {
-        zones {
-            gslb.example.com.   db.gslb_config.yml
-        }
+        zone  gslb.example.com. db.gslb_config.yml
     }
     prometheus
 }
@@ -146,6 +144,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [Observability](docs/observability.md) | Prometheus metrics |
+| [Benchmarking](docs/benchmark.md) | Performance |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
 
 ## 👥 Contributions
