@@ -33,7 +33,7 @@ func setup(c *caddy.Controller) error {
 	// Create a GSLB instance with empty domains and backends
 	g := &GSLB{
 		Zones:                     make(map[string]string),
-		Records:                   make(map[string]*Record),
+		Records:                   make(map[string]map[string]*Record),
 		LocationMap:               make(map[string]string),
 		MaxStaggerStart:           "60s",     // Total time to start all records over time, in seconds
 		BatchSizeStart:            100,       // Number of record per group (batch)
@@ -309,7 +309,7 @@ func reloadConfig(g *GSLB, filePath string) error {
 
 	// Ensure the Records map is initialized
 	if g.Records == nil {
-		g.Records = make(map[string]*Record)
+		g.Records = make(map[string]map[string]*Record)
 	}
 
 	g.Mutex.Lock()

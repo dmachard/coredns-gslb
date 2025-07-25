@@ -28,8 +28,8 @@ gslb {
     
     # API
     api_enable true
-    api_cert_path ""
-    api_key_path ""
+    api_tls_cert ""
+    api_tls_key ""
     api_listen_addr 0.0.0.0
     api_listen_port 8080
     api_basic_user admin

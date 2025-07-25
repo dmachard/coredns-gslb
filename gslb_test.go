@@ -101,9 +101,10 @@ func TestGSLB_PickAllAddresses_IPv4(t *testing.T) {
 
 	// Create the GSLB object
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
-	g.Records["example.com."] = record
+	g.Records["example.com."] = make(map[string]*Record)
+	g.Records["example.com."]["example.com."] = record
 
 	// Test the pickAll method
 	ipAddresses, err := g.pickAllAddresses("example.com.", dns.TypeA)
@@ -128,9 +129,10 @@ func TestGSLB_PickAllAddresses_IPv6(t *testing.T) {
 
 	// Create the GSLB object
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
-	g.Records["example.com."] = record
+	g.Records["example.com."] = make(map[string]*Record)
+	g.Records["example.com."]["example.com."] = record
 
 	// Test the pickAll method
 	ipAddresses, err := g.pickAllAddresses("example.com.", dns.TypeAAAA)
@@ -155,9 +157,10 @@ func TestGSLB_PickAllAddresses_DisabledBackend(t *testing.T) {
 
 	// Create the GSLB object
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
-	g.Records["example.com."] = record
+	g.Records["example.com."] = make(map[string]*Record)
+	g.Records["example.com."]["example.com."] = record
 
 	// Test the pickAll method
 	ipAddresses, err := g.pickAllAddresses("example.com.", dns.TypeA)
@@ -178,9 +181,10 @@ func TestGSLB_PickAllAddresses_NoBackends(t *testing.T) {
 
 	// Create the GSLB object
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
-	g.Records["example.com."] = record
+	g.Records["example.com."] = make(map[string]*Record)
+	g.Records["example.com."]["example.com."] = record
 
 	// Test the pickAll method
 	ipAddresses, err := g.pickAllAddresses("example.com.", dns.TypeA)
@@ -193,8 +197,9 @@ func TestGSLB_PickAllAddresses_NoBackends(t *testing.T) {
 
 func TestGSLB_PickAllAddresses_UnknownDomain(t *testing.T) {
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
+	g.Records["example.com."] = make(map[string]*Record)
 
 	ipAddresses, err := g.pickAllAddresses("unknown.com.", 1)
 
@@ -218,7 +223,7 @@ func TestGSLB_HandleTXTRecord(t *testing.T) {
 	}
 
 	g := &GSLB{
-		Records: map[string]*Record{"example.com.": record},
+		Records: map[string]map[string]*Record{"example.com.": {"example.com.": record}},
 	}
 
 	msg := new(dns.Msg)
@@ -433,7 +438,7 @@ func TestServeDNS(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &GSLB{
 				Zones:   map[string]string{tc.zone: "dummy.yml"},
-				Records: map[string]*Record{"test.example.org.": record},
+				Records: map[string]map[string]*Record{"test.example.org.": {"test.example.org.": record}},
 			}
 			msg := new(dns.Msg)
 			msg.SetQuestion(tc.fqdn, tc.recordQ)
@@ -471,7 +476,7 @@ func TestServeDNS_DisableTXT(t *testing.T) {
 
 	n := &nextPlugin{}
 	g := &GSLB{
-		Records:    map[string]*Record{"example.com.": record},
+		Records:    map[string]map[string]*Record{"example.com.": {"example.com.": record}},
 		Zones:      map[string]string{"example.com.": "dummy.yml"},
 		DisableTXT: true,
 		Next:       n,
@@ -526,10 +531,31 @@ records:
     mode: failover
     record_ttl: 30
 `
-
-	var gslb GSLB
-	err := yaml.Unmarshal([]byte(yamlData), &gslb)
+	// Unmarshal into a raw map
+	var raw struct {
+		HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+		Records             map[string]interface{}  `yaml:"records"`
+	}
+	err := yaml.Unmarshal([]byte(yamlData), &raw)
 	assert.NoError(t, err)
+
+	gslb := &GSLB{
+		HealthcheckProfiles: raw.HealthcheckProfiles,
+		Records:             make(map[string]map[string]*Record),
+	}
+	zone := ".example.com."
+	gslb.Records[zone] = make(map[string]*Record)
+
+	for fqdn, recordData := range raw.Records {
+		processedRecordData, err := gslb.processRecordHealthchecks(recordData)
+		assert.NoError(t, err)
+		recordBytes, err := yaml.Marshal(processedRecordData)
+		assert.NoError(t, err)
+		var record Record
+		assert.NoError(t, yaml.Unmarshal(recordBytes, &record))
+		record.Fqdn = fqdn
+		gslb.Records[zone][fqdn] = &record
+	}
 
 	// Verify healthcheck profiles were loaded
 	assert.NotNil(t, gslb.HealthcheckProfiles)
@@ -550,8 +576,8 @@ records:
 	// Verify records were processed correctly
 	assert.NotNil(t, gslb.Records)
 	assert.Len(t, gslb.Records, 1)
-
-	record := gslb.Records["test.example.com."]
+	record, ok := gslb.Records[zone]["test.example.com."]
+	assert.True(t, ok, "Record test.example.com. should exist in zone %s", zone)
 	assert.NotNil(t, record)
 	assert.Equal(t, "failover", record.Mode)
 	assert.Len(t, record.Backends, 2)
@@ -768,7 +794,11 @@ records:
 	assert.NotNil(t, gslb.Records)
 	assert.Len(t, gslb.Records, 1)
 
-	record := gslb.Records["test.example.com."]
+	_, ok := gslb.Records[""]
+	assert.True(t, ok, "Zone key should be empty string in gslb.Records when no explicit zone is set")
+
+	record, ok := gslb.Records[""]["test.example.com."]
+	assert.True(t, ok, "Record test.example.com. should exist in zone '' (empty string)")
 	assert.NotNil(t, record)
 	assert.Len(t, record.Backends, 1)
 

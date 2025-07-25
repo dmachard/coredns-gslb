@@ -54,13 +54,14 @@ for i in range(args.healthchecks):
 
 records = {}
 for r in range(args.records):
-    record_name = f"test{r}.bench.example.com."
+    record_name = f"test{r}.bench.gslb.example.com."
     backends = []
     for b in range(args.backends):
         backend = {
             'address': f"10.0.{r}.{b+1}",
             'priority': b+1,
             'enable': True,
+            'location': 'eu-west-1',
             'healthchecks': [f"{args.healthcheck_type}_profile_{i}" for i in range(args.healthchecks)]
         }
         backends.append(backend)

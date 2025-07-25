@@ -90,38 +90,41 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 		g.Mutex.RLock()
 		defer g.Mutex.RUnlock()
 		var resp []map[string]interface{}
-		for _, rec := range g.Records {
-			rec.mutex.RLock()
-			atLeastOneBackendHealthy := false
-			var backends []map[string]interface{}
-			for _, be := range rec.Backends {
-				b := be.(*Backend)
-				b.mutex.RLock()
-				aliveStr := statusUnhealthy
-				if b.Alive && b.Enable {
-					aliveStr = statusHealthy
-					atLeastOneBackendHealthy = true
-				}
-				beMap := map[string]interface{}{
-					"address":          b.Address,
-					"alive":            aliveStr,
-					"last_healthcheck": b.LastHealthcheck.Format(time.RFC3339),
-				}
-				b.mutex.RUnlock()
-				backends = append(backends, beMap)
-			}
-			recMap := map[string]interface{}{
-				"fqdn": rec.Fqdn,
-				"status": func() string {
-					if atLeastOneBackendHealthy {
-						return statusHealthy
+		for zone, recs := range g.Records {
+			for _, rec := range recs {
+				rec.mutex.RLock()
+				atLeastOneBackendHealthy := false
+				var backends []map[string]interface{}
+				for _, be := range rec.Backends {
+					b := be.(*Backend)
+					b.mutex.RLock()
+					aliveStr := statusUnhealthy
+					if b.Alive && b.Enable {
+						aliveStr = statusHealthy
+						atLeastOneBackendHealthy = true
 					}
-					return statusUnhealthy
-				}(),
-				"backends": backends,
+					beMap := map[string]interface{}{
+						"address":          b.Address,
+						"alive":            aliveStr,
+						"last_healthcheck": b.LastHealthcheck.Format(time.RFC3339),
+					}
+					b.mutex.RUnlock()
+					backends = append(backends, beMap)
+				}
+				recMap := map[string]interface{}{
+					"zone": zone,
+					"fqdn": rec.Fqdn,
+					"status": func() string {
+						if atLeastOneBackendHealthy {
+							return statusHealthy
+						}
+						return statusUnhealthy
+					}(),
+					"backends": backends,
+				}
+				resp = append(resp, recMap)
+				rec.mutex.RUnlock()
 			}
-			resp = append(resp, recMap)
-			rec.mutex.RUnlock()
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)

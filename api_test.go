@@ -16,7 +16,7 @@ import (
 
 func TestAPIOverviewEndpoint(t *testing.T) {
 	g := &GSLB{
-		Records: make(map[string]*Record),
+		Records: make(map[string]map[string]*Record),
 	}
 	rec := &Record{
 		Fqdn:           "test.example.com.",
@@ -38,7 +38,7 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 		LastHealthcheck: time.Date(2025, 7, 21, 13, 3, 29, 0, time.UTC),
 	}
 	rec.Backends = []BackendInterface{backend}
-	g.Records[rec.Fqdn] = rec
+	g.Records["test"] = map[string]*Record{rec.Fqdn: rec}
 
 	mux := http.NewServeMux()
 	g.RegisterAPIHandlers(mux)

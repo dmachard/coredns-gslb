@@ -29,7 +29,7 @@ curl -k https://localhost:8080/api/overview
 
 ## Endpoints
 
-For all request/response schemas and detailed documentation, see [swagger.yaml](https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/doc/swagger.yaml).
+For all request/response schemas and detailed documentation, see [swagger.yaml](https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
 
 ### Example: GET /api/overview
 ```bash
