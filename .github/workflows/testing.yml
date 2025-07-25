@@ -16,7 +16,7 @@ env:
   GOLANGCI_LINT_VERSION: "v2.1.6"
 
 jobs:
-  testing:
+  testunits:
     runs-on: ubuntu-24.04
 
     strategy:
@@ -49,3 +49,43 @@ jobs:
 
     - name: Bench
       run: go test -bench .
+
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Start docker-compose.dev.yml
+        run: |
+          docker-compose -f docker-compose.dev.yml up -d
+
+      - name: Wait for coredns_gslb to be ready
+        run: |
+          for i in {1..30}; do
+            dig @127.0.0.1 -p 8053 gslb.example.com. A && exit 0
+            sleep 2
+          done
+          echo "coredns_gslb did not become ready in time" >&2
+          docker-compose -f docker-compose.dev.yml logs
+          exit 1
+
+      - name: Run dig queries
+        run: |
+          set -e
+          dig @127.0.0.1 -p 8053 webapp.gslb.example.com. A | grep -q 'IN\s\+A' || (echo 'A record failed' && exit 1)
+          dig @127.0.0.1 -p 8053 webapp-geoip-country.app-x.gslb.example.com. A | grep -q 'IN\s\+A' || (echo 'GeoIP A record failed' && exit 1)
+          # Add more dig checks as needed
+
+      - name: Show docker-compose logs on failure
+        if: failure()
+        run: docker-compose -f docker-compose.dev.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker-compose -f docker-compose.dev.yml down -v  
