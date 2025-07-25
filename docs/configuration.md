@@ -4,20 +4,35 @@
 
 ~~~
 gslb {
+    # Zones definition
     zone example.org.   db.example.org.yml
     zone test.org.      db.test.org.yml
 
+    # GeoIP MaxMind databases
     geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
     geoip_maxmind city_db /coredns/GeoLite2-City.mmdb
     geoip_maxmind asn_db /coredns/GeoLite2-ASN.mmdb
     geoip_custom_db /coredns/location_map.yml
     
+    # Miscs
     use_edns_csubnet
+    disable_txt
+
+    # Maximum delay for staggered start
     max_stagger_start "120s"
+    batch_size_start 100
+
+    # Idle timeout for resolution
     resolution_idle_timeout "3600s"
     healthcheck_idle_multiplier 10
-    batch_size_start 100
-    disable_txt
+    
+    # API
+    api_enable true
+    api_cert_path ""
+    api_key_path ""
+    api_listen_addr 0.0.0.0
+    api_listen_port 8080
+    api_basic_user admin
 }
 ~~~
 

@@ -54,25 +54,19 @@ func (g *GSLB) handleBulkSetBackendEnable(enable bool) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"error": "location or address_prefix required"})
 			return
 		}
-		var yamlFile string
-		for _, f := range g.Zones {
-			yamlFile = f
-			break
-		}
-		if yamlFile == "" {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "YAML config file not found"})
-			return
-		}
-		modified, err := bulkSetBackendEnable(yamlFile, req.Location, req.AddressPrefix, enable)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-			return
+		var allModified []map[string]string
+		for _, yamlFile := range g.Zones {
+			modified, err := bulkSetBackendEnable(yamlFile, req.Location, req.AddressPrefix, enable)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				return
+			}
+			allModified = append(allModified, modified...)
 		}
 		resp := map[string]interface{}{
 			"success":  true,
-			"backends": modified,
+			"backends": allModified,
 		}
 		if resp["backends"] == nil {
 			resp["backends"] = []map[string]string{}

@@ -305,6 +305,8 @@ func loadConfigFile(g *GSLB, fileName string) error {
 
 // ReloadConfig updates the GSLB configuration dynamically
 func reloadConfig(g *GSLB, filePath string) error {
+	log.Infof("Reloading config from %s", filePath)
+
 	// Ensure the Records map is initialized
 	if g.Records == nil {
 		g.Records = make(map[string]*Record)

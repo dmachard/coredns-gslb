@@ -2,9 +2,9 @@ name: Testing
 
 on:
   push:
-    branches: [ main, debugtxt ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, debugtxt ]
+    branches: [ main ]
 
 permissions:
   contents: read # for actions/checkout to fetch code
@@ -14,7 +14,7 @@ env:
   GOLANGCI_LINT_VERSION: "v2.1.6"
   
 jobs:
-  testing:
+  unit_tests:
     runs-on: ubuntu-24.04
 
     strategy:
@@ -48,7 +48,7 @@ jobs:
     - name: Bench
       run: go test -bench .
 
-  integration:
+  integration_gslb:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -129,6 +129,45 @@ jobs:
           ip=$(dig -p 8053 @127.0.0.1 webapp-geoip-country.app-y.gslb.example.com +short +subnet=90.0.0.0/24)
           echo "Got IP: $ip"
           [ "$ip" = "172.16.0.10" ] || (echo "Expected 172.16.0.10, got $ip" && exit 1)
+            
+      - name: Show docker-compose logs on failure
+        if: failure()
+        run: sudo docker-compose -f docker-compose.dev.yml logs
+
+      - name: Tear down
+        if: always()
+        run: sudo docker-compose -f docker-compose.dev.yml down -v  
+
+  integration_api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose and dig
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose dnsutils
+
+      - name: Start docker-compose.dev.yml
+        run: |
+          sudo docker-compose -f docker-compose.dev.yml up -d
+
+      - name: Wait for coredns_gslb to be ready
+        run: |
+          for i in {1..30}; do
+            dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short | grep -q '172.16.0.10' && exit 0
+            sleep 2
+          done
+          echo "coredns_gslb did not become ready in time" >&2
+          sudo docker-compose -f docker-compose.dev.yml logs
+          exit 1
+
+      - name: Count number of records
+        run: |
+          resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'length')
+          echo "Got Nb records: $resp"
+          [ "$resp" = "5" ] || (echo "Expected 5 records, got $resp" && exit 1)
             
       - name: Show docker-compose logs on failure
         if: failure()
