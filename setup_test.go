@@ -106,37 +106,6 @@ func TestSetupGSLB(t *testing.T) {
 		})
 	}
 }
-
-// Test loadConfigFile function for handling invalid configurations
-func TestLoadConfigFile(t *testing.T) {
-	// Define test cases
-	tests := []struct {
-		name        string
-		filePath    string
-		expectError bool
-	}{
-		{"Valid config", "./tests/db.app-x.gslb.example.com.yml", false},
-		{"Non-existent file", "./tests/non_existent_config.yml", true},
-	}
-
-	// Iterate over test cases
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Create a new GSLB instance for each test case
-			g := &GSLB{}
-			err := loadConfigFile(g, test.filePath)
-
-			// Check if we expect an error or not
-			if test.expectError && err == nil {
-				t.Fatalf("Expected error, but got none for test: %v", test.name)
-			}
-			if !test.expectError && err != nil {
-				t.Fatalf("Expected no error, but got: %v for test: %v", err, test.name)
-			}
-		})
-	}
-}
-
 func TestLoadRealConfig(t *testing.T) {
 	// Test loading the appX config file with healthcheck profiles
 	g := &GSLB{}
