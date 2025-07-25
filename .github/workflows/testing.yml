@@ -1,91 +1,71 @@
-name: Testing
+name: Integration
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, debugtxt ]
   pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: read # for actions/checkout to fetch code
-  pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
-
-env:
-  GOLANGCI_LINT_VERSION: "v2.1.6"
+    branches: [ main, debugtxt ]
 
 jobs:
-  testunits:
-    runs-on: ubuntu-24.04
-
-    strategy:
-      matrix:
-        go-version: ['1.23', '1.24']
-        
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-
-    - uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-        # workaround: when the files to be extracted are already present, 
-        # tar extraction in Golangci Lint fails with the "File exists"
-        # https://github.com/golangci/golangci-lint-action/issues/807
-        cache: false
-
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: "${{ env.GOLANGCI_LINT_VERSION }}"
-        args: --timeout 3m --verbose
-
-    - name: Test
-      run: make tests
-
-    - name: Line of Code
-      run: make stats
-
-    - name: Bench
-      run: go test -bench .
-
   integration:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Compose
+      - name: Set up Docker Compose and dig
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker-compose
+          sudo apt-get install -y docker-compose dnsutils
 
       - name: Start docker-compose.dev.yml
         run: |
-          docker-compose -f docker-compose.dev.yml up -d
+          sudo docker-compose -f docker-compose.dev.yml up -d
 
       - name: Wait for coredns_gslb to be ready
         run: |
           for i in {1..30}; do
-            dig @127.0.0.1 -p 8053 gslb.example.com. A && exit 0
+            dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short | grep -q '172.16.0.10' && exit 0
             sleep 2
           done
           echo "coredns_gslb did not become ready in time" >&2
-          docker-compose -f docker-compose.dev.yml logs
+          sudo docker-compose -f docker-compose.dev.yml logs
           exit 1
 
-      - name: Run dig queries
+      - name: Check initial dig (should be 172.16.0.10)
         run: |
-          set -e
-          dig @127.0.0.1 -p 8053 webapp.gslb.example.com. A | grep -q 'IN\s\+A' || (echo 'A record failed' && exit 1)
-          dig @127.0.0.1 -p 8053 webapp-geoip-country.app-x.gslb.example.com. A | grep -q 'IN\s\+A' || (echo 'GeoIP A record failed' && exit 1)
-          # Add more dig checks as needed
+          ip=$(dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short)
+          echo "Got IP: $ip"
+          [ "$ip" = "172.16.0.10" ] || (echo "Expected 172.16.0.10, got $ip" && exit 1)
+
+      - name: Stop webapp10
+        run: sudo docker-compose -f docker-compose.dev.yml stop webapp10
+
+      - name: Wait for healthcheck to update (15s)
+        run: sleep 15
+
+      - name: Check dig after webapp10 stopped (should be 172.16.0.11)
+        run: |
+          ip=$(dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short)
+          echo "Got IP: $ip"
+          [ "$ip" = "172.16.0.11" ] || (echo "Expected 172.16.0.11, got $ip" && exit 1)
+
+      - name: Restart webapp10
+        run: sudo docker-compose -f docker-compose.dev.yml start webapp10
+
+      - name: Wait for healthcheck to update (15s)
+        run: sleep 15
+
+      - name: Check dig after webapp10 restarted (should be 172.16.0.10)
+        run: |
+          ip=$(dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short)
+          echo "Got IP: $ip"
+          [ "$ip" = "172.16.0.10" ] || (echo "Expected 172.16.0.10, got $ip" && exit 1)
 
       - name: Show docker-compose logs on failure
         if: failure()
-        run: docker-compose -f docker-compose.dev.yml logs
+        run: sudo docker-compose -f docker-compose.dev.yml logs
 
       - name: Tear down
         if: always()
-        run: docker-compose -f docker-compose.dev.yml down -v  
+        run: sudo docker-compose -f docker-compose.dev.yml down -v  
