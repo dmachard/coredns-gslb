@@ -1,4 +1,4 @@
-name: Integration
+name: Testing
 
 on:
   push:
@@ -6,7 +6,48 @@ on:
   pull_request:
     branches: [ main, debugtxt ]
 
+permissions:
+  contents: read # for actions/checkout to fetch code
+  pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+
+env:
+  GOLANGCI_LINT_VERSION: "v2.1.6"
+  
 jobs:
+  testing:
+    runs-on: ubuntu-24.04
+
+    strategy:
+      matrix:
+        go-version: ['1.23', '1.24']
+        
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        # workaround: when the files to be extracted are already present, 
+        # tar extraction in Golangci Lint fails with the "File exists"
+        # https://github.com/golangci/golangci-lint-action/issues/807
+        cache: false
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: "${{ env.GOLANGCI_LINT_VERSION }}"
+        args: --timeout 3m --verbose
+
+    - name: Test
+      run: make tests
+
+    - name: Line of Code
+      run: make stats
+
+    - name: Bench
+      run: go test -bench .
+
   integration:
     runs-on: ubuntu-latest
     steps:
@@ -31,6 +72,9 @@ jobs:
           echo "coredns_gslb did not become ready in time" >&2
           sudo docker-compose -f docker-compose.dev.yml logs
           exit 1
+
+      - name: Wait for healthcheck to be ready (15s)
+        run: sleep 15
 
       - name: Check initial dig (should be 172.16.0.10)
         run: |
