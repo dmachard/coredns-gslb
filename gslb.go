@@ -647,7 +647,7 @@ func (g *GSLB) findRecord(domain string) (*Record, string) {
 func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 
 	if !strings.HasSuffix(zone, ".") {
-		zone = zone + "."
+		zone += "."
 	}
 	data, err := os.ReadFile(fileName)
 	if err != nil {
