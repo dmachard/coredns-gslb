@@ -184,7 +184,7 @@ func bulkSetBackendEnable(yamlFile, location, addressPrefix string, enable bool)
 			if match {
 				beMap["enable"] = enable
 				modified = append(modified, map[string]string{
-					"fqdn":    fqdn,
+					"record":  fqdn,
 					"address": addr,
 				})
 			}
