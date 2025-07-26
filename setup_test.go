@@ -19,7 +19,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with explicit zone-to-file mapping",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
 			}`,
 			expectError: false,
 		},
@@ -28,7 +28,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with additional options",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
 				max_stagger_start 120s
 				batch_size_start 50
 				resolution_idle_timeout 1800s
@@ -40,7 +40,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid geoip_maxmind block syntax",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
 				geoip_maxmind country_db ./tests/GeoLite2-Country.mmdb
 				geoip_maxmind city_db ./tests/GeoLite2-City.mmdb
 				geoip_maxmind asn_db ./tests/GeoLite2-ASN.mmdb
@@ -52,8 +52,8 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with multiple zones and files",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
-				zone example.net ./tests/db.app-y.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				zone app-y.gslb.example.com ./tests/db.app-y.gslb.example.com.yml
 			}`,
 			expectError: false,
 		},
@@ -62,7 +62,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Valid config with all main parameters",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
 				max_stagger_start 90s
 				batch_size_start 42
 				resolution_idle_timeout 1234s
@@ -85,7 +85,7 @@ func TestSetupGSLB(t *testing.T) {
 		{
 			name: "Disable TXT option disables TXT queries",
 			config: `gslb {
-				zone example.org ./tests/db.app-x.gslb.example.com.yml
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
 				disable_txt
 			}`,
 			expectError: false,
@@ -109,7 +109,8 @@ func TestSetupGSLB(t *testing.T) {
 func TestLoadRealConfig(t *testing.T) {
 	// Test loading the appX config file with healthcheck profiles
 	g := &GSLB{}
-	err := loadConfigFile(g, "./tests/db.app-x.gslb.example.com.yml")
+	zone := "app-x.gslb.example.com."
+	err := loadConfigFile(g, "./tests/db.app-x.gslb.example.com.yml", zone)
 	assert.NoError(t, err)
 
 	// Verify healthcheck profiles were loaded
@@ -123,10 +124,21 @@ func TestLoadRealConfig(t *testing.T) {
 
 	// Verify records were loaded and processed
 	assert.NotNil(t, g.Records)
-	assert.Len(t, g.Records, 3)
+	assert.Len(t, g.Records, 1)
+	for _, recs := range g.Records {
+		assert.Len(t, recs, 3)
+	}
 
-	record, ok := g.Records["webapp.app-x.gslb.example.com."]
-	assert.True(t, ok, "Record webapp.app-x.gslb.example.com. should exist")
+	zone = "webapp.app-x.gslb.example.com."
+	if g.Records[zone] == nil {
+		// fallback: try to find the only zone key
+		for z := range g.Records {
+			zone = z
+			break
+		}
+	}
+	record, ok := g.Records[zone]["webapp.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp.app-x.gslb.example.com. should exist in zone %s", zone)
 	assert.NotNil(t, record)
 	assert.Equal(t, "failover", record.Mode)
 	assert.Len(t, record.Backends, 2)
@@ -159,8 +171,8 @@ func TestLoadRealConfig(t *testing.T) {
 	assert.True(t, found_icmp, "Should have ICMP healthcheck")
 
 	// Vérifier la présence des autres records
-	_, ok = g.Records["webapp-lua.app-x.gslb.example.com."]
-	assert.True(t, ok, "Record webapp-lua.app-x.gslb.example.com. should exist")
-	_, ok = g.Records["webapp-grpc.app-x.gslb.example.com."]
-	assert.True(t, ok, "Record webapp-grpc.app-x.gslb.example.com. should exist")
+	_, ok = g.Records[zone]["webapp-lua.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-lua.app-x.gslb.example.com. should exist in zone %s", zone)
+	_, ok = g.Records[zone]["webapp-grpc.app-x.gslb.example.com."]
+	assert.True(t, ok, "Record webapp-grpc.app-x.gslb.example.com. should exist in zone %s", zone)
 }

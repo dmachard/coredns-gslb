@@ -1,18 +1,17 @@
 healthcheck_profiles:
   https_default:
-    type: http
     params:
       enable_tls: true
       expected_body: ""
       expected_code: 200
+      headers: null
+      host: localhost
+      method: GET
       port: 443
       skip_tls_verify: true
       timeout: 5s
       uri: /
-      headers: null
-      host: localhost
-      method: GET
-
+    type: http
 records:
   webapp-geoip-country.app-y.gslb.example.com.:
     backends:
@@ -20,13 +19,15 @@ records:
         country: FR
         description: webapp10
         enable: true
-        healthchecks: [ https_default ]
+        healthchecks:
+          - https_default
         priority: 1
       - address: 172.16.0.11
         country: US
         description: webapp11
         enable: true
-        healthchecks: [ https_default ]
+        healthchecks:
+          - https_default
         priority: 2
     description: GeoIP-based routing by country (using MaxMind GeoLite2-Country.mmdb)
     mode: geoip
@@ -40,13 +41,15 @@ records:
       - address: 172.16.0.10
         description: webapp10
         enable: true
-        healthchecks: [ https_default ]
+        healthchecks:
+          - https_default
         location: eu-west-1
         priority: 1
       - address: 172.16.0.11
         description: webapp11
         enable: true
-        healthchecks: [ https_default ]
+        healthchecks:
+          - https_default
         location: eu-west-2
         priority: 2
     description: GeoIP-based routing between Paris and London backends

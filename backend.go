@@ -16,7 +16,7 @@ type Backend struct {
 	Address         string               // IP address or hostname
 	Priority        int                  // Priority for load balancing
 	Enable          bool                 // Enable or disable the backend
-	HealthChecks    []GenericHealthCheck // Health check configurations
+	HealthChecks    []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
 	Timeout         string               // Timeout for requests
 	Alive           bool                 // Indicates if the backend is alive
 	Country         string               // Country code for GeoIP

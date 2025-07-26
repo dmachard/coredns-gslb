@@ -54,7 +54,7 @@ coredns-gslb/
 └── coredns/
     ├── Corefile
     ├── db.gslb.example.com
-    └── db.gslb_config.yml
+    └── db.gslb.example.com.yml
 ```
 
 Create the `docker-compose.yml`, update binding ports according to your system
@@ -81,7 +81,7 @@ Create the `Corefile`
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
     gslb {
-        zone  gslb.example.com. db.gslb_config.yml
+        zone  gslb.example.com. /coredns/db.gslb.example.com.yml
     }
     prometheus
 }

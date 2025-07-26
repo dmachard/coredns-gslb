@@ -22,9 +22,9 @@ var log = clog.NewWithPlugin("gslb")
 
 type GSLB struct {
 	Next                plugin.Handler
-	Zones               map[string]string       // List of authoritative domains
-	Records             map[string]*Record      `yaml:"records"`
-	HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+	Zones               map[string]string             // List of authoritative domains
+	Records             map[string]map[string]*Record // zone -> fqdn -> record
+	HealthcheckProfiles map[string]*HealthCheck       `yaml:"healthcheck_profiles"`
 
 	Zone                      string   // Zone attendue pour la vérification des records
 	LastResolution            sync.Map // key: domain (string), value: time.Time
@@ -71,9 +71,13 @@ func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	// Process records with healthcheck profile resolution
 	if raw.Records != nil {
-		g.Records = make(map[string]*Record)
-		// On attend que g.Zone soit renseignée avant l'appel (par le chargeur)
+		if g.Records == nil {
+			g.Records = make(map[string]map[string]*Record)
+		}
 		zone := g.Zone // zone attendue, ex: ".example.org."
+		if g.Records[zone] == nil {
+			g.Records[zone] = make(map[string]*Record)
+		}
 		for fqdn, recordData := range raw.Records {
 			if zone != "" && !strings.HasSuffix(fqdn, zone) {
 				return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
@@ -96,7 +100,7 @@ func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			}
 
 			record.Fqdn = fqdn
-			g.Records[fqdn] = &record
+			g.Records[zone][fqdn] = &record
 		}
 	}
 
@@ -274,8 +278,8 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 }
 
 func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16) (int, error) {
-	record, exists := g.Records[domain]
-	if !exists {
+	record, _ := g.findRecord(domain)
+	if record == nil {
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
 	ci := GetClientInfo(ctx)
@@ -305,8 +309,8 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 }
 
 func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
-	record, exists := g.Records[domain]
-	if !exists {
+	record, _ := g.findRecord(domain)
+	if record == nil {
 		// If the domain is not found in the records, pass the request to the next plugin
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
@@ -373,8 +377,8 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 }
 
 func (g *GSLB) pickAllAddresses(domain string, recordType uint16) ([]string, error) {
-	record, exists := g.Records[domain]
-	if !exists {
+	record, _ := g.findRecord(domain)
+	if record == nil {
 		return nil, fmt.Errorf("domain not found: %s", domain)
 	}
 
@@ -397,8 +401,8 @@ func (g *GSLB) pickAllAddresses(domain string, recordType uint16) ([]string, err
 }
 
 func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP) ([]string, error) {
-	record, exists := g.Records[domain]
-	if !exists {
+	record, _ := g.findRecord(domain)
+	if record == nil {
 		return nil, fmt.Errorf("domain not found: %s", domain)
 	}
 
@@ -457,73 +461,53 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 }
 
 func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
-	for domain, newRecord := range newGSLB.Records {
-		oldRecord, exists := g.Records[domain]
+	for zone, newRecords := range newGSLB.Records {
+		oldRecords, exists := g.Records[zone]
 		if !exists {
-			recordCtx, cancel := context.WithCancel(ctx)
-			newRecord.cancelFunc = cancel
-			newRecord.Fqdn = dns.Fqdn(domain)
-
-			g.Records[domain] = newRecord
-			log.Infof("Added new record for domain: %s", domain)
-			// Initialize health status for new record
-			newRecord.updateRecordHealthStatus()
-			go newRecord.scrapeBackends(recordCtx, g)
-		} else {
-			oldRecord.updateRecord(newRecord)
-			// Update health status after record update
-			oldRecord.updateRecordHealthStatus()
+			log.Infof("Not yet implemented: new zone %s", zone)
+			continue
 		}
-	}
-
-	for domain := range g.Records {
-		if _, exists := newGSLB.Records[domain]; !exists {
-			// cancel context to terminate the goroutine
-			if record := g.Records[domain]; record.cancelFunc != nil {
-				record.cancelFunc()
+		// This zone exists, update existing records
+		for fqdn, newRecord := range newRecords {
+			oldRecord, exists := oldRecords[fqdn]
+			if !exists {
+				newRecord.Fqdn = fqdn
+				g.Records[zone][fqdn] = newRecord
+				log.Infof("Added new record for zone %s: %s", zone, fqdn)
+				newRecord.updateRecordHealthStatus()
+				go newRecord.scrapeBackends(ctx, g)
+			} else {
+				log.Infof("Reloading record %s in zone %s", fqdn, zone)
+				oldRecord.updateRecord(newRecord)
+				oldRecord.updateRecordHealthStatus()
 			}
+		}
+		// Remove records from old zone that are no longer present in newGSLB.Records
+		for fqdn := range oldRecords {
+			if _, exists := newRecords[fqdn]; !exists {
+				if record := oldRecords[fqdn]; record.cancelFunc != nil {
+					record.cancelFunc()
+				}
+				delete(g.Records[zone], fqdn)
+				log.Infof("Records [%s] removed from zone %s", fqdn, zone)
+			}
+		}
+	}
 
-			// delete records
-			delete(g.Records, domain)
-			log.Infof("Records [%s] removed", domain)
-		}
-	}
-	SetRecordsTotal(float64(len(g.Records)))
-	// Set total backends configured
-	totalBackends := 0
-	for _, record := range g.Records {
-		totalBackends += len(record.Backends)
-	}
-	SetBackendsTotal(float64(totalBackends))
-	// Set total healthchecks configured
-	totalHealthchecks := 0
-	for _, record := range g.Records {
-		for _, backend := range record.Backends {
-			totalHealthchecks += len(backend.GetHealthChecks())
-		}
-	}
-	SetHealthchecksTotal(float64(totalHealthchecks))
+	// Update metrics
+	g.updateMetrics()
 }
 
-func (g *GSLB) initializeRecords(ctx context.Context) {
-	// Load records from all files in g.Zones
-	for zone, file := range g.Zones {
-		tmpG := &GSLB{Records: make(map[string]*Record)}
-		if err := loadConfigFile(tmpG, file); err != nil {
+func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[string]string) {
+	g.Records = make(map[string]map[string]*Record)
+	for zone, file := range zoneFiles {
+		log.Infof("Loading records for zone %s from %s", zone, file)
+		if err := loadConfigFile(g, file, zone); err != nil {
 			log.Errorf("Failed to load records for zone %s from %s: %v", zone, file, err)
 			continue
 		}
-		for fqdn, rec := range tmpG.Records {
-			if _, exists := g.Records[fqdn]; exists {
-				log.Warningf("Record %s already exists, skipping duplicate from zone %s", fqdn, zone)
-				continue
-			}
-			rec.Fqdn = fqdn
-			g.Records[fqdn] = rec
-		}
+		log.Infof("Loaded %d records for zone %s", len(g.Records[zone]), zone)
 	}
-
-	// Batch records and start health checks
 	groups := g.batchRecords(g.BatchSizeStart)
 	for i, group := range groups {
 		go func(group []*Record, delay time.Duration) {
@@ -539,18 +523,37 @@ func (g *GSLB) initializeRecords(ctx context.Context) {
 			}
 		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
-	SetRecordsTotal(float64(len(g.Records)))
+
+	// Update metrics
+	g.updateMetrics()
+}
+
+func (g *GSLB) updateMetrics() {
+	SetZonesTotal(float64(len(g.Records)))
+
+	// Set total records configured
+	totalRecords := 0
+	for _, records := range g.Records {
+		totalRecords += len(records)
+	}
+	SetRecordsTotal(float64(totalRecords))
+
 	// Set total backends configured
 	totalBackends := 0
-	for _, record := range g.Records {
-		totalBackends += len(record.Backends)
+	for _, records := range g.Records {
+		for _, record := range records {
+			totalBackends += len(record.Backends)
+		}
 	}
 	SetBackendsTotal(float64(totalBackends))
+
 	// Set total healthchecks configured
 	totalHealthchecks := 0
-	for _, record := range g.Records {
-		for _, backend := range record.Backends {
-			totalHealthchecks += len(backend.GetHealthChecks())
+	for _, records := range g.Records {
+		for _, record := range records {
+			for _, backend := range record.Backends {
+				totalHealthchecks += len(backend.GetHealthChecks())
+			}
 		}
 	}
 	SetHealthchecksTotal(float64(totalHealthchecks))
@@ -560,12 +563,14 @@ func (g *GSLB) batchRecords(batchSize int) [][]*Record {
 	var groups [][]*Record
 	var current []*Record
 
-	for domain, record := range g.Records {
-		record.Fqdn = domain
-		current = append(current, record)
-		if len(current) == batchSize {
-			groups = append(groups, current)
-			current = nil
+	for _, records := range g.Records {
+		for domain, record := range records {
+			record.Fqdn = domain
+			current = append(current, record)
+			if len(current) == batchSize {
+				groups = append(groups, current)
+				current = nil
+			}
 		}
 	}
 
@@ -627,5 +632,62 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 		m[s.Subnet] = s.Location
 	}
 	g.LocationMap = m
+	return nil
+}
+
+func (g *GSLB) findRecord(domain string) (*Record, string) {
+	for zone, recs := range g.Records {
+		if rec, ok := recs[domain]; ok {
+			return rec, zone
+		}
+	}
+	return nil, ""
+}
+
+func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
+
+	if !strings.HasSuffix(zone, ".") {
+		zone += "."
+	}
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to read YAML configuration: %w", err)
+	}
+	if len(data) == 0 {
+		return fmt.Errorf("failed to read YAML configuration: file empty")
+	}
+	var raw struct {
+		Records             map[string]interface{}  `yaml:"records"`
+		HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+	}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("failed to parse YAML configuration: %w", err)
+	}
+	gslb.HealthcheckProfiles = raw.HealthcheckProfiles
+	if gslb.Records == nil {
+		gslb.Records = make(map[string]map[string]*Record)
+	}
+	if gslb.Records[zone] == nil {
+		gslb.Records[zone] = make(map[string]*Record)
+	}
+	for fqdn, recordData := range raw.Records {
+		if zone != "" && !strings.HasSuffix(fqdn, zone) {
+			return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
+		}
+		processedRecordData, err := (&GSLB{HealthcheckProfiles: raw.HealthcheckProfiles}).processRecordHealthchecks(recordData)
+		if err != nil {
+			return fmt.Errorf("error processing record %s: %w", fqdn, err)
+		}
+		recordBytes, err := yaml.Marshal(processedRecordData)
+		if err != nil {
+			return fmt.Errorf("failed to marshal processed record %s: %w", fqdn, err)
+		}
+		var record Record
+		if err := yaml.Unmarshal(recordBytes, &record); err != nil {
+			return fmt.Errorf("failed to unmarshal record %s: %w", fqdn, err)
+		}
+		record.Fqdn = fqdn
+		gslb.Records[zone][fqdn] = &record
+	}
 	return nil
 }

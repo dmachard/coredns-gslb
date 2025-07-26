@@ -151,7 +151,6 @@ func (r *Record) updateRecord(newRecord *Record) {
 			i++
 		}
 	}
-	// No direct call to SetBackendsTotal or SetRecordsTotal here; these are set globally after all records are updated.
 }
 
 // GetScrapeInterval returns the health check interval for HTTPHealthCheck

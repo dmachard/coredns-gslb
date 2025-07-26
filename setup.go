@@ -30,20 +30,21 @@ func setup(c *caddy.Controller) error {
 
 	config := dnsserver.GetConfig(c)
 
-	// Create a GSLB instance with empty domains and backends
 	g := &GSLB{
 		Zones:                     make(map[string]string),
-		Records:                   make(map[string]*Record),
+		Records:                   make(map[string]map[string]*Record),
 		LocationMap:               make(map[string]string),
-		MaxStaggerStart:           "60s",     // Total time to start all records over time, in seconds
-		BatchSizeStart:            100,       // Number of record per group (batch)
-		ResolutionIdleTimeout:     "3600s",   // Max time before to slow down health check
-		UseEDNSCSubnet:            false,     // Default: disabled
-		HealthcheckIdleMultiplier: 10,        // Default multiplier
-		APIEnable:                 true,      // API enabled by default
-		APIListenAddr:             "0.0.0.0", // Default listen address
-		APIListenPort:             "8080",    // Default listen port
+		MaxStaggerStart:           "60s",
+		BatchSizeStart:            100,
+		ResolutionIdleTimeout:     "3600s",
+		UseEDNSCSubnet:            false,
+		HealthcheckIdleMultiplier: 10,
+		APIEnable:                 true,
+		APIListenAddr:             "0.0.0.0",
+		APIListenPort:             "8080",
 	}
+
+	zoneFiles := make(map[string]string)
 
 	for c.Next() {
 		if c.Val() == "gslb" {
@@ -63,6 +64,8 @@ func setup(c *caddy.Controller) error {
 						file = filepath.Join(config.Root, file)
 					}
 					zoneNorm := strings.ToLower(strings.TrimSuffix(zone, ".")) + "."
+					zoneFiles[zoneNorm] = file
+
 					g.Zones[zoneNorm] = file
 					go startConfigWatcher(g, file)
 				case "use_edns_csubnet":
@@ -209,7 +212,7 @@ func setup(c *caddy.Controller) error {
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
 			}
-			if len(g.Zones) == 0 {
+			if len(zoneFiles) == 0 {
 				return c.Errf("at least one 'zone' directive is required in gslb block")
 			}
 			if locationMapPath != "" {
@@ -228,7 +231,7 @@ func setup(c *caddy.Controller) error {
 	})
 
 	// Initialize and load all records
-	g.initializeRecords(context.Background())
+	g.initializeRecordsFromFiles(context.Background(), zoneFiles)
 
 	// All OK, return a nil error.
 	return nil
@@ -236,6 +239,7 @@ func setup(c *caddy.Controller) error {
 
 // StartConfigWatcher starts watching the configuration file for changes
 func startConfigWatcher(g *GSLB, filePath string) error {
+	log.Debugf("Starting config watcher for %s", filePath)
 	// Create a new file system watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -264,8 +268,13 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 				// Set a new timer to reload the configuration after 500ms
 				reloadTimer = time.AfterFunc(500*time.Millisecond, func() {
 					// Reload the configuration
-					log.Debugf("configuration file modified: %s", filePath)
-					if err := reloadConfig(g, filePath); err != nil {
+					log.Infof("Configuration file modified: %s", filePath)
+					zone := findZoneByFile(g, filePath)
+					if zone == "" {
+						log.Errorf("Zone not found for file: %s", filePath)
+						return
+					}
+					if err := reloadConfig(g, filePath, zone); err != nil {
 						log.Errorf("failed to reload config: %v", err)
 					} else {
 						log.Debug("configuration reloaded successfully.")
@@ -280,34 +289,13 @@ func startConfigWatcher(g *GSLB, filePath string) error {
 	}
 }
 
-// loadConfigFile loads and parses the YAML configuration file.
-func loadConfigFile(g *GSLB, fileName string) error {
-	// Déduire la zone attendue à partir du nom du fichier (ex: db.app-x.gslb.example.com.yml -> .app-x.gslb.example.com.)
-	base := filepath.Base(fileName)
-	zone := ""
-	if strings.HasPrefix(base, "db.") && strings.HasSuffix(base, ".yml") {
-		zone = "." + strings.TrimSuffix(strings.TrimPrefix(base, "db."), ".yml") + "."
-	}
-	g.Zone = zone
-
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to read YAML configuration: %w", err)
-	}
-	if len(data) == 0 {
-		return fmt.Errorf("failed to read YAML configuration: file empty")
-	}
-	if err := yaml.Unmarshal(data, g); err != nil {
-		return fmt.Errorf("failed to parse YAML configuration: %w", err)
-	}
-	return nil
-}
-
 // ReloadConfig updates the GSLB configuration dynamically
-func reloadConfig(g *GSLB, filePath string) error {
+func reloadConfig(g *GSLB, filePath string, zone string) error {
+	log.Infof("Reloading config from %s", filePath)
+
 	// Ensure the Records map is initialized
 	if g.Records == nil {
-		g.Records = make(map[string]*Record)
+		g.Records = make(map[string]map[string]*Record)
 	}
 
 	g.Mutex.Lock()
@@ -315,7 +303,7 @@ func reloadConfig(g *GSLB, filePath string) error {
 
 	// Read YAML configuration
 	newGSLB := &GSLB{}
-	if err := loadConfigFile(newGSLB, filePath); err != nil {
+	if err := loadConfigFile(newGSLB, filePath, zone); err != nil {
 		IncConfigReloads("failure")
 		return err
 	}
@@ -364,4 +352,14 @@ func watchCustomLocationMap(g *GSLB, locationMapPath string) {
 			}
 		}
 	}
+}
+
+// Ajoute une fonction utilitaire pour retrouver la zone à partir du fichier
+func findZoneByFile(g *GSLB, filePath string) string {
+	for zone, file := range g.Zones {
+		if file == filePath {
+			return zone
+		}
+	}
+	return ""
 }
