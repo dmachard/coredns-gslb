@@ -112,8 +112,8 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					backends = append(backends, beMap)
 				}
 				recMap := map[string]interface{}{
-					"zone": zone,
-					"fqdn": rec.Fqdn,
+					"zone":   zone,
+					"record": rec.Fqdn,
 					"status": func() string {
 						if atLeastOneBackendHealthy {
 							return statusHealthy

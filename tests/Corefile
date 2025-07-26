@@ -1,6 +1,6 @@
 . {
     # To log healthcheck results
-    # debug
+    debug
 
     # Expose Prometheus metrics on /metrics (default port 9153)
     prometheus :9153
@@ -13,6 +13,8 @@
         # Zones
         zone app-x.gslb.example.com /coredns/db.app-x.gslb.example.com.yml
         zone app-y.gslb.example.com /coredns/db.app-y.gslb.example.com.yml
+        #zone bench.gslb.example.com /coredns/gslb_bench_5000.yml
+
         # GeoIP MaxMind databases
         geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
         geoip_maxmind city_db /coredns/GeoLite2-City.mmdb

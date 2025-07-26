@@ -96,10 +96,17 @@ var (
 		},
 	)
 
+	zonesTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "gslb_zones_total",
+			Help: "Total number of DNS zones configured.",
+		},
+	)
+
 	recordsTotal = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "gslb_records_total",
-			Help: "Total number of GSLB records (FQDNs) configured.",
+			Help: "Total number of GSLB records configured.",
 		},
 	)
 	recordHealthStatus = prometheus.NewGaugeVec(
@@ -140,6 +147,7 @@ func RegisterMetrics() {
 		prometheus.MustRegister(versionInfo)
 		prometheus.MustRegister(healthchecksTotal)
 		prometheus.MustRegister(backendsTotal)
+		prometheus.MustRegister(zonesTotal)
 		prometheus.MustRegister(recordsTotal)
 		prometheus.MustRegister(recordHealthStatus)
 		prometheus.MustRegister(backendHealthStatus)
@@ -185,6 +193,11 @@ func SetHealthchecksTotal(value float64) {
 func SetBackendsTotal(value float64) {
 	backendsTotal.Set(value)
 }
+
+func SetZonesTotal(value float64) {
+	zonesTotal.Set(value)
+}
+
 func SetRecordsTotal(value float64) {
 	recordsTotal.Set(value)
 }

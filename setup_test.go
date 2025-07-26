@@ -109,7 +109,8 @@ func TestSetupGSLB(t *testing.T) {
 func TestLoadRealConfig(t *testing.T) {
 	// Test loading the appX config file with healthcheck profiles
 	g := &GSLB{}
-	err := loadConfigFile(g, "./tests/db.app-x.gslb.example.com.yml")
+	zone := "app-x.gslb.example.com."
+	err := loadConfigFile(g, "./tests/db.app-x.gslb.example.com.yml", zone)
 	assert.NoError(t, err)
 
 	// Verify healthcheck profiles were loaded
@@ -128,7 +129,7 @@ func TestLoadRealConfig(t *testing.T) {
 		assert.Len(t, recs, 3)
 	}
 
-	zone := "webapp.app-x.gslb.example.com."
+	zone = "webapp.app-x.gslb.example.com."
 	if g.Records[zone] == nil {
 		// fallback: try to find the only zone key
 		for z := range g.Records {
