@@ -163,12 +163,18 @@ jobs:
           sudo docker-compose -f docker-compose.dev.yml logs
           exit 1
 
+      - name: Count number of zones
+        run: |
+          resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'keys | length')
+          echo "Got Nb zones: $resp"
+          [ "$resp" = "2" ] || (echo "Expected 2 zones, got $resp" && exit 1)
+            
       - name: Count number of records
         run: |
-          resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'length')
+          resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'map(length) | add')
           echo "Got Nb records: $resp"
           [ "$resp" = "5" ] || (echo "Expected 5 records, got $resp" && exit 1)
-            
+
       - name: Show docker-compose logs on failure
         if: failure()
         run: sudo docker-compose -f docker-compose.dev.yml logs

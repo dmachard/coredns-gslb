@@ -89,8 +89,27 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 		}
 		g.Mutex.RLock()
 		defer g.Mutex.RUnlock()
-		var resp []map[string]interface{}
-		for zone, recs := range g.Records {
+
+		zone := ""
+		// Support /api/overview/{zone}
+		if r.URL.Path != "/api/overview" {
+			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/overview"), "/")
+			if len(parts) > 1 && parts[1] != "" {
+				zone = parts[1]
+				if !strings.HasSuffix(zone, ".") {
+					zone += "."
+				}
+			}
+		}
+
+		if zone != "" {
+			recs, ok := g.Records[zone]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Zone not found"})
+				return
+			}
+			var records []map[string]interface{}
 			for _, rec := range recs {
 				rec.mutex.RLock()
 				atLeastOneBackendHealthy := false
@@ -112,7 +131,6 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					backends = append(backends, beMap)
 				}
 				recMap := map[string]interface{}{
-					"zone":   zone,
 					"record": rec.Fqdn,
 					"status": func() string {
 						if atLeastOneBackendHealthy {
@@ -122,9 +140,52 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					}(),
 					"backends": backends,
 				}
-				resp = append(resp, recMap)
+				records = append(records, recMap)
 				rec.mutex.RUnlock()
 			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(records)
+			return
+		}
+
+		// Default: return all zones
+		resp := make(map[string][]map[string]interface{})
+		for zone, recs := range g.Records {
+			var records []map[string]interface{}
+			for _, rec := range recs {
+				rec.mutex.RLock()
+				atLeastOneBackendHealthy := false
+				var backends []map[string]interface{}
+				for _, be := range rec.Backends {
+					b := be.(*Backend)
+					b.mutex.RLock()
+					aliveStr := statusUnhealthy
+					if b.Alive && b.Enable {
+						aliveStr = statusHealthy
+						atLeastOneBackendHealthy = true
+					}
+					beMap := map[string]interface{}{
+						"address":          b.Address,
+						"alive":            aliveStr,
+						"last_healthcheck": b.LastHealthcheck.Format(time.RFC3339),
+					}
+					b.mutex.RUnlock()
+					backends = append(backends, beMap)
+				}
+				recMap := map[string]interface{}{
+					"record": rec.Fqdn,
+					"status": func() string {
+						if atLeastOneBackendHealthy {
+							return statusHealthy
+						}
+						return statusUnhealthy
+					}(),
+					"backends": backends,
+				}
+				records = append(records, recMap)
+				rec.mutex.RUnlock()
+			}
+			resp[zone] = records
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -133,8 +194,9 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 
 // RegisterAPIHandlers registers all API endpoints to the provided mux.
 func (g *GSLB) RegisterAPIHandlers(mux *http.ServeMux) {
-	// Handler for /api/overview (GET only, with optional HTTP Basic Auth)
+	// Handler for /api/overview
 	mux.HandleFunc("/api/overview", g.handleOverview())
+	mux.HandleFunc("/api/overview/", g.handleOverview())
 
 	// Handler for bulk disable (POST /api/backends/disable)
 	mux.HandleFunc("/api/backends/disable", g.handleBulkSetBackendEnable(false))

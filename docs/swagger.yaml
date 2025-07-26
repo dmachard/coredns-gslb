@@ -9,10 +9,49 @@ paths:
   /api/overview:
     get:
       summary: Get a simplified overview of all records and their backends
-      description: Returns a list of records with their health status and backends.
+      description: Returns a dictionary of zones, each containing a list of records and their backends.
       responses:
         '200':
-          description: List of records (overview)
+          description: Dictionary of zones with records (overview)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OverviewRecord'
+              examples:
+                overview:
+                  value:
+                    zone1.example.com.:
+                      - record: webapp1.zone1.example.com.
+                        status: healthy
+                        backends:
+                          - address: 172.16.0.10
+                            alive: healthy
+                            last_healthcheck: "2025-07-21T13:03:29Z"
+                    zone2.example.com.:
+                      - record: webapp2.zone2.example.com.
+                        status: unhealthy
+                        backends:
+                          - address: 172.16.0.20
+                            alive: unhealthy
+                            last_healthcheck: "2025-07-21T13:03:29Z"
+  /api/overview/{zone}:
+    get:
+      summary: Get overview for a specific zone
+      description: Returns a list of records and their backends for the given zone.
+      parameters:
+        - in: path
+          name: zone
+          required: true
+          schema:
+            type: string
+          description: Zone name (with or without trailing dot)
+      responses:
+        '200':
+          description: List of records for the zone
           content:
             application/json:
               schema:
@@ -20,14 +59,24 @@ paths:
                 items:
                   $ref: '#/components/schemas/OverviewRecord'
               examples:
-                overview:
+                zoneOverview:
                   value:
-                    - fqdn: webapp-grpc.gslb.example.com.
+                    - record: webapp1.zone1.example.com.
                       status: healthy
                       backends:
-                        - address: 172.16.0.12
+                        - address: 172.16.0.10
                           alive: healthy
                           last_healthcheck: "2025-07-21T13:03:29Z"
+        '404':
+          description: Zone not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Zone not found
   /api/backends/disable:
     post:
       summary: Disable all backends matching a location or IP prefix (persistent)

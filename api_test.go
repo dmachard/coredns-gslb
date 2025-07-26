@@ -38,7 +38,7 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 		LastHealthcheck: time.Date(2025, 7, 21, 13, 3, 29, 0, time.UTC),
 	}
 	rec.Backends = []BackendInterface{backend}
-	g.Records["test"] = map[string]*Record{rec.Fqdn: rec}
+	g.Records["test."] = map[string]*Record{rec.Fqdn: rec}
 
 	mux := http.NewServeMux()
 	g.RegisterAPIHandlers(mux)
@@ -50,11 +50,13 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
 
-	var apiResp []map[string]interface{}
+	var apiResp map[string][]map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&apiResp)
 	assert.NoError(t, err)
-	assert.Len(t, apiResp, 1)
-	recResp := apiResp[0]
+	zoneRecords, ok := apiResp["test."]
+	assert.True(t, ok, "zone 'test.' should be present in response")
+	assert.Len(t, zoneRecords, 1)
+	recResp := zoneRecords[0]
 	assert.Equal(t, "test.example.com.", recResp["record"])
 	assert.Equal(t, "healthy", recResp["status"])
 	backends, ok := recResp["backends"].([]interface{})
@@ -64,6 +66,57 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 	assert.Equal(t, "1.2.3.4", be["address"])
 	assert.Equal(t, "healthy", be["alive"])
 	assert.Equal(t, "2025-07-21T13:03:29Z", be["last_healthcheck"])
+}
+
+func TestAPIOverviewZoneEndpoint(t *testing.T) {
+	g := &GSLB{
+		Records: make(map[string]map[string]*Record),
+	}
+	rec1 := &Record{
+		Fqdn: "webapp1.zone1.example.com.",
+	}
+	rec2 := &Record{
+		Fqdn: "webapp2.zone2.example.com.",
+	}
+	g.Records["zone1.example.com."] = map[string]*Record{rec1.Fqdn: rec1}
+	g.Records["zone2.example.com."] = map[string]*Record{rec2.Fqdn: rec2}
+
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// Test zone1
+	resp, err := http.Get(ts.URL + "/api/overview/zone1.example.com.")
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, 200, resp.StatusCode)
+	var records []map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&records)
+	assert.NoError(t, err)
+	assert.Len(t, records, 1)
+	assert.Equal(t, "webapp1.zone1.example.com.", records[0]["record"])
+
+	// Test zone2
+	resp2, err := http.Get(ts.URL + "/api/overview/zone2.example.com.")
+	assert.NoError(t, err)
+	defer resp2.Body.Close()
+	assert.Equal(t, 200, resp2.StatusCode)
+	var records2 []map[string]interface{}
+	err = json.NewDecoder(resp2.Body).Decode(&records2)
+	assert.NoError(t, err)
+	assert.Len(t, records2, 1)
+	assert.Equal(t, "webapp2.zone2.example.com.", records2[0]["record"])
+
+	// Test zone not found
+	resp3, err := http.Get(ts.URL + "/api/overview/unknownzone.com.")
+	assert.NoError(t, err)
+	defer resp3.Body.Close()
+	assert.Equal(t, 404, resp3.StatusCode)
+	var errResp map[string]interface{}
+	err = json.NewDecoder(resp3.Body).Decode(&errResp)
+	assert.NoError(t, err)
+	assert.Contains(t, errResp["error"], "Zone not found")
 }
 
 func TestAPIDisableBackendsEndpoint(t *testing.T) {

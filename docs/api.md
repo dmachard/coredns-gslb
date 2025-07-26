@@ -36,6 +36,65 @@ For all request/response schemas and detailed documentation, see [swagger.yaml](
 curl -u admin:secret http://localhost:8080/api/overview
 ```
 
+Example response:
+```json
+{
+  "zone1.example.com.": [
+    {
+      "record": "webapp1.zone1.example.com.",
+      "status": "healthy",
+      "backends": [
+        {
+          "address": "172.16.0.10",
+          "alive": "healthy",
+          "last_healthcheck": "2025-07-21T13:03:29Z"
+        }
+      ]
+    }
+  ],
+  "zone2.example.com.": [
+    {
+      "record": "webapp2.zone2.example.com.",
+      "status": "unhealthy",
+      "backends": [
+        {
+          "address": "172.16.0.20",
+          "alive": "unhealthy",
+          "last_healthcheck": "2025-07-21T13:03:29Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Example: GET /api/overview/{zone}
+```bash
+curl -u admin:secret http://localhost:8080/api/overview/zone1.example.com.
+```
+
+Example response:
+```json
+[
+  {
+    "record": "webapp1.zone1.example.com.",
+    "status": "healthy",
+    "backends": [
+      {
+        "address": "172.16.0.10",
+        "alive": "healthy",
+        "last_healthcheck": "2025-07-21T13:03:29Z"
+      }
+    ]
+  }
+]
+```
+
+If the zone does not exist:
+```json
+{"error": "Zone not found"}
+```
+
 ### Example: Bulk disable backends
 ```bash
 curl -u admin:secret -X POST http://localhost:8080/api/backends/disable \
