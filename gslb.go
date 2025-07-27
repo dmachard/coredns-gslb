@@ -670,6 +670,7 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 		return fmt.Errorf("failed to read YAML configuration: file empty")
 	}
 	var raw struct {
+		Defaults            map[string]interface{}  `yaml:"defaults"`
 		Records             map[string]interface{}  `yaml:"records"`
 		HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
 	}
@@ -683,11 +684,36 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 	if gslb.Records[zone] == nil {
 		gslb.Records[zone] = make(map[string]*Record)
 	}
+
 	for fqdn, recordData := range raw.Records {
 		if zone != "" && !strings.HasSuffix(fqdn, zone) {
 			return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
 		}
-		processedRecordData, err := (&GSLB{HealthcheckProfiles: raw.HealthcheckProfiles}).processRecordHealthchecks(recordData)
+		var merged map[string]interface{}
+
+		// handle defaults
+		if raw.Defaults != nil {
+			recordMap, ok := recordData.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("record %s is not a map", fqdn)
+			}
+			merged = make(map[string]interface{})
+			// copy defaults
+			for k, v := range raw.Defaults {
+				merged[k] = v
+			}
+			// copy record data
+			for k, v := range recordMap {
+				merged[k] = v
+			}
+		} else {
+			var ok bool
+			merged, ok = recordData.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("record %s is not a map", fqdn)
+			}
+		}
+		processedRecordData, err := (&GSLB{HealthcheckProfiles: raw.HealthcheckProfiles}).processRecordHealthchecks(merged)
 		if err != nil {
 			return fmt.Errorf("error processing record %s: %w", fqdn, err)
 		}

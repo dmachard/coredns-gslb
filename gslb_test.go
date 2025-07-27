@@ -455,7 +455,7 @@ func TestServeDNS(t *testing.T) {
 	}
 }
 
-// Plugin suivant qui capture l'appel pour les tests ServeDNS
+// Plugin following which captures the call for tests ServeDNS
 type nextPlugin struct{ called bool }
 
 func (n *nextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
@@ -492,7 +492,7 @@ func TestServeDNS_DisableTXT(t *testing.T) {
 	assert.Nil(t, w.msg)
 	assert.True(t, n.called, "Next plugin should be called when DisableTXT is true")
 
-	// Test sans DisableTXT
+	// Test without DisableTXT
 	n.called = false
 	g.DisableTXT = false
 	code, err = g.ServeDNS(ctx, w, msg)
@@ -873,4 +873,58 @@ records:
 			}
 		})
 	}
+}
+
+func TestGSLB_YAMLDefaultsAreApplied(t *testing.T) {
+	yamlData := `
+defaults:
+  owner: admin
+  record_ttl: 30
+  scrape_interval: 10s
+  scrape_retries: 1
+  scrape_timeout: 5s
+records:
+  test1.example.com.:
+    mode: failover
+  test2.example.com.:
+    mode: failover
+    owner: bob  # Should override default
+    record_ttl: 60 # Should override default
+`
+	zone := ".example.com."
+	gslb := &GSLB{}
+	err := loadConfigFile(gslb, writeTempYAML(t, yamlData), zone)
+	assert.NoError(t, err)
+	assert.NotNil(t, gslb.Records[zone]["test1.example.com."])
+	record1 := gslb.Records[zone]["test1.example.com."]
+	assert.Equal(t, "admin", record1.Owner, "test1 should inherit owner=admin from defaults")
+	assert.Equal(t, 30, record1.RecordTTL, "test1 should inherit record_ttl=30 from defaults")
+	assert.Equal(t, "10s", record1.ScrapeInterval, "test1 should inherit scrape_interval=10s from defaults")
+	assert.Equal(t, 1, record1.ScrapeRetries, "test1 should inherit scrape_retries=1 from defaults")
+	assert.Equal(t, "5s", record1.ScrapeTimeout, "test1 should inherit scrape_timeout=5s from defaults")
+	assert.Equal(t, "failover", record1.Mode)
+
+	record2 := gslb.Records[zone]["test2.example.com."]
+	assert.Equal(t, "bob", record2.Owner, "test2 should override owner")
+	assert.Equal(t, 60, record2.RecordTTL, "test2 should override record_ttl")
+	assert.Equal(t, "10s", record2.ScrapeInterval, "test2 should inherit scrape_interval=10s from defaults")
+	assert.Equal(t, 1, record2.ScrapeRetries, "test2 should inherit scrape_retries=1 from defaults")
+	assert.Equal(t, "5s", record2.ScrapeTimeout, "test2 should inherit scrape_timeout=5s from defaults")
+	assert.Equal(t, "failover", record2.Mode)
+}
+
+// Helper to write a temporary YAML file
+func writeTempYAML(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp("", "gslb-defaults-*.yml")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	_, err = f.WriteString(content)
+	if err != nil {
+		f.Close()
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	f.Close()
+	return f.Name()
 }
