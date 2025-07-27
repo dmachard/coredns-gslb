@@ -1,3 +1,9 @@
+defaults:
+  owner: admin
+  record_ttl: 30
+  scrape_interval: 10s
+  scrape_retries: 1
+  scrape_timeout: 5s
 healthcheck_profiles:
   grpc_default:
     params:
@@ -62,11 +68,6 @@ records:
         priority: 1
     description: gRPC health checks for webapp12
     mode: geoip
-    owner: admin
-    record_ttl: 30
-    scrape_interval: 10s
-    scrape_retries: 1
-    scrape_timeout: 5s
   webapp-lua.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.10
@@ -76,11 +77,6 @@ records:
         priority: 1
     description: Backend with Lua healthcheck (JSON via http_get + json_decode)
     mode: failover
-    owner: admin
-    record_ttl: 30
-    scrape_interval: 10s
-    scrape_retries: 1
-    scrape_timeout: 5s
   webapp.app-x.gslb.example.com.:
     backends:
       - address: 172.16.0.10
@@ -100,8 +96,3 @@ records:
         priority: 2
     description: Dynamic DNS responses based on backend status
     mode: failover
-    owner: admin
-    record_ttl: 30
-    scrape_interval: 10s
-    scrape_retries: 1
-    scrape_timeout: 5s
