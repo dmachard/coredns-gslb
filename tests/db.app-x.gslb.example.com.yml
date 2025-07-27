@@ -85,7 +85,7 @@ records:
     backends:
       - address: 172.16.0.10
         description: webapp10
-        enable: false
+        enable: true
         healthchecks:
           - https_default
         location: eu-west-1

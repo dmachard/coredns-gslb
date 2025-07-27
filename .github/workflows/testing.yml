@@ -132,7 +132,7 @@ jobs:
             
       - name: Show docker-compose logs on failure
         if: failure()
-        run: sudo docker-compose -f docker-compose.dev.yml logs
+        run: sudo docker-compose -f docker-compose.dev.yml logs coredns_gslb
 
       - name: Tear down
         if: always()
@@ -177,7 +177,7 @@ jobs:
 
       - name: Show docker-compose logs on failure
         if: failure()
-        run: sudo docker-compose -f docker-compose.dev.yml logs
+        run: sudo docker-compose -f docker-compose.dev.yml logs coredns_gslb
 
       - name: Tear down
         if: always()
