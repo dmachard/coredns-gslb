@@ -127,6 +127,36 @@ records:
           enable_tls: true
 ~~~
 
+### Using the `defaults` block in YAML zone files
+
+You can define a `defaults` block at the top of your zone YAML file to avoid repeating common fields in every record. Any field defined in `defaults` will be automatically applied to all records, unless a record explicitly overrides that field.
+
+**Example:**
+
+~~~yaml
+defaults:
+  owner: admin
+  record_ttl: 30
+  scrape_interval: 10s
+  scrape_retries: 1
+  scrape_timeout: 5s
+
+records:
+  web1.example.org.:
+    mode: failover
+    # Inherits all defaults above
+  web2.example.org.:
+    mode: failover
+    owner: alice  # Overrides the default owner
+    record_ttl: 60  # Overrides the default TTL
+~~~
+
+In this example:
+- `web1.example.org.` will have `owner=admin`, `record_ttl=30`, etc. (from defaults)
+- `web2.example.org.` will have `owner=alice` and `record_ttl=60`, but will inherit the other defaults.
+
+This makes your YAML files much more concise and easier to maintain.
+
 ### GeoIP
 
 #### MaxMind Databases
