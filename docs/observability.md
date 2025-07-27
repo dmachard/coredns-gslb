@@ -23,13 +23,14 @@ Available metrics:
 | `gslb_record_resolution_total`             | `name`, `result`                                   | Total number of GSLB record resolutions.                                                       |
 | `gslb_record_resolution_duration_seconds`  | `name`, `result`                                   | Duration of GSLB record resolution in seconds.                                                 |
 | `gslb_record_health_status`                | `name`, `status`                                 | Health status per record (1 = healthy, 0 = unhealthy).                                         |
-| `gslb_backend_health_status`               | `name`, `address`, `status`                     | Health status per backend (1 = healthy, 0 = unhealthy).                                        |
+| `gslb_backend_health_status`               | `name`, `address`, `status`                     | Health status per backend (1 = healthy, 0 = unhealthy, 1 = disabled, 0 = not disabled).                                        |
 | `gslb_backend_healthcheck_status`          | `name`, `address`, `type`, `status`             | Healthcheck status per backend and type (1 = success, 0 = fail).                               |
 | `gslb_config_reload_total`                 | `result`                                           | Total number of config reloads.                                                                |
 | `gslb_backend_active`                      | `name`                                             | Number of active (healthy) backends per record.                                                |
 | `gslb_backend_selected_total`             | `name`, `address`                                  | Total number of times a backend was selected for a record.                                     |
 | `gslb_healthchecks_total`                  | *(none)*                                         | Number of healthchecks configured (total for all records/backends).                            |
 | `gslb_backends_total`                      | *(none)*                                         | Total number of backends configured (all records).                                             |
+| `gslb_backends_disabled_total`             | *(none)*                                         | Total number of disabled backends across all records.                                          |
 | `gslb_records_total`                       | *(none)*                                         | Total number of GSLB records configured.                                               |
 | `gslb_zones_total`                       | *(none)*                                         | Total number of DNS zones configured.                                               |
 | `gslb_version_info`                        | `version`                                          | GSLB build version info (always set to 1).                                                     |
