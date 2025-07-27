@@ -109,6 +109,14 @@ var (
 			Help: "Total number of GSLB records configured.",
 		},
 	)
+
+	disabledBackends = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "gslb_backends_disabled_total",
+			Help: "Total number of disabled backends across all records.",
+		},
+	)
+
 	recordHealthStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_record_health_status",
@@ -149,6 +157,7 @@ func RegisterMetrics() {
 		prometheus.MustRegister(backendsTotal)
 		prometheus.MustRegister(zonesTotal)
 		prometheus.MustRegister(recordsTotal)
+		prometheus.MustRegister(disabledBackends)
 		prometheus.MustRegister(recordHealthStatus)
 		prometheus.MustRegister(backendHealthStatus)
 		prometheus.MustRegister(backendHealthcheckStatus)
@@ -201,6 +210,15 @@ func SetZonesTotal(value float64) {
 func SetRecordsTotal(value float64) {
 	recordsTotal.Set(value)
 }
+
+func SetDisabledBackends(value float64) {
+	disabledBackends.Set(value)
+}
+
+func IncDisabledBackends() {
+	disabledBackends.Inc()
+}
+
 func SetRecordHealthStatus(name, status string, value float64) {
 	recordHealthStatus.WithLabelValues(name, status).Set(value)
 }

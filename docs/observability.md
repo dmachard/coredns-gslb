@@ -30,6 +30,7 @@ Available metrics:
 | `gslb_backend_selected_total`             | `name`, `address`                                  | Total number of times a backend was selected for a record.                                     |
 | `gslb_healthchecks_total`                  | *(none)*                                         | Number of healthchecks configured (total for all records/backends).                            |
 | `gslb_backends_total`                      | *(none)*                                         | Total number of backends configured (all records).                                             |
+| `gslb_backends_disabled_total`             | *(none)*                                         | Total number of disabled backends across all records.                                          |
 | `gslb_records_total`                       | *(none)*                                         | Total number of GSLB records configured.                                               |
 | `gslb_zones_total`                       | *(none)*                                         | Total number of DNS zones configured.                                               |
 | `gslb_version_info`                        | `version`                                          | GSLB build version info (always set to 1).                                                     |

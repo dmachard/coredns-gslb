@@ -237,3 +237,15 @@ func TestMetrics_VersionInfo(t *testing.T) {
 		t.Errorf("expected 1, got %v", val2)
 	}
 }
+
+func TestMetrics_DisabledBackends(t *testing.T) {
+	RegisterMetrics()
+
+	// Test SetDisabledBackends
+	SetDisabledBackends(2)
+	SetDisabledBackends(5)
+
+	// Test IncDisabledBackends
+	IncDisabledBackends()
+	IncDisabledBackends()
+}
