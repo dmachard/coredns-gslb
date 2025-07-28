@@ -97,9 +97,15 @@ paths:
                 address_prefix:
                   type: string
                   description: IP prefix to match (optional)
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: List of tags to match (optional, OR logic)
               example:
                 location: "eu-west-1"
                 address_prefix: "172.16.0."
+                tags: ["prod", "ssd"]
       responses:
         '200':
           description: Number of backends disabled
@@ -151,9 +157,15 @@ paths:
                 address_prefix:
                   type: string
                   description: IP prefix to match (optional)
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: List of tags to match (optional, OR logic)
               example:
                 location: "eu-west-1"
                 address_prefix: "172.16.0."
+                tags: ["prod", "ssd"]
       responses:
         '200':
           description: Number of backends enabled

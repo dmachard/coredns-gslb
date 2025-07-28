@@ -41,22 +41,23 @@ func (g *GSLB) handleBulkSetBackendEnable(enable bool) http.HandlerFunc {
 			return
 		}
 		var req struct {
-			Location      string `json:"location"`
-			AddressPrefix string `json:"address_prefix"`
+			Location      string   `json:"location"`
+			AddressPrefix string   `json:"address_prefix"`
+			Tags          []string `json:"tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
 			return
 		}
-		if req.Location == "" && req.AddressPrefix == "" {
+		if req.Location == "" && req.AddressPrefix == "" && len(req.Tags) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "location or address_prefix required"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "location, address_prefix, or tags required"})
 			return
 		}
 		var allModified []map[string]string
 		for _, yamlFile := range g.Zones {
-			modified, err := bulkSetBackendEnable(yamlFile, req.Location, req.AddressPrefix, enable)
+			modified, err := bulkSetBackendEnable(yamlFile, req.Location, req.AddressPrefix, req.Tags, enable)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
@@ -206,7 +207,7 @@ func (g *GSLB) RegisterAPIHandlers(mux *http.ServeMux) {
 
 // bulkSetBackendEnable sets enable=true or false for all backends matching location or addressPrefix in the YAML config file.
 // Returns the number of backends modified and any error.
-func bulkSetBackendEnable(yamlFile, location, addressPrefix string, enable bool) ([]map[string]string, error) {
+func bulkSetBackendEnable(yamlFile, location, addressPrefix string, tags []string, enable bool) ([]map[string]string, error) {
 	data, err := os.ReadFile(yamlFile)
 	if err != nil {
 		return nil, err
@@ -236,12 +237,39 @@ func bulkSetBackendEnable(yamlFile, location, addressPrefix string, enable bool)
 			}
 			addr, _ := beMap["address"].(string)
 			loc, _ := beMap["location"].(string)
+			tagsIface := beMap["tags"]
+			var beTags []string
+			if tagsIface != nil {
+				switch v := tagsIface.(type) {
+				case []interface{}:
+					for _, tag := range v {
+						if s, ok := tag.(string); ok {
+							beTags = append(beTags, s)
+						}
+					}
+				case []string:
+					beTags = v
+				}
+			}
 			match := false
 			if location != "" && loc == location {
 				match = true
 			}
 			if addressPrefix != "" && strings.HasPrefix(addr, addressPrefix) {
 				match = true
+			}
+			if len(tags) > 0 && len(beTags) > 0 {
+				for _, t := range tags {
+					for _, btag := range beTags {
+						if t == btag {
+							match = true
+							break
+						}
+					}
+					if match {
+						break
+					}
+				}
 			}
 			if match {
 				beMap["enable"] = enable
