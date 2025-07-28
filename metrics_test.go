@@ -148,18 +148,13 @@ func TestMetrics_BackendHealthStatus(t *testing.T) {
 
 func TestMetrics_BackendHealthcheckStatus(t *testing.T) {
 	RegisterMetrics()
-	SetBackendHealthcheckStatus("test.example.com", "192.168.1.1", "https/443", "success", 1)
-	SetBackendHealthcheckStatus("test.example.com", "192.168.1.1", "https/443", "fail", 0)
+	SetBackendHealthcheckStatus("test.example.com", "192.168.1.1", "https/443", 1) // success
+	SetBackendHealthcheckStatus("test.example.com", "192.168.1.2", "https/443", 2) // disabled
 
-	successVal := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.1", "https/443", "success"))
-	if successVal != 1 {
-		t.Errorf("expected 1, got %v", successVal)
-	}
-
-	failVal := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.1", "https/443", "fail"))
-	if failVal != 0 {
-		t.Errorf("expected 0, got %v", failVal)
-	}
+	val := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.1", "https/443"))
+	assert.Equal(t, float64(1), val)
+	val2 := testutil.ToFloat64(backendHealthcheckStatus.WithLabelValues("test.example.com", "192.168.1.2", "https/443"))
+	assert.Equal(t, float64(2), val2)
 }
 
 func TestMetrics_HealthcheckConfiguredTotal(t *testing.T) {

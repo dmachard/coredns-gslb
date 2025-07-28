@@ -281,19 +281,13 @@ func (r *Record) updateRecordHealthStatus() {
 		// Update healthcheck status for each type
 		for _, healthcheck := range backend.GetHealthChecks() {
 			healthcheckType := healthcheck.GetType()
-			// For now, we'll set based on overall backend health
-			// In a more detailed implementation, you could track individual healthcheck results
 			switch {
 			case !backend.IsEnabled():
-				// Backend is disabled, no healthcheck status
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 0)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 0)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 2)
 			case backend.IsHealthy():
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 1)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 0)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 1)
 			default:
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 0)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 1)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 0)
 			}
 		}
 	}

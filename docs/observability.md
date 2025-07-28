@@ -24,7 +24,7 @@ Available metrics:
 | `gslb_record_resolution_duration_seconds`  | `name`, `result`                                   | Duration of GSLB record resolution in seconds.                                                 |
 | `gslb_record_health_status`                | `name`                                         | Health status per record (1 = healthy, 0 = unhealthy).                                         |
 | `gslb_backend_health_status`               | `name`, `address`                              | Health status per backend (2 = disabled, 1 = healthy, 0 = unhealthy).                          |
-| `gslb_backend_healthcheck_status`          | `name`, `address`, `type`, `status`             | Healthcheck status per backend and type (1 = success, 0 = fail).                               |
+| `gslb_backend_healthcheck_status`          | `name`, `address`, `type`                      | Healthcheck status per backend and type (2 = disabled, 1 = success, 0 = fail).                |
 | `gslb_config_reload_total`                 | `result`                                           | Total number of config reloads.                                                                |
 | `gslb_backend_active`                      | `name`                                             | Number of active (healthy) backends per record.                                                |
 | `gslb_backend_selected_total`             | `name`, `address`                                  | Total number of times a backend was selected for a record.                                     |

@@ -127,9 +127,9 @@ var (
 	backendHealthcheckStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_backend_healthcheck_status",
-			Help: "Healthcheck status per backend and type (1 = success, 0 = fail).",
+			Help: "Healthcheck status per backend and type (2 = disabled, 1 = success, 0 = fail).",
 		},
-		[]string{"name", "address", "type", "status"},
+		[]string{"name", "address", "type"},
 	)
 )
 
@@ -209,8 +209,8 @@ func SetRecordHealthStatus(name string, value float64) {
 func SetBackendHealthStatus(name, address string, value float64) {
 	backendHealthStatus.WithLabelValues(name, address).Set(value)
 }
-func SetBackendHealthcheckStatus(name, address, typeStr, status string, value float64) {
-	backendHealthcheckStatus.WithLabelValues(name, address, typeStr, status).Set(value)
+func SetBackendHealthcheckStatus(name, address, typeStr string, value float64) {
+	backendHealthcheckStatus.WithLabelValues(name, address, typeStr).Set(value)
 }
 
 func ObserveHealthcheck(name, typeStr, address string, start time.Time, result bool) {

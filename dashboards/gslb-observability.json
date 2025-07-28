@@ -225,7 +225,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total Records",
+      "title": "Total DNS Records",
       "type": "stat"
     },
     {
@@ -755,7 +755,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(gslb_backend_healthcheck_status{status=\"success\"})",
+          "expr": "count(gslb_backend_healthcheck_status == 1) or vector(0)",
           "hide": false,
           "instant": false,
           "legendFormat": "Success",
@@ -781,7 +781,11 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "semi-dark-red"
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
@@ -821,7 +825,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(gslb_backend_healthcheck_status{status=\"fail\"})",
+          "expr": "count(gslb_backend_healthcheck_status == 0) or vector(0)",
           "hide": false,
           "instant": false,
           "legendFormat": "Failed",
@@ -830,6 +834,72 @@
         }
       ],
       "title": "Unhealthy",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#868886"
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 13,
+        "y": 12
+      },
+      "id": 52,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "count(gslb_backend_healthcheck_status == 2) or vector(0)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Disabled",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Disabled",
       "type": "stat"
     },
     {
@@ -870,7 +940,7 @@
             "h": 3,
             "w": 4,
             "x": 1,
-            "y": 8
+            "y": 17
           },
           "id": 26,
           "options": {
@@ -930,7 +1000,7 @@
             "h": 3,
             "w": 4,
             "x": 5,
-            "y": 8
+            "y": 17
           },
           "id": 27,
           "options": {
@@ -990,7 +1060,7 @@
             "h": 3,
             "w": 4,
             "x": 9,
-            "y": 8
+            "y": 17
           },
           "id": 28,
           "options": {
@@ -1090,7 +1160,7 @@
             "h": 7,
             "w": 10,
             "x": 1,
-            "y": 179
+            "y": 20
           },
           "id": 20,
           "options": {
@@ -1187,7 +1257,7 @@
             "h": 7,
             "w": 11,
             "x": 11,
-            "y": 179
+            "y": 20
           },
           "id": 21,
           "options": {
@@ -1284,7 +1354,7 @@
             "h": 7,
             "w": 21,
             "x": 1,
-            "y": 186
+            "y": 27
           },
           "id": 22,
           "options": {
@@ -1370,7 +1440,7 @@
             "h": 3,
             "w": 4,
             "x": 1,
-            "y": 10
+            "y": 438
           },
           "id": 14,
           "options": {
@@ -1445,7 +1515,7 @@
             "h": 3,
             "w": 4,
             "x": 5,
-            "y": 10
+            "y": 438
           },
           "id": 15,
           "options": {
@@ -1569,7 +1639,7 @@
             "h": 7,
             "w": 21,
             "x": 1,
-            "y": 72
+            "y": 500
           },
           "id": 10,
           "options": {
@@ -1655,7 +1725,7 @@
             "h": 3,
             "w": 4,
             "x": 1,
-            "y": 11
+            "y": 439
           },
           "id": 16,
           "options": {
@@ -1730,7 +1800,7 @@
             "h": 3,
             "w": 4,
             "x": 5,
-            "y": 11
+            "y": 439
           },
           "id": 17,
           "options": {
@@ -1829,7 +1899,7 @@
             "h": 8,
             "w": 15,
             "x": 1,
-            "y": 54
+            "y": 482
           },
           "id": 18,
           "options": {
@@ -1930,7 +2000,7 @@
             "h": 8,
             "w": 15,
             "x": 1,
-            "y": 62
+            "y": 490
           },
           "id": 40,
           "options": {
@@ -2066,7 +2136,7 @@
           "refId": "A"
         }
       ],
-      "title": "Record Health Status History",
+      "title": "Record Status History",
       "type": "state-timeline"
     },
     {
@@ -2271,15 +2341,15 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue"
-              },
-              {
-                "color": "red",
-                "value": 0
+                "color": "red"
               },
               {
                 "color": "green",
                 "value": 1
+              },
+              {
+                "color": "#828382",
+                "value": 2
               }
             ]
           }
@@ -2298,7 +2368,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "mergeValues": true,
         "perPage": 5,
@@ -2318,7 +2388,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by (name, address, type) (gslb_backend_healthcheck_status{name=~\"$name\", address=~\"$address\", status=\"success\"})",
+          "expr": "sum by (name, address, type) (gslb_backend_healthcheck_status{name=~\"$name\", address=~\"$address\"})",
           "interval": "",
           "legendFormat": "{{name}} - {{address}} - {{type}}",
           "range": true,
