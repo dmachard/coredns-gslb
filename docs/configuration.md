@@ -163,15 +163,10 @@ This makes your YAML files much more concise and easier to maintain.
 
 Download from MaxMind and configure paths:
 ```
-gslb config.yml {
-    # Either single-line or block syntax for geoip_maxmind:
-    geoip_maxmind country /coredns/GeoLite2-Country.mmdb
-    # or
-    geoip_maxmind {
-        country_db /coredns/GeoLite2-Country.mmdb
-    }
-    geoip_city_maxmind_db /coredns/GeoLite2-City.mmdb
-    geoip_asn_maxmind_db /coredns/GeoLite2-ASN.mmdb
+gslb {
+    geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
+    geoip_maxmind city_db /coredns/GeoLite2-City.mmdb
+    geoip_maxmind asn_db /coredns/GeoLite2-ASN.mmdb
 }
 ```
 
@@ -209,7 +204,7 @@ Example backend with all GeoIP location fields
 You can control the HTTP API server with the following options in your Corefile GSLB block:
 
 ```
-gslb gslb_config.yml example.com {
+gslb {
     api_enable true
     api_listen_addr 127.0.0.1
     api_listen_port 9090

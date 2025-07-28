@@ -100,8 +100,6 @@ $ORIGIN gslb.example.com.
 4. **Create coredns/gslb_config.yml:**
 
 ```yaml
-# You can omit healthcheck_profiles here to use only the global ones,
-# or override a profile locally (local takes precedence over global)
 healthcheck_profiles:
   https_default:
     type: http
