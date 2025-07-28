@@ -81,7 +81,7 @@ paths:
     post:
       summary: Disable all backends matching a location or IP prefix (persistent)
       description: >
-        Disables all backends in the YAML config whose `location`, `location_custom`, or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
+        Disables all backends in the YAML config whose `location` or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
       security:
         - basicAuth: []
       requestBody:
@@ -119,7 +119,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        fqdn:
+                        record:
                           type: string
                           description: Fully qualified domain name of the record
                         address:
@@ -135,7 +135,7 @@ paths:
     post:
       summary: Enable all backends matching a location or IP prefix (persistent)
       description: >
-        Enables all backends in the YAML config whose `location`, `location_custom`, or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
+        Enables all backends in the YAML config whose `location` or `address` (prefix) matches the given criteria. The change is persistent and triggers a hot reload. Requires HTTP Basic authentication if configured.
       security:
         - basicAuth: []
       requestBody:
@@ -173,7 +173,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        fqdn:
+                        record:
                           type: string
                           description: Fully qualified domain name of the record
                         address:

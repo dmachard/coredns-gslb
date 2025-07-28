@@ -113,5 +113,24 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   }
   ```
 
+### Weighted
+
+- **Description:** Selects a healthy backend randomly, but proportionally to its `weight` value. A backend with a higher weight will be chosen more often.
+- **Use case:** Distribute requests unevenly across backends, e.g. send 80% of traffic to a main server and 20% to a backup, or balance according to server capacity.
+- **Example:**
+  ```yaml
+  mode: "weighted"
+  backends:
+    - address: "10.0.0.1"
+      weight: 8
+    - address: "10.0.0.2"
+      weight: 2
+  ```
+  In this example, backend 10.0.0.1 will receive ~80% of the queries, and 10.0.0.2 ~20%.
+- **How it works:**
+  - Only healthy and enabled backends are considered.
+  - If a backend has no `weight` or a weight ≤ 0, it is treated as weight 1 by default.
+  - The probability of selection is: `weight / sum(weights of all healthy backends)`.
+
 If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
 

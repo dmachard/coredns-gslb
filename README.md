@@ -23,7 +23,7 @@ What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
 - **Reusable healthcheck profiles**: Define health check templates globally (in the Corefile) or per zone, and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
-- **Load balancing** with failover, round-robin, random, or GeoIP-based selection
+- **Load balancing** with failover, round-robin, random, weighted or GeoIP-based selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
@@ -100,8 +100,6 @@ $ORIGIN gslb.example.com.
 4. **Create coredns/gslb_config.yml:**
 
 ```yaml
-# You can omit healthcheck_profiles here to use only the global ones,
-# or override a profile locally (local takes precedence over global)
 healthcheck_profiles:
   https_default:
     type: http
@@ -138,7 +136,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 
 | Topic | Description |
 |-------|-------------|
-| [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing |
+| [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
 | [Configuration](docs/configuration.md) | Complete parameter reference |

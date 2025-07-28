@@ -114,6 +114,40 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 	return addresses, nil
 }
 
+// pickBackendWithWeighted returns one healthy backend, selected proportionally to its weight.
+func (g *GSLB) pickBackendWithWeighted(record *Record, recordType uint16) ([]string, error) {
+	var weightedBackends []BackendInterface
+	var totalWeight int
+	for _, backend := range record.Backends {
+		if backend.IsHealthy() && backend.IsEnabled() {
+			ip := backend.GetAddress()
+			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
+				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+				w := backend.GetWeight()
+				if w > 0 {
+					weightedBackends = append(weightedBackends, backend)
+					totalWeight += w
+				}
+			}
+		}
+	}
+	if len(weightedBackends) == 0 || totalWeight == 0 {
+		return nil, fmt.Errorf("no healthy backends with weight > 0 for type %d", recordType)
+	}
+	// Roulette wheel selection
+	randVal := rand.Intn(totalWeight)
+	cumulative := 0
+	for _, backend := range weightedBackends {
+		cumulative += backend.GetWeight()
+		if randVal < cumulative {
+			IncBackendSelected(record.Fqdn, backend.GetAddress())
+			return []string{backend.GetAddress()}, nil
+		}
+	}
+	// Should not reach here
+	return nil, fmt.Errorf("weighted selection failed")
+}
+
 // pickBackendWithGeoIP implements advanced GeoIP routing: country, city, ASN, custom location, with fallback to failover.
 func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP net.IP) ([]string, error) {
 	// 1. Country-based routing (highest priority)
