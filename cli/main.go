@@ -177,9 +177,8 @@ func backendsCmd(args []string, api string, cfg Config) {
 	// Try to parse and print as table if possible
 
 	type backendResp struct {
-		Zone   string `json:"zone"`
-		Record string `json:"record"`
-		Addr   string `json:"address"`
+		Address string `json:"address"`
+		Record  string `json:"record"`
 	}
 	type apiResp struct {
 		Success  bool          `json:"success"`
@@ -187,17 +186,23 @@ func backendsCmd(args []string, api string, cfg Config) {
 		Error    string        `json:"error"`
 	}
 	var r apiResp
+	if os.Getenv("GSLBCTL_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "[gslbctl debug] Raw API response: %s\n", string(data))
+	}
 	if err := json.Unmarshal(data, &r); err == nil {
+		if os.Getenv("GSLBCTL_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "[gslbctl debug] Parsed struct: %+v\n", r)
+		}
 		if r.Success {
 			if len(r.Backends) > 0 {
 				w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-				fmt.Fprintln(w, "ZONE\tRECORD\tBACKEND")
+				fmt.Fprintln(w, "RECORD\tBACKEND")
 				for _, be := range r.Backends {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", be.Zone, be.Record, be.Addr)
+					fmt.Fprintf(w, "%s\t%s\n", be.Record, be.Address)
 				}
 				w.Flush()
 			} else {
-				fmt.Println("Backends updated successfully.")
+				fmt.Println("No backends matched your criteria.")
 			}
 		} else {
 			if r.Error != "" {
