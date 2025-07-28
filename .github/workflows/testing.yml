@@ -70,7 +70,6 @@ jobs:
             sleep 2
           done
           echo "coredns_gslb did not become ready in time" >&2
-          sudo docker-compose -f docker-compose.dev.yml logs
           exit 1
 
       - name: Wait for healthcheck to be ready (15s)
@@ -160,7 +159,6 @@ jobs:
             sleep 2
           done
           echo "coredns_gslb did not become ready in time" >&2
-          sudo docker-compose -f docker-compose.dev.yml logs
           exit 1
 
       - name: Count number of zones
