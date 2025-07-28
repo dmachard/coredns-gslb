@@ -110,33 +110,26 @@ var (
 		},
 	)
 
-	disabledBackends = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "gslb_backends_disabled_total",
-			Help: "Total number of disabled backends across all records.",
-		},
-	)
-
 	recordHealthStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_record_health_status",
 			Help: "Health status per record (1 = healthy, 0 = unhealthy).",
 		},
-		[]string{"name", "status"},
+		[]string{"name"},
 	)
 	backendHealthStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_backend_health_status",
-			Help: "Health status per backend (1 = healthy, 0 = unhealthy).",
+			Help: "Health status per backend (2 = disabled, 1 = healthy, 0 = unhealthy).",
 		},
-		[]string{"name", "address", "status"},
+		[]string{"name", "address"},
 	)
 	backendHealthcheckStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "gslb_backend_healthcheck_status",
-			Help: "Healthcheck status per backend and type (1 = success, 0 = fail).",
+			Help: "Healthcheck status per backend and type (2 = disabled, 1 = success, 0 = fail).",
 		},
-		[]string{"name", "address", "type", "status"},
+		[]string{"name", "address", "type"},
 	)
 )
 
@@ -157,7 +150,6 @@ func RegisterMetrics() {
 		prometheus.MustRegister(backendsTotal)
 		prometheus.MustRegister(zonesTotal)
 		prometheus.MustRegister(recordsTotal)
-		prometheus.MustRegister(disabledBackends)
 		prometheus.MustRegister(recordHealthStatus)
 		prometheus.MustRegister(backendHealthStatus)
 		prometheus.MustRegister(backendHealthcheckStatus)
@@ -211,22 +203,14 @@ func SetRecordsTotal(value float64) {
 	recordsTotal.Set(value)
 }
 
-func SetDisabledBackends(value float64) {
-	disabledBackends.Set(value)
+func SetRecordHealthStatus(name string, value float64) {
+	recordHealthStatus.WithLabelValues(name).Set(value)
 }
-
-func IncDisabledBackends() {
-	disabledBackends.Inc()
+func SetBackendHealthStatus(name, address string, value float64) {
+	backendHealthStatus.WithLabelValues(name, address).Set(value)
 }
-
-func SetRecordHealthStatus(name, status string, value float64) {
-	recordHealthStatus.WithLabelValues(name, status).Set(value)
-}
-func SetBackendHealthStatus(name, address, status string, value float64) {
-	backendHealthStatus.WithLabelValues(name, address, status).Set(value)
-}
-func SetBackendHealthcheckStatus(name, address, typeStr, status string, value float64) {
-	backendHealthcheckStatus.WithLabelValues(name, address, typeStr, status).Set(value)
+func SetBackendHealthcheckStatus(name, address, typeStr string, value float64) {
+	backendHealthcheckStatus.WithLabelValues(name, address, typeStr).Set(value)
 }
 
 func ObserveHealthcheck(name, typeStr, address string, start time.Time, result bool) {

@@ -262,49 +262,32 @@ func (r *Record) updateRecordHealthStatus() {
 
 	// Set health status: 1 if any backend is healthy, 0 otherwise
 	if hasHealthyBackend {
-		SetRecordHealthStatus(r.Fqdn, "healthy", 1)
-		SetRecordHealthStatus(r.Fqdn, "unhealthy", 0)
+		SetRecordHealthStatus(r.Fqdn, 1)
 	} else {
-		SetRecordHealthStatus(r.Fqdn, "healthy", 0)
-		SetRecordHealthStatus(r.Fqdn, "unhealthy", 1)
+		SetRecordHealthStatus(r.Fqdn, 0)
 	}
 
 	// Update individual backend health status
 	for _, backend := range r.Backends {
 		switch {
 		case !backend.IsEnabled():
-			// Backend is disabled
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "healthy", 0)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "unhealthy", 0)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "disabled", 1)
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), 2)
 		case backend.IsHealthy():
-			// Backend is enabled and healthy
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "healthy", 1)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "unhealthy", 0)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "disabled", 0)
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), 1)
 		default:
-			// Backend is enabled but unhealthy
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "healthy", 0)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "unhealthy", 1)
-			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), "disabled", 0)
+			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), 0)
 		}
 
 		// Update healthcheck status for each type
 		for _, healthcheck := range backend.GetHealthChecks() {
 			healthcheckType := healthcheck.GetType()
-			// For now, we'll set based on overall backend health
-			// In a more detailed implementation, you could track individual healthcheck results
 			switch {
 			case !backend.IsEnabled():
-				// Backend is disabled, no healthcheck status
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 0)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 0)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 2)
 			case backend.IsHealthy():
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 1)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 0)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 1)
 			default:
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "success", 0)
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, "fail", 1)
+				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 0)
 			}
 		}
 	}
