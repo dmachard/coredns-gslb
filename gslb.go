@@ -547,19 +547,6 @@ func (g *GSLB) updateMetrics() {
 	}
 	SetBackendsTotal(float64(totalBackends))
 
-	// Set total disabled backends
-	disabledBackends := 0
-	for _, records := range g.Records {
-		for _, record := range records {
-			for _, backend := range record.Backends {
-				if !backend.IsEnabled() {
-					disabledBackends++
-				}
-			}
-		}
-	}
-	SetDisabledBackends(float64(disabledBackends))
-
 	// Set total healthchecks configured
 	totalHealthchecks := 0
 	for _, records := range g.Records {

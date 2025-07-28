@@ -42,21 +42,21 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 
 ### GeoIP
 
-- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping), by country, city, or ASN using MaxMind databases. Requires the `geoip_custom_db`, `geoip_country_maxmind_db`, `geoip_city_maxmind_db`, and/or `geoip_asn_maxmind_db` options.
+- **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping), by country, city, or ASN using MaxMind databases. Requires the `geoip_maxmind` or `geoip_custom` options.
 - **Use case:** Directs users to the nearest datacenter, region, or country for lower latency.
 - **Example (custom-location-based):**
   ```yaml
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      location_custom: [ "eu-west-1" ]
+      location: [ "eu-west-1" ]
     - address: "192.168.1.1"
-      location_custom: [ "eu-west-2" ]
+      location: [ "eu-west-2" ]
   ```
   And in your Corefile:
   ```
-  gslb gslb_config.example.com.yml gslb.example.com {
-      geoip_custom_db location_map.yml
+  gslb {
+      geoip_custom location_map.yml
   }
   ```
   And in `location_map.yml`:
@@ -72,14 +72,14 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      location_country: [ "FR" ]
+      country: [ "FR" ]
     - address: "20.0.0.1"
-      location_country: [ "US" ]
+      country: [ "US" ]
   ```
   And in your Corefile:
   ```
-  gslb gslb_config.example.com.yml gslb.example.com {
-      geoip_maxmind_db coredns/GeoLite2-Country.mmdb
+  gslb {
+    geoip_maxmind country_db coredns/GeoLite2-Country.mmdb
   }
   ```
 - **Example (city-based):**
@@ -87,14 +87,14 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      location_city: [ "Paris" ]
+      city: [ "Paris" ]
     - address: "20.0.0.1"
-      location_city: [ "New York" ]
+      city: [ "New York" ]
   ```
   And in your Corefile:
   ```
-  gslb gslb_config.example.com.yml gslb.example.com {
-      geoip_maxmind_db coredns/GeoLite2-City.mmdb
+  gslb {
+    geoip_maxmind city_db coredns/GeoLite2-City.mmdb
   }
   ```
 - **Example (ASN-based):**
@@ -102,14 +102,14 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      location_asn: [ "AS12345" ]
+      asn: [ "AS12345" ]
     - address: "20.0.0.1"
-      location_asn: [ "AS67890" ]
+      asn: [ "AS67890" ]
   ```
   And in your Corefile:
   ```
-  gslb gslb_config.example.com.yml gslb.example.com {
-      geoip_maxmind_db coredns/GeoLite2-ASN.mmdb
+  gslb {
+    geoip_maxmind asn_db coredns/GeoLite2-ASN.mmdb
   }
   ```
 

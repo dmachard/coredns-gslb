@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMetrics_IncAndObserve(t *testing.T) {
@@ -131,28 +132,18 @@ func TestMetrics_RecordsConfiguredTotal(t *testing.T) {
 
 func TestMetrics_RecordHealthStatus(t *testing.T) {
 	RegisterMetrics()
-	SetRecordHealthStatus("test.example.com", "healthy", 1)
-	SetRecordHealthStatus("test.example.com", "unhealthy", 0)
+	SetRecordHealthStatus("test.example.com", 1) // healthy
+	SetRecordHealthStatus("test.example.com", 0) // unhealthy
 
-	healthyVal := testutil.ToFloat64(recordHealthStatus.WithLabelValues("test.example.com", "healthy"))
-	if healthyVal != 1 {
-		t.Errorf("expected 1, got %v", healthyVal)
-	}
-
-	unhealthyVal := testutil.ToFloat64(recordHealthStatus.WithLabelValues("test.example.com", "unhealthy"))
-	if unhealthyVal != 0 {
-		t.Errorf("expected 0, got %v", unhealthyVal)
-	}
+	val := testutil.ToFloat64(recordHealthStatus.WithLabelValues("test.example.com"))
+	assert.Equal(t, float64(0), val)
 }
 
 func TestMetrics_BackendHealthStatus(t *testing.T) {
 	RegisterMetrics()
-	SetBackendHealthStatus("test.example.com", "192.168.1.1", "healthy", 1)
-	SetBackendHealthStatus("test.example.com", "192.168.1.1", "unhealthy", 0)
-	SetBackendHealthStatus("test.example.com", "192.168.1.2", "disabled", 1)
-	SetBackendHealthStatus("test.example.com", "192.168.1.2", "disabled", 0)
-	// Note: We can't easily test the actual value without exposing internal state
-	// This test ensures the function doesn't panic
+	SetBackendHealthStatus("test.example.com", "192.168.1.1", 0) // unhealthy
+	SetBackendHealthStatus("test.example.com", "192.168.1.1", 1) // healthy
+	SetBackendHealthStatus("test.example.com", "192.168.1.2", 2) // disabled
 }
 
 func TestMetrics_BackendHealthcheckStatus(t *testing.T) {
@@ -230,16 +221,4 @@ func TestMetrics_VersionInfo(t *testing.T) {
 	if val2 != 1 {
 		t.Errorf("expected 1, got %v", val2)
 	}
-}
-
-func TestMetrics_DisabledBackends(t *testing.T) {
-	RegisterMetrics()
-
-	// Test SetDisabledBackends
-	SetDisabledBackends(2)
-	SetDisabledBackends(5)
-
-	// Test IncDisabledBackends
-	IncDisabledBackends()
-	IncDisabledBackends()
 }
