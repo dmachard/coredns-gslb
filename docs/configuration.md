@@ -157,6 +157,26 @@ In this example:
 
 This makes your YAML files much more concise and easier to maintain.
 
+### Backend tags
+
+You can add a `tags` field to any backend in your YAML configuration. This field is a list of keywords (strings) that you can use to group, filter, or target backends for API operations (such as enable/disable by tag).
+
+**Example:**
+
+~~~yaml
+records:
+  webapp.example.org.:
+    backends:
+      - address: "172.16.0.10"
+        tags: ["prod", "ssd", "eu"]
+      - address: "172.16.0.11"
+        tags: ["test", "hdd", "us"]
+~~~
+
+- You can assign any number of tags to a backend.
+- Tags are used by the API to enable/disable backends in bulk (see API documentation).
+- Tags can be used for your own grouping or inventory purposes as well.
+
 ### GeoIP
 
 #### MaxMind Databases
