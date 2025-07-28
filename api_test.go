@@ -402,6 +402,69 @@ func TestAPIBackendsAuthRequired(t *testing.T) {
 	assert.Equal(t, 200, resp6.StatusCode)
 }
 
+func TestAPIDisableBackendsByTags(t *testing.T) {
+	tempYaml := `records:
+  test.example.com.:
+    backends:
+      - address: "1.2.3.4"
+        enable: true
+        tags: ["prod", "ssd"]
+      - address: "1.2.3.5"
+        enable: true
+        tags: ["test", "hdd"]
+      - address: "10.0.0.1"
+        enable: true
+        tags: ["prod", "hdd"]
+      - address: "172.16.0.99"
+        enable: true
+        tags: ["dev"]
+`
+	f, err := os.CreateTemp("", "gslb_test_tags_*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(f.Name())
+	_, err = f.Write([]byte(tempYaml))
+	assert.NoError(t, err)
+	f.Close()
+
+	g := &GSLB{
+		Zones: map[string]string{"test": f.Name()},
+	}
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// Désactivation par tags
+	resp, err := http.Post(ts.URL+"/api/backends/disable", "application/json", strings.NewReader(`{"tags":["prod","ssd"]}`))
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, 200, resp.StatusCode)
+	var body map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	assert.NoError(t, err)
+	assert.True(t, body["success"].(bool))
+	backends, ok := body["backends"]
+	assert.True(t, ok, "backends field should be present")
+	beList, isList := backends.([]interface{})
+	assert.True(t, isList, "backends should be a list (even if empty)")
+	assert.Len(t, beList, 2)
+	expectedBackends := []map[string]string{
+		{"record": "test.example.com.", "address": "1.2.3.4"},
+		{"record": "test.example.com.", "address": "10.0.0.1"},
+	}
+	for _, expected := range expectedBackends {
+		found := false
+		for _, actual := range beList {
+			be := actual.(map[string]interface{})
+			if be["record"] == expected["record"] && be["address"] == expected["address"] {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Expected backend %+v not found in response", expected)
+	}
+}
+
 // MockHealthCheckAPI always returns true and type "mock"
 type MockHealthCheckAPI struct{}
 

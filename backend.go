@@ -17,6 +17,7 @@ type Backend struct {
 	Priority        int                  // Priority for load balancing
 	Weight          int                  // Weight for weighted load balancing
 	Enable          bool                 // Enable or disable the backend
+	Tags            []string             // List of tags for filtering or grouping
 	HealthChecks    []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
 	Timeout         string               // Timeout for requests
 	Alive           bool                 // Indicates if the backend is alive
@@ -67,6 +68,10 @@ func (b *Backend) IsEnabled() bool {
 	return b.Enable
 }
 
+func (b *Backend) GetTags() []string {
+	return b.Tags
+}
+
 func (b *Backend) GetHealthChecks() []GenericHealthCheck {
 	return b.HealthChecks
 }
@@ -98,6 +103,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Priority     int           `yaml:"priority" default:"0"`
 		Weight       int           `yaml:"weight" default:"1"`
 		Enable       bool          `yaml:"enable" default:"true"`
+		Tags         []string      `yaml:"tags"`
 		Timeout      string        `yaml:"timeout" default:"5s"`
 		HealthChecks []HealthCheck `yaml:"healthchecks"`
 		Country      string        `yaml:"country"`
@@ -114,6 +120,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.Priority = raw.Priority
 	b.Weight = raw.Weight
 	b.Enable = raw.Enable
+	b.Tags = raw.Tags
 	b.Timeout = raw.Timeout
 	b.Country = raw.Country
 	b.City = raw.City
@@ -233,6 +240,7 @@ type BackendInterface interface {
 	GetPriority() int
 	GetWeight() int
 	IsEnabled() bool
+	GetTags() []string
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
 	GetCountry() string

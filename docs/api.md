@@ -102,9 +102,25 @@ curl -X POST http://localhost:8080/api/backends/disable \
   -d '{"location":"eu-west-1"}'
 ```
 
+#### Disable by tags
+```bash
+curl -X POST http://localhost:8080/api/backends/disable \
+  -H "Content-Type: application/json" \
+  -d '{"tags":["prod","ssd"]}'
+```
+This will disable all backends that have at least one of the specified tags.
+
 ### Example: Bulk to enable all backends
 ```bash
 curl -X POST http://localhost:8080/api/backends/enable \
   -H "Content-Type: application/json" \
   -d '{"location":"eu-west-1"}'
 ```
+
+#### Enable by tags
+```bash
+curl -X POST http://localhost:8080/api/backends/enable \
+  -H "Content-Type: application/json" \
+  -d '{"tags":["prod","ssd"]}'
+```
+This will enable all backends that have at least one of the specified tags.
