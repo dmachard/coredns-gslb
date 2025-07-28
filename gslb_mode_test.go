@@ -392,6 +392,44 @@ func TestGSLB_PickBackendWithGeoIP_ASN_MaxMind(t *testing.T) {
 	}
 }
 
+func TestGSLB_PickBackendWithWeighted(t *testing.T) {
+	backend1 := &MockBackend{Backend: &Backend{Address: "10.0.0.1", Enable: true, Weight: 5}}
+	backend2 := &MockBackend{Backend: &Backend{Address: "10.0.0.2", Enable: true, Weight: 1}}
+	backend3 := &MockBackend{Backend: &Backend{Address: "10.0.0.3", Enable: true, Weight: 4}}
+
+	backend1.On("IsHealthy").Return(true)
+	backend2.On("IsHealthy").Return(true)
+	backend3.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "weighted.example.com.",
+		Mode:     "weighted",
+		Backends: []BackendInterface{backend1, backend2, backend3},
+	}
+	g := &GSLB{}
+
+	// Simuler 10 000 sélections pour vérifier la répartition
+	selections := map[string]int{}
+	n := 10000
+	for i := 0; i < n; i++ {
+		ips, err := g.pickBackendWithWeighted(record, dns.TypeA)
+		assert.NoError(t, err)
+		assert.Len(t, ips, 1)
+		selections[ips[0]]++
+	}
+	// Les proportions attendues sont 5:1:4
+	// On tolère une marge de +/-10%
+	expected := map[string]float64{
+		"10.0.0.1": 0.5,
+		"10.0.0.2": 0.1,
+		"10.0.0.3": 0.4,
+	}
+	for addr, exp := range expected {
+		frac := float64(selections[addr]) / float64(n)
+		assert.InDelta(t, exp, frac, 0.05, "Backend %s: got %.2f, expected %.2f", addr, frac, exp)
+	}
+}
+
 // TestResponseWriter is a mock dns.ResponseWriter for testing
 // It captures the DNS message sent by WriteMsg
 type TestResponseWriter struct {

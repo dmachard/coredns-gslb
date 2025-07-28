@@ -29,11 +29,11 @@ curl -k https://localhost:8080/api/overview
 
 ## Endpoints
 
-For all request/response schemas and detailed documentation, see [swagger.yaml](https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
+For all request/response schemas and detailed documentation, see [swagger.yaml](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
 
 ### Example: GET /api/overview
 ```bash
-curl -u admin:secret http://localhost:8080/api/overview
+curl http://localhost:8080/api/overview
 ```
 
 Example response:
@@ -70,7 +70,7 @@ Example response:
 
 ### Example: GET /api/overview/{zone}
 ```bash
-curl -u admin:secret http://localhost:8080/api/overview/zone1.example.com.
+curl http://localhost:8080/api/overview/zone1.example.com.
 ```
 
 Example response:
@@ -97,7 +97,14 @@ If the zone does not exist:
 
 ### Example: Bulk disable backends
 ```bash
-curl -u admin:secret -X POST http://localhost:8080/api/backends/disable \
+curl -X POST http://localhost:8080/api/backends/disable \
+  -H "Content-Type: application/json" \
+  -d '{"location":"eu-west-1"}'
+```
+
+### Example: Bulk to enable all backends
+```bash
+curl -X POST http://localhost:8080/api/backends/enable \
   -H "Content-Type: application/json" \
   -d '{"location":"eu-west-1"}'
 ```

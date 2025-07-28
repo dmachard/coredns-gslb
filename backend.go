@@ -15,6 +15,7 @@ type Backend struct {
 	Description     string               // Description of the backend
 	Address         string               // IP address or hostname
 	Priority        int                  // Priority for load balancing
+	Weight          int                  // Weight for weighted load balancing
 	Enable          bool                 // Enable or disable the backend
 	HealthChecks    []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
 	Timeout         string               // Timeout for requests
@@ -55,6 +56,13 @@ func (b *Backend) GetPriority() int {
 	return b.Priority
 }
 
+func (b *Backend) GetWeight() int {
+	if b.Weight <= 0 {
+		return 1
+	}
+	return b.Weight
+}
+
 func (b *Backend) IsEnabled() bool {
 	return b.Enable
 }
@@ -88,6 +96,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Description  string        `yaml:"description" default:""`
 		Address      string        `yaml:"address" default:"127.0.0.1"`
 		Priority     int           `yaml:"priority" default:"0"`
+		Weight       int           `yaml:"weight" default:"1"`
 		Enable       bool          `yaml:"enable" default:"true"`
 		Timeout      string        `yaml:"timeout" default:"5s"`
 		HealthChecks []HealthCheck `yaml:"healthchecks"`
@@ -100,17 +109,16 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&raw); err != nil {
 		return err
 	}
-
+	b.Description = raw.Description
 	b.Address = raw.Address
 	b.Priority = raw.Priority
+	b.Weight = raw.Weight
 	b.Enable = raw.Enable
 	b.Timeout = raw.Timeout
-	b.Description = raw.Description
 	b.Country = raw.Country
 	b.City = raw.City
 	b.ASN = raw.ASN
 	b.Location = raw.Location
-
 	for _, hc := range raw.HealthChecks {
 		specificHC, err := hc.ToSpecificHealthCheck()
 		if err != nil {
@@ -118,7 +126,6 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		b.HealthChecks = append(b.HealthChecks, specificHC)
 	}
-
 	return nil
 }
 
@@ -224,6 +231,7 @@ type BackendInterface interface {
 	GetDescription() string
 	GetAddress() string
 	GetPriority() int
+	GetWeight() int
 	IsEnabled() bool
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
