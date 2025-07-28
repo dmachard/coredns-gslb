@@ -18,6 +18,9 @@ RUN git clone https://github.com/coredns/coredns.git /coredns && \
     go generate && \
     CGO_ENABLED=0 go build -ldflags "-X github.com/dmachard/coredns-gslb.Version=$GSLB_VERSION" -o /coredns/coredns .
 
+# Build the CLI gslbctl
+RUN cd /go/src/gslb && go build -o /gslbctl ./cli
+
 # Create the final image with CoreDNS binary and necessary files
 FROM debian:bookworm
 
@@ -25,5 +28,7 @@ COPY --from=builder /coredns/coredns /usr/bin/coredns
 
 RUN apt-get update && apt-get upgrade -y
 WORKDIR /
+
+COPY --from=builder /gslbctl /usr/local/bin/gslbctl
 
 ENTRYPOINT ["/usr/bin/coredns"]
