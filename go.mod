@@ -14,7 +14,7 @@ require (
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/prometheus-community/pro-bing v0.7.0
 	github.com/prometheus/client_golang v1.23.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/yuin/gopher-lua v1.1.1
 	golang.org/x/crypto v0.42.0
 	google.golang.org/grpc v1.75.1
@@ -47,7 +47,6 @@ require (
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
