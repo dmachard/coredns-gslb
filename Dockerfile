@@ -7,7 +7,7 @@ WORKDIR /go/src
 COPY . /go/src/gslb/
 
 # Build CoreDNS with the GSLB plugin
-ARG COREDNS_VERSION=v1.14.1
+ARG COREDNS_VERSION=v1.14.2
 ARG GSLB_VERSION=dev
 RUN git clone https://github.com/coredns/coredns.git /coredns && \
     cd /coredns && \
