@@ -13,7 +13,7 @@ require (
 	github.com/prometheus-community/pro-bing v0.7.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	github.com/yuin/gopher-lua v1.1.1
+	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/crypto v0.48.0
 	google.golang.org/grpc v1.79.1
 	gopkg.in/fsnotify.v1 v1.4.7
