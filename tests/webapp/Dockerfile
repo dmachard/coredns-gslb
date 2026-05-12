@@ -1,6 +1,6 @@
 FROM python:3.13-slim
 
-RUN mkdir -p /app
+RUN mkdir /app
 
 COPY ./server.py /app/
 COPY ./init.sh /app/

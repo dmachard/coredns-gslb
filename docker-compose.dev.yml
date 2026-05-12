@@ -6,11 +6,22 @@ networks:
         - subnet: 172.16.0.0/24
 
 services:
+  # generate rootca, server and client certificates
+  gen_certs:
+    build:
+      context: ./tests/gen_certs
+    container_name: gen_certs
+    volumes:
+      - devcerts:/app/certs/
   # create coredns with GSLB plugin
   coredns_gslb:
     build:
       context: .
       dockerfile: ./Dockerfile
+    depends_on:
+      - webapp10
+      - webapp11
+      - webapp12
     container_name: coredns
     ports:
       - "8053:53/udp"
@@ -18,6 +29,7 @@ services:
       - "9153:9153/tcp"
       - "8080:8080/tcp"
     volumes:
+      - devcerts:/certs/:ro
       - ./tests/Corefile:/Corefile
       - ./tests/:/coredns/
     command: -conf /Corefile
@@ -31,8 +43,17 @@ services:
   webapp10:
     build:
       context: ./tests/webapp
+      extra_hosts:
+        - "webapplication10=172.16.0.10"
+        - "cdns-gslb-server=172.16.0.10"
+        - "localhost=172.16.0.10"
+    depends_on:
+      - gen_certs
+    container_name: webapp10
     ports:
       - "10443:443"
+    volumes:
+      - devcerts:/app/certs/:ro
     environment:
       - APP_NAME=WebApplication10
     networks:
@@ -43,8 +64,17 @@ services:
   webapp11:
     build:
       context: ./tests/webapp
+      extra_hosts:
+        - "webapplication11=172.16.0.11"
+        - "cdns-gslb-server=172.16.0.11"
+        - "localhost=172.16.0.11"
+    depends_on:
+      - gen_certs
+    container_name: webapp11
     ports:
       - "11443:443"
+    volumes:
+      - devcerts:/app/certs/:ro
     environment:
       - APP_NAME=WebApplication11
     networks:
@@ -55,8 +85,17 @@ services:
   webapp12:
     build:
       context: ./tests/webapp
+      extra_hosts:
+        - "webapplication12=172.16.0.12"
+        - "cdns-gslb-server=172.16.0.12"
+        - "localhost=172.16.0.12"
+    depends_on:
+      - gen_certs
+    container_name: webapp12
     ports:
       - "12990:9090"  # Expose gRPC port
+    volumes:
+      - devcerts:/app/certs/:ro
     environment:
       - APP_NAME=WebApplication12
       - ENABLE_GRPC_HEALTH=1  # Custom env to enable gRPC health endpoint in the app (implement in webapp if needed)
@@ -101,3 +140,4 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  devcerts:

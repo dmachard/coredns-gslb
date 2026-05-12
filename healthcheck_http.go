@@ -19,6 +19,9 @@ import (
 type HTTPHealthCheck struct {
 	Port          int               `yaml:"port" default:"443"`
 	EnableTLS     bool              `yaml:"enable_tls" default:"true"`
+	Cert          string            `yaml:"cert_path" default:""`
+	Key           string            `yaml:"key_path" default:""`
+	CA            string            `yaml:"ca_path" default:""`
 	URI           string            `yaml:"uri" default:"/"`
 	Method        string            `yaml:"method" default:"GET"`
 	Host          string            `yaml:"host" default:"localhost"`
@@ -41,7 +44,8 @@ func (h *HTTPHealthCheck) GetType() string {
 }
 
 // createHTTPClient returns an http client with appropriate transport settings, including timeout and TLS configuration.
-func createHTTPClient(enableTLS bool, skipTLSVerify bool, timeout time.Duration) *http.Client {
+func createHTTPClient(enableTLS, skipTLSVerify bool, timeout time.Duration, srvname, cert, key, cacert string) *http.Client {
+	var err error
 	// Configure net.Dialer with sensible defaults
 	dialer := &net.Dialer{
 		Timeout:   timeout,
@@ -51,9 +55,13 @@ func createHTTPClient(enableTLS bool, skipTLSVerify bool, timeout time.Duration)
 	// Configure TLS settings if needed
 	var tlsConfig *tls.Config
 	if enableTLS {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: skipTLSVerify,
+		tlsConfig, err = NewTLSClientConfig(cert, key, cacert)
+		if err != nil {
+			tlsConfig = &tls.Config{}
 		}
+		// must add the servername for SNI support
+		tlsConfig.ServerName = srvname
+		tlsConfig.InsecureSkipVerify = skipTLSVerify
 	}
 
 	// Construct custom transport with the dialer and TLS config
@@ -69,10 +77,6 @@ func createHTTPClient(enableTLS bool, skipTLSVerify bool, timeout time.Duration)
 	return &http.Client{
 		Transport: transport,
 		Timeout:   timeout,
-		// do not follow redirects
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
 	}
 }
 
@@ -159,7 +163,7 @@ func (h *HTTPHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		return false
 	}
 
-	client := createHTTPClient(h.EnableTLS, h.SkipTLSVerify, t)
+	client := createHTTPClient(h.EnableTLS, h.SkipTLSVerify, t, h.Host, h.Cert, h.Key, h.CA)
 
 	// Create HTTP request
 	ctx, cancel := context.WithTimeout(context.Background(), t)
@@ -201,6 +205,9 @@ func (h *HTTPHealthCheck) Equals(other GenericHealthCheck) bool {
 	// Compare all fields
 	if h.Port != otherHTTP.Port ||
 		h.EnableTLS != otherHTTP.EnableTLS ||
+		h.Cert != otherHTTP.Cert ||
+		h.Key != otherHTTP.Key ||
+		h.CA != otherHTTP.CA ||
 		h.URI != otherHTTP.URI ||
 		h.Method != otherHTTP.Method ||
 		h.Host != otherHTTP.Host ||

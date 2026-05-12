@@ -7,14 +7,15 @@ defaults:
 healthcheck_profiles:
   https_default:
     params:
+      ca_path: /certs/ca/cert.pem
       enable_tls: true
       expected_body: ""
       expected_code: 200
       headers: null
-      host: localhost
+      host: cdns-gslb-server
       method: GET
       port: 443
-      skip_tls_verify: true
+      skip_tls_verify: false
       timeout: 5s
       uri: /
     type: http
@@ -34,7 +35,7 @@ records:
         enable: true
         healthchecks:
           - https_default
-        priority: 2
+        priority: 1
     description: GeoIP-based routing by country (using MaxMind GeoLite2-Country.mmdb)
     mode: geoip
   webapp-geoip-loc.app-y.gslb.example.com.:
@@ -52,7 +53,7 @@ records:
         healthchecks:
           - https_default
         location: eu-west-2
-        priority: 2
+        priority: 1
     description: GeoIP-based routing between Paris and London backends
     mode: geoip
 

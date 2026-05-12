@@ -13,6 +13,7 @@ healthcheck_profiles:
     type: grpc
   https_default:
     params:
+      ca_path: /certs/ca/cert.pem
       enable_tls: true
       expected_body: ""
       expected_code: 200
@@ -20,7 +21,23 @@ healthcheck_profiles:
       host: localhost
       method: GET
       port: 443
-      skip_tls_verify: true
+      skip_tls_verify: false
+      timeout: 5s
+      uri: /
+    type: http
+  mtls_default:
+    params:
+      ca_path: /certs/ca/cert.pem
+      cert_path: /certs/client/cert.pem
+      key_path: /certs/client/key.pem
+      enable_tls: true
+      expected_body: ""
+      expected_code: 200
+      headers: null
+      host: cdns-gslb-server
+      method: GET
+      port: 443
+      skip_tls_verify: false
       timeout: 5s
       uri: /
     type: http
@@ -96,3 +113,21 @@ records:
         priority: 2
     description: Dynamic DNS responses based on backend status
     mode: failover
+  webapp-mtls.app-x.gslb.example.com.:
+    backends:
+      - address: 172.16.0.10
+        description: webapp10
+        enable: true
+        healthchecks:
+          - mtls_default
+        location: eu-west-1
+        priority: 1
+      - address: 172.16.0.11
+        description: webapp11
+        enable: true
+        healthchecks:
+          - mtls_default
+        location: eu-west-2
+        priority: 2
+    description: Dynamic DNS responses based on backend status
+    mode: random
