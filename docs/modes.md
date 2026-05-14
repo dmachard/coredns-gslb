@@ -197,3 +197,11 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   - The probability of selection is: `weight / sum(weights of all healthy backends)`.
 
 If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
+
+### Fail-safe behavior (Fallback)
+
+For all selection modes, if **no healthy backends** are available (including during initial startup before the first health checks complete), the plugin implements a **fail-safe mechanism**:
+
+- It returns **all enabled backends** for the requested record type, regardless of their health status.
+- This ensures that a DNS response is always provided if possible, rather than returning an error (SERVFAIL) or an empty response.
+- Once at least one backend is detected as healthy, the plugin resumes its normal selection logic.
