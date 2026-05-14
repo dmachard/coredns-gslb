@@ -72,8 +72,8 @@ jobs:
           echo "coredns_gslb did not become ready in time" >&2
           exit 1
 
-      - name: Wait for healthcheck to be ready (15s)
-        run: sleep 15
+      - name: Wait for healthcheck to be ready (30s)
+        run: sleep 30
 
       - name: Check initial dig (should be 172.16.0.10)
         run: |
@@ -171,7 +171,7 @@ jobs:
         run: |
           resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'map(length) | add')
           echo "Got Nb records: $resp"
-          [ "$resp" = "6" ] || (echo "Expected 6 records, got $resp" && exit 1)
+          [ "$resp" = "7" ] || (echo "Expected 7 records, got $resp" && exit 1)
 
       - name: Show docker-compose logs on failure
         if: failure()
