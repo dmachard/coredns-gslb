@@ -84,8 +84,8 @@ jobs:
       - name: Stop webapp10
         run: sudo docker-compose -f docker-compose.dev.yml stop webapp10
 
-      - name: Wait for healthcheck to update (15s)
-        run: sleep 15
+      - name: Wait for healthcheck to update (35s) # TTL + 5s
+        run: sleep 35
 
       - name: Check dig after webapp10 stopped (should be 172.16.0.11)
         run: |
@@ -96,8 +96,8 @@ jobs:
       - name: Restart webapp10
         run: sudo docker-compose -f docker-compose.dev.yml start webapp10
 
-      - name: Wait for healthcheck to update (15s)
-        run: sleep 15
+      - name: Wait for healthcheck to update (35s) # TTL + 5s
+        run: sleep 35
 
       - name: Check dig after webapp10 restarted (should be 172.16.0.10)
         run: |
@@ -171,7 +171,7 @@ jobs:
         run: |
           resp=$(curl -s -X GET http://127.0.0.1:8080/api/overview | jq 'map(length) | add')
           echo "Got Nb records: $resp"
-          [ "$resp" = "6" ] || (echo "Expected 6 records, got $resp" && exit 1)
+          [ "$resp" = "7" ] || (echo "Expected 7 records, got $resp" && exit 1)
 
       - name: Show docker-compose logs on failure
         if: failure()

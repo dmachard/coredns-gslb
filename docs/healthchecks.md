@@ -83,6 +83,15 @@ Checks the health of an HTTP or HTTPS endpoint by making a request and validatin
 The HTTP health check connects to `backend.address` on given `params.port`. The `Host` header is set based on
 `params.host`, which does not overwrite the target address. HTTP forwards are not followed.
 
+mTLS is enabled by setting `params.enable_tls` to `true` and then supplying both of `params.cert_path` and `params.key_path`
+there is the optional `params.ca_path` as well for using private PKI, this can be the Root CA or the chain depending on
+your server implementation of certificate checking strictness. If the CA path is omitted, the trusted root store is used.
+
+If `params.enable_tls` is not enabled, mTLS will not be attempted, be explicit in your configuration intention!
+Also, if `params.ca_path` is set but `params.skip_tls_verify` is set to true, it will have a net-zero effect.
+
+Additionally, the `params.host` is used as the SNI parameter in the Client Hello for multiplexed server targets.
+
 Debugging HTTP health checks is easier when the user agent is clearly visible in the server logs, so a predefined User-Agent value is set to CoreDNS/GSLB/....
 
 ```yaml
@@ -98,6 +107,9 @@ healthchecks:
       expected_code: 200       # Expected HTTP status code
       expected_body: ""        # Expected response body (empty means no body validation)
       enable_tls: true         # Use TLS for the health check (HTTPS)
+      cert_path: "cert.pem"    # Define path to client certificate for mTLS
+      key_path: "key.pem"      # Define path for client private key for mTLS
+      ca_path: "cacert.pem"    # Define optional path to trusted Private RootCA File or Chain
       skip_tls_verify: true    # Skip TLS certificate validation
 ```
 

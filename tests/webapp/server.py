@@ -29,7 +29,7 @@ def log(msg):
 class ThreadedHTTPServer(ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
-def run_https_server(port, name, certfile, keyfile):
+def run_https_server(port, name, cafilepath, certfile, keyfile):
     class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             log(f"HTTP GET {self.path} from {self.client_address}")
@@ -49,8 +49,9 @@ def run_https_server(port, name, certfile, keyfile):
     log(f"Creating Threaded HTTPS server on 0.0.0.0:{port}")
     httpd = ThreadedHTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     httpd_ref = httpd
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, cafile=cafilepath)
     context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+    context.verify_mode = ssl.CERT_OPTIONAL
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     try:
         log("Starting Threaded HTTPS server (serve_forever)")
@@ -86,6 +87,7 @@ def main():
     log("Starting server.py main()")
     parser = argparse.ArgumentParser(description="HTTPS and optional gRPC Health Server")
     parser.add_argument('--port', type=int, default=443, help='Port to listen on (HTTPS)')
+    parser.add_argument('--cafile', type=str, required=True, help='Path to Root CA Certificate file')
     parser.add_argument('--certfile', type=str, required=True, help='Path to SSL certificate file')
     parser.add_argument('--keyfile', type=str, required=True, help='Path to SSL key file')
     parser.add_argument('--name', type=str, required=True, help='Name of the application')
@@ -104,7 +106,7 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
 
     threads = []
-    t1 = threading.Thread(target=run_https_server, args=(args.port, args.name, args.certfile, args.keyfile))
+    t1 = threading.Thread(target=run_https_server, args=(args.port, args.name, args.cafile, args.certfile, args.keyfile))
     t1.start()
     threads.append(t1)
 

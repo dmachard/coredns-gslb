@@ -117,9 +117,9 @@ func TestLoadRealConfig(t *testing.T) {
 
 	// Verify healthcheck profiles were loaded
 	assert.NotNil(t, g.HealthcheckProfiles)
-	assert.Len(t, g.HealthcheckProfiles, 4) // https_default, icmp_default, grpc_default, lua_default
+	assert.Len(t, g.HealthcheckProfiles, 5) // https_default, mtls_default, icmp_default, grpc_default, lua_default
 
-	expectedProfiles := []string{"https_default", "icmp_default", "grpc_default", "lua_default"}
+	expectedProfiles := []string{"https_default", "mtls_default", "icmp_default", "grpc_default", "lua_default"}
 	for _, profileName := range expectedProfiles {
 		assert.Contains(t, g.HealthcheckProfiles, profileName, "Should contain profile %s", profileName)
 	}
@@ -128,7 +128,7 @@ func TestLoadRealConfig(t *testing.T) {
 	assert.NotNil(t, g.Records)
 	assert.Len(t, g.Records, 1)
 	for _, recs := range g.Records {
-		assert.Len(t, recs, 3)
+		assert.Len(t, recs, 4)
 	}
 
 	zone = "webapp.app-x.gslb.example.com."

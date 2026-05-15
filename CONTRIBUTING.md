@@ -14,6 +14,9 @@ Before opening a pull request, please read the following guidelines to ensure sm
 
 ## Running the Dev Environment with Docker compose
 
+Certificates are generated on-demand for TLS and mTLS validation
+see the cert_gen folder and the webapp init.sh for details
+
 Build CoreDNS with the plugin
 
 ~~~ bash
@@ -52,7 +55,7 @@ Restart Webapp 1:
 sudo docker compose -f docker-compose.dev.yml start webapp10
 ~~~
 
-Wait a few seconds, then resolve again to observe traffic switching back to Webapp 1:
+Wait a few seconds, then resolve again to observe traffic switching back to Webapp 10:
 
 ~~~ bash
 $ dig -p 8053 @127.0.0.1 webapp.app-x.gslb.example.com +short
@@ -90,6 +93,12 @@ $ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-y.gslb.example.com +short +sub
 172.16.0.10
 ~~~
 
+Cleanup docker compose artifacts, the `-v` flag ensures the devcert volume is cleaned up
+
+~~~ bash
+sudo docker compose -f docker-compose.dev.yml down -v
+~~~
+
 ## Binary compilation with the plugin
 
 The `GSLB` plugin must be integrated into CoreDNS during compilation.
@@ -117,23 +126,34 @@ go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 
 ## Run linters
 
-Install linter
+**Install make:**
 
+**Debian based:**
 ```bash
 sudo apt install build-essential
+```
+**RHEL based:**
+```bash
+sudo dnf group install c-development
+```
+
+**Install linter:**
+
+```bash
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 ```
 
-Execute linter before to commit
+**Execute linter before commit:**
 
 ```bash
 make lint
 ```
+
 # Update CoreDNS
 
 ```bash
-go mod edit -go=1.24
-go get github.com/coredns/coredns@v1.12.3
-go get github.com/miekg/dns@v1.1.68
+go mod edit -go=1.25
+go get github.com/coredns/coredns@v1.14.3
+go get github.com/miekg/dns@v1.1.72
 go mod tidy
 ```

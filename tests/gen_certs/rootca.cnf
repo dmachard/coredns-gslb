@@ -1,0 +1,45 @@
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+x509_extensions	    = server_req_exts
+default_days	    = 30
+preserve	        = no
+unique_subject	    = no
+policy		        = policy_cnonly
+
+[ policy_cnonly ]
+countryName		        = optional
+stateOrProvinceName	    = optional
+localityName		    = optional
+organizationName	    = optional
+organizationalUnitName	= optional
+commonName		        = supplied
+emailAddress		    = optional
+serialNumber	        = optional
+
+[ default_ca_exts ]
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always,issuer:always
+basicConstraints        = critical, CA:true
+keyUsage                = cRLSign, keyCertSign
+
+[ client_req_exts ]
+basicConstraints	    = CA:false
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid,issuer:always
+keyUsage                = digitalSignature
+extendedKeyUsage        = clientAuth
+subjectAltName          = @client_alt_names
+
+[ server_req_exts ]
+basicConstraints	    = CA:false
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid,issuer:always
+keyUsage                = digitalSignature,keyEncipherment
+extendedKeyUsage        = serverAuth
+
+[ client_alt_names ]
+DNS.1                   = cdns-gslb-client
+DNS.2                   = localhost
+IP.1                    = 172.16.0.9
