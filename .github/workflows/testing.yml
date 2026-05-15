@@ -72,8 +72,8 @@ jobs:
           echo "coredns_gslb did not become ready in time" >&2
           exit 1
 
-      - name: Wait for healthcheck to be ready (30s)
-        run: sleep 30
+      - name: Wait for healthcheck to be ready (15s)
+        run: sleep 15
 
       - name: Check initial dig (should be 172.16.0.10)
         run: |
@@ -84,8 +84,8 @@ jobs:
       - name: Stop webapp10
         run: sudo docker-compose -f docker-compose.dev.yml stop webapp10
 
-      - name: Wait for healthcheck to update (15s)
-        run: sleep 15
+      - name: Wait for healthcheck to update (35s) # TTL + 5s
+        run: sleep 35
 
       - name: Check dig after webapp10 stopped (should be 172.16.0.11)
         run: |
@@ -96,8 +96,8 @@ jobs:
       - name: Restart webapp10
         run: sudo docker-compose -f docker-compose.dev.yml start webapp10
 
-      - name: Wait for healthcheck to update (15s)
-        run: sleep 15
+      - name: Wait for healthcheck to update (35s) # TTL + 5s
+        run: sleep 35
 
       - name: Check dig after webapp10 restarted (should be 172.16.0.10)
         run: |
