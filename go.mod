@@ -7,7 +7,7 @@ require (
 	github.com/coredns/coredns v1.14.3
 	github.com/creasty/defaults v1.8.0
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/melbahja/goph v1.5.0
+	github.com/melbahja/goph v1.5.1
 	github.com/miekg/dns v1.1.72
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/prometheus-community/pro-bing v0.8.0
