@@ -153,6 +153,7 @@ With this configuration:
 - A query for `anything.example.org.` will match `*.example.org.` (if there is no exact record `anything.example.org.`).
 - A query for `sub.anything.example.org.` will also match `*.example.org.`.
 - An exact match always takes precedence over a wildcard match.
+- In case of multiple overlapping authoritative zones configured in GSLB (e.g., `sub.example.org.` and `example.org.`), wildcard lookup is strictly bounded by the most specific zone (the zone with the longest matching suffix).
 
 ### Using the `defaults` block in YAML zone files
 

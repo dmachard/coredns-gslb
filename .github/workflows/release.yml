@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  COREDNS_VERSION: "1.14.3"
+  COREDNS_VERSION: "1.14.4"
   GO_VERSION: "1.25"
 
 jobs:
