@@ -418,7 +418,7 @@ func isAddressTypeCompatible(ip string, recordType uint16) bool {
 	return false
 }
 
-func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16, clientLatitude, clientLongitude float64) (string, bool) {
+func (g *GSLB) pickNearestBackendFromSubset(backends []BackendInterface, recordType uint16, clientLatitude, clientLongitude float64) (string, bool) {
 	clientLatitudeRad := clientLatitude * math.Pi / 180
 	clientLongitudeRad := clientLongitude * math.Pi / 180
 
@@ -427,7 +427,7 @@ func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16
 	bestPriority := 0
 	found := false
 
-	for _, backend := range record.Backends {
+	for _, backend := range backends {
 		if !backend.IsHealthy() || !backend.IsEnabled() || !backend.HasGeoCoordinates() {
 			continue
 		}
@@ -453,11 +453,216 @@ func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16
 			bestPriority = priority
 		}
 	}
+	return bestAddress, found
+}
 
-	if !found {
-		return "", false
+func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16, clientLatitude, clientLongitude float64) (string, bool) {
+	return g.pickNearestBackendFromSubset(record.Backends, recordType, clientLatitude, clientLongitude)
+}
+
+type clientGeoInfo struct {
+	City        string
+	Subdivision string
+	Country     string
+	Continent   string
+	Latitude    *float64
+	Longitude   *float64
+}
+
+func (g *GSLB) getClientGeoInfo(clientIP net.IP) (*clientGeoInfo, error) {
+	if g.GeoIPCityDB != nil {
+		recordCity, err := g.GeoIPCityDB.City(clientIP)
+		if err == nil && recordCity != nil {
+			info := &clientGeoInfo{
+				Continent: recordCity.Continent.Code,
+				Country:   strings.ToUpper(recordCity.Country.IsoCode),
+			}
+			if recordCity.City.Names != nil {
+				info.City = recordCity.City.Names["en"]
+			}
+			if len(recordCity.Subdivisions) > 0 {
+				info.Subdivision = strings.ToUpper(recordCity.Subdivisions[0].IsoCode)
+			}
+			if recordCity.Location.Latitude != 0 || recordCity.Location.Longitude != 0 {
+				lat := recordCity.Location.Latitude
+				lon := recordCity.Location.Longitude
+				info.Latitude = &lat
+				info.Longitude = &lon
+			}
+			return info, nil
+		}
 	}
-	return bestAddress, true
+	if g.GeoIPCountryDB != nil {
+		recordCountry, err := g.GeoIPCountryDB.Country(clientIP)
+		if err == nil && recordCountry != nil {
+			info := &clientGeoInfo{
+				Continent: recordCountry.Continent.Code,
+				Country:   strings.ToUpper(recordCountry.Country.IsoCode),
+			}
+			return info, nil
+		}
+	}
+	return nil, fmt.Errorf("no geoip database or no match")
+}
+
+func (g *GSLB) pickBackendWithFailoverFromSubset(backends []BackendInterface, recordType uint16, fqdn string) ([]string, error) {
+	sortedBackends := make([]BackendInterface, len(backends))
+	copy(sortedBackends, backends)
+	sort.Slice(sortedBackends, func(i, j int) bool {
+		return sortedBackends[i].GetPriority() < sortedBackends[j].GetPriority()
+	})
+
+	minPriority := -1
+	var healthyIPs []string
+	for _, backend := range sortedBackends {
+		if backend.IsHealthy() && backend.IsEnabled() {
+			ip := backend.GetAddress()
+			if isAddressTypeCompatible(ip, recordType) {
+				if minPriority == -1 {
+					minPriority = backend.GetPriority()
+				}
+				if backend.GetPriority() == minPriority {
+					healthyIPs = append(healthyIPs, ip)
+					IncBackendSelected(fqdn, ip)
+				} else {
+					break // stop at first higher priority
+				}
+			}
+		}
+	}
+
+	if len(healthyIPs) == 0 {
+		return nil, fmt.Errorf("no healthy backends in subset for type %d", recordType)
+	}
+
+	return healthyIPs, nil
+}
+
+func (g *GSLB) pickBackendWithGeoIPAffinity(record *Record, recordType uint16, clientIP net.IP) ([]string, error) {
+	var candidates []BackendInterface
+
+	// Step 1: Subnet Pinning
+	g.Mutex.RLock()
+	locationMap := g.LocationMap
+	g.Mutex.RUnlock()
+
+	var matchedLocation string
+	if len(locationMap) > 0 {
+		for subnet, location := range locationMap {
+			_, ipnet, err := net.ParseCIDR(subnet)
+			if err == nil && ipnet.Contains(clientIP) {
+				matchedLocation = location
+				break
+			}
+		}
+	}
+
+	if matchedLocation != "" {
+		for _, backend := range record.Backends {
+			if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
+				if backend.GetLocation() == matchedLocation {
+					candidates = append(candidates, backend)
+				}
+			}
+		}
+	}
+
+	// Step 2: Geo Hierarchy Narrowing
+	var geo *clientGeoInfo
+	var geoErr error
+	if len(candidates) == 0 {
+		geo, geoErr = g.getClientGeoInfo(clientIP)
+		if geoErr == nil && geo != nil {
+			// City level
+			if geo.City != "" {
+				for _, backend := range record.Backends {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
+						if strings.EqualFold(backend.GetCity(), geo.City) {
+							if backend.GetContinent() != "" && backend.GetContinent() != geo.Continent {
+								continue
+							}
+							if backend.GetCountry() != "" && !strings.EqualFold(backend.GetCountry(), geo.Country) {
+								continue
+							}
+							if backend.GetSubdivision() != "" && !strings.EqualFold(backend.GetSubdivision(), geo.Subdivision) {
+								continue
+							}
+							candidates = append(candidates, backend)
+						}
+					}
+				}
+			}
+
+			// Subdivision level
+			if len(candidates) == 0 && geo.Subdivision != "" && geo.Country != "" {
+				for _, backend := range record.Backends {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
+						if strings.EqualFold(backend.GetSubdivision(), geo.Subdivision) && strings.EqualFold(backend.GetCountry(), geo.Country) {
+							if backend.GetContinent() != "" && backend.GetContinent() != geo.Continent {
+								continue
+							}
+							candidates = append(candidates, backend)
+						}
+					}
+				}
+			}
+
+			// Country level
+			if len(candidates) == 0 && geo.Country != "" {
+				for _, backend := range record.Backends {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
+						if strings.EqualFold(backend.GetCountry(), geo.Country) {
+							if backend.GetContinent() != "" && backend.GetContinent() != geo.Continent {
+								continue
+							}
+							candidates = append(candidates, backend)
+						}
+					}
+				}
+			}
+
+			// Continent level
+			if len(candidates) == 0 && geo.Continent != "" {
+				for _, backend := range record.Backends {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
+						if strings.EqualFold(backend.GetContinent(), geo.Continent) {
+							candidates = append(candidates, backend)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Step 3: Pick from candidate set using coordinate distance
+	if len(candidates) > 0 {
+		if geo == nil {
+			geo, _ = g.getClientGeoInfo(clientIP)
+		}
+		if geo != nil && geo.Latitude != nil && geo.Longitude != nil {
+			if nearest, ok := g.pickNearestBackendFromSubset(candidates, recordType, *geo.Latitude, *geo.Longitude); ok {
+				IncBackendSelected(record.Fqdn, nearest)
+				return []string{nearest}, nil
+			}
+		}
+		ips, err := g.pickBackendWithFailoverFromSubset(candidates, recordType, record.Fqdn)
+		if err == nil && len(ips) > 0 {
+			return ips, nil
+		}
+	}
+
+	// Step 4: Global Fallback
+	if geo == nil {
+		geo, _ = g.getClientGeoInfo(clientIP)
+	}
+	if geo != nil && geo.Latitude != nil && geo.Longitude != nil {
+		if nearest, ok := g.pickNearestBackendByCoordinates(record, recordType, *geo.Latitude, *geo.Longitude); ok {
+			IncBackendSelected(record.Fqdn, nearest)
+			return []string{nearest}, nil
+		}
+	}
+
+	return g.pickBackendWithFailover(record, recordType)
 }
 
 func haversineDistanceRad(lat1Rad, lon1Rad, lat2Rad, lon2Rad float64) float64 {

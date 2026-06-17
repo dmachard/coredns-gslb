@@ -447,6 +447,8 @@ func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP) (
 		return g.pickBackendWithRandom(record, recordType)
 	case "geoip":
 		return g.pickBackendWithGeoIP(record, recordType, clientIP)
+	case "geoip_affinity":
+		return g.pickBackendWithGeoIPAffinity(record, recordType, clientIP)
 	case "weighted":
 		return g.pickBackendWithWeighted(record, recordType)
 	default:

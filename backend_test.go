@@ -1,6 +1,7 @@
 package gslb
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -352,4 +353,26 @@ func TestBackend_RemoveBackend(t *testing.T) {
 	assert.NotPanics(t, func() {
 		b.removeBackend()
 	})
+}
+
+func TestBackend_RecomputeCoordinateRadians(t *testing.T) {
+	b := &Backend{
+		Longitude:      -74.0060,
+		Latitude:       40.7128,
+		HasCoordinates: true,
+	}
+	b.recomputeCoordinateRadians()
+
+	assert.InDelta(t, -74.0060*math.Pi/180, b.LongitudeRad, 1e-9)
+	assert.InDelta(t, 40.7128*math.Pi/180, b.LatitudeRad, 1e-9)
+
+	// Test case where HasCoordinates is false
+	b2 := &Backend{
+		Longitude:      -74.0060,
+		Latitude:       40.7128,
+		HasCoordinates: false,
+	}
+	b2.recomputeCoordinateRadians()
+	assert.Equal(t, 0.0, b2.LongitudeRad)
+	assert.Equal(t, 0.0, b2.LatitudeRad)
 }

@@ -177,6 +177,37 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   }
   ```
 
+### GeoIP Affinity
+
+- **Description:** Combines geographical narrowing (subnet pinning and GeoIP hierarchy) with coordinate-based distance picking. Unlike `geoip` mode, which immediately routes by coordinate distance globally if coordinates are present, `geoip_affinity` first restricts the candidate backend pool based on client-to-backend geographical affinity (Subnet -> City -> Subdivision -> Country -> Continent). It then picks the nearest backend by coordinates *within* that narrowed candidate pool.
+- **Matching behavior:**
+  1. **Subnet Pinning**: Checks if the client IP matches any subnet in the `geoip_custom` `location_map`. If yes, restricts candidate backends to those with the matching `location`.
+  2. **Geo Hierarchy Narrowing**: If no subnet pin matches, queries MaxMind DBs to determine the client's location. Restricts candidates by searching in order of specificity: City, then Subdivision, then Country, then Continent.
+  3. **Distance Pick**: Within the filtered candidate subset, selects the closest healthy backend using coordinate distance (if coordinates are defined on backends and client location is found). If no coordinates are defined, it falls back to failover priority within the subset.
+  4. **Global Fallback**: If no candidates match the affinity group, or all of them are unhealthy/disabled, falls back to selecting the closest backend globally, and finally to global failover priority.
+- **Use case:** Gives country/region/subnet preference first (e.g. keep European users in European datacenters, or pin specific subnets to specific sites), and then uses latency/distance optimization *within* that preferred region.
+- **Example:**
+  ```yaml
+  mode: geoip_affinity
+  backends:
+    - address: 10.0.0.1
+      country: US
+      latitude: 47.6062
+      longitude: -122.3321 # Seattle
+    - address: 10.0.0.2
+      country: US
+      latitude: 40.7128
+      longitude: -74.0060 # New York
+    - address: 10.0.0.3
+      country: FR
+      latitude: 48.8566
+      longitude: 2.3522 # Paris
+  ```
+  Expected behavior for a US user:
+  - Candidates are narrowed to the `US` country subset (Seattle and New York).
+  - Paris is completely excluded even if it is closer to the user than Seattle.
+  - Coordinate distance selects between Seattle and New York based on which one is closer to the client.
+
 ### Weighted
 
 - **Description:** Selects a healthy backend randomly, but proportionally to its `weight` value. A backend with a higher weight will be chosen more often.

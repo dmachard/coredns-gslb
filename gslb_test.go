@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/oschwald/geoip2-golang"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
@@ -1086,4 +1087,51 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		assert.Equal(t, "1.2.3.4", w.msg.Answer[0].(*dns.A).A.String())
 		assert.Equal(t, "5.6.7.8", w.msg.Answer[1].(*dns.A).A.String())
 	})
+}
+
+func TestServeDNS_GeoIPAffinity(t *testing.T) {
+	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-City.mmdb not found, skipping TestServeDNS_GeoIPAffinity")
+	}
+	defer db.Close()
+
+	backend := &Backend{
+		Address: "192.168.1.10", Enable: true, Priority: 1, Country: "FR",
+		Latitude: 48.8566, Longitude: 2.3522, HasCoordinates: true,
+	}
+	backend.recomputeCoordinateRadians()
+
+	record := &Record{
+		Fqdn:      "geo-affinity.example.org.",
+		Mode:      "geoip_affinity",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:       map[string]string{"example.org.": "dummy.yml"},
+		Records:     map[string]map[string]*Record{"geo-affinity.example.org.": {"geo-affinity.example.org.": record}},
+		GeoIPCityDB: db,
+	}
+
+	msg := new(dns.Msg)
+	msg.SetQuestion("geo-affinity.example.org.", dns.TypeA)
+	w := &mockResponseWriter{msg: new(dns.Msg)}
+
+	// Simulate client IP from Paris (81.185.159.80) using WithClientInfo context
+	ctx := WithClientInfo(context.Background(), net.ParseIP("81.185.159.80"), 32)
+	code, err := g.ServeDNS(ctx, w, msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.msg)
+	assert.Len(t, w.msg.Answer, 1)
+	if len(w.msg.Answer) > 0 {
+		if a, ok := w.msg.Answer[0].(*dns.A); ok {
+			assert.Equal(t, "192.168.1.10", a.A.String())
+		} else {
+			t.Errorf("expected A record, got %T", w.msg.Answer[0])
+		}
+	}
 }
