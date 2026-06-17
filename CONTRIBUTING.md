@@ -153,7 +153,7 @@ make lint
 
 ```bash
 go mod edit -go=1.25
-go get github.com/coredns/coredns@v1.14.3
+go get github.com/coredns/coredns@v1.14.4
 go get github.com/miekg/dns@v1.1.72
 go mod tidy
 ```

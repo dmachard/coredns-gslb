@@ -1,10 +1,10 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-150-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-74%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-3762-blue" alt="Lines of code"/>
-  <img src="https://img.shields.io/badge/integration%20tests-7-blue" alt="Integration tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-170-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-75.6%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-4203-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/integration%20tests-9-blue" alt="Integration tests"/>
 </p>
 
 <p align="center">
@@ -27,6 +27,7 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
+- **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **No external database**: Records are defined using a YAML file.
 
 Unlike many existing solutions, this plugin is designed for non-Kubernetes infrastructures — including virtual machines, bare metal servers, and hybrid environments.
