@@ -155,6 +155,50 @@ With this configuration:
 - An exact match always takes precedence over a wildcard match.
 - In case of multiple overlapping authoritative zones configured in GSLB (e.g., `sub.example.org.` and `example.org.`), wildcard lookup is strictly bounded by the most specific zone (the zone with the longest matching suffix).
 
+### Failover Policies (Fail-safe Behavior)
+
+By default, when all backends for a record are detected as unhealthy or disabled, CoreDNS-GSLB applies a **fail-open** behavior, returning all configured enabled backends to maintain connectivity.
+
+You can customize this behavior using the `failover_policy` block in your record configuration.
+
+#### Supported Policies:
+- **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
+- **`fail-closed`**: Returns a custom DNS response code with an empty answer section.
+- **`fail-specific`**: Returns a specific, stable list of fallback IP addresses (regardless of their health state).
+
+#### Configuration Parameters:
+- **`mode`**: The policy mode (`fail-open`, `fail-closed`, or `fail-specific`).
+- **`rcode`**: The DNS response code to return when `mode` is `fail-closed` (Options: `NXDOMAIN`, `SERVFAIL`, `REFUSED`, `NOERROR`). Defaults to `SERVFAIL`.
+- **`fallback_ips`**: A list of fallback IP addresses (IPv4/IPv6) to return when `mode` is `fail-specific`.
+
+#### Example Configurations:
+
+**1. Fail-closed with NXDOMAIN**
+~~~yaml
+records:
+  webapp.example.org.:
+    mode: "roundrobin"
+    failover_policy:
+      mode: "fail-closed"
+      rcode: "NXDOMAIN"
+    backends:
+      - address: "172.16.0.10"
+      - address: "172.16.0.11"
+~~~
+
+**2. Fail-specific with Fallback IPs**
+~~~yaml
+records:
+  api.example.org.:
+    mode: "failover"
+    failover_policy:
+      mode: "fail-specific"
+      fallback_ips: ["1.2.3.4", "2001:db8::1"]
+    backends:
+      - address: "172.16.0.20"
+      - address: "172.16.0.21"
+~~~
+
 ### Using the `defaults` block in YAML zone files
 
 You can define a `defaults` block at the top of your zone YAML file to avoid repeating common fields in every record. Any field defined in `defaults` will be automatically applied to all records, unless a record explicitly overrides that field.

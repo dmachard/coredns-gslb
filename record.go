@@ -10,6 +10,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// FailoverPolicy represents the behavior of the record when all backends are unhealthy/disabled.
+type FailoverPolicy struct {
+	Mode        string   `yaml:"mode"`
+	FallbackIPs []string `yaml:"fallback_ips"`
+	Rcode       string   `yaml:"rcode"`
+}
+
 // Record represents a GSLB record in the YAML config.
 type Record struct {
 	Fqdn           string
@@ -21,6 +28,7 @@ type Record struct {
 	ScrapeInterval string
 	ScrapeRetries  int
 	ScrapeTimeout  string
+	FailoverPolicy FailoverPolicy
 	ticker         *time.Ticker
 	mutex          sync.RWMutex
 	cancelFunc     context.CancelFunc
@@ -28,14 +36,15 @@ type Record struct {
 
 func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Mode           string        `yaml:"mode" default:"failover"`
-		Owner          string        `yaml:"owner" default:""`
-		Description    string        `yaml:"description" default:""`
-		Ttl            int           `yaml:"record_ttl" default:"30"`
-		ScrapeInterval string        `yaml:"scrape_interval" default:"10s"`
-		ScrapeRetries  int           `yaml:"scrape_retries" default:"1"`
-		ScrapeTimeout  string        `yaml:"scrape_timeout" default:"5s"`
-		Backends       []interface{} `yaml:"backends"`
+		Mode           string         `yaml:"mode" default:"failover"`
+		Owner          string         `yaml:"owner" default:""`
+		Description    string         `yaml:"description" default:""`
+		Ttl            int            `yaml:"record_ttl" default:"30"`
+		ScrapeInterval string         `yaml:"scrape_interval" default:"10s"`
+		ScrapeRetries  int            `yaml:"scrape_retries" default:"1"`
+		ScrapeTimeout  string         `yaml:"scrape_timeout" default:"5s"`
+		Backends       []interface{}  `yaml:"backends"`
+		FailoverPolicy FailoverPolicy `yaml:"failover_policy"`
 	}
 	defaults.Set(&raw)
 
@@ -50,6 +59,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	r.ScrapeInterval = raw.ScrapeInterval
 	r.ScrapeRetries = raw.ScrapeRetries
 	r.ScrapeTimeout = raw.ScrapeTimeout
+	r.FailoverPolicy = raw.FailoverPolicy
 
 	for _, backendData := range raw.Backends {
 		var backend Backend
@@ -108,6 +118,13 @@ func (r *Record) updateRecord(newRecord *Record) {
 	if r.ScrapeTimeout != newRecord.ScrapeTimeout {
 		log.Debugf("[%s] scrape timeout changed from %s to %s", r.Fqdn, r.ScrapeTimeout, newRecord.ScrapeTimeout)
 		r.ScrapeTimeout = newRecord.ScrapeTimeout
+	}
+
+	if r.FailoverPolicy.Mode != newRecord.FailoverPolicy.Mode ||
+		r.FailoverPolicy.Rcode != newRecord.FailoverPolicy.Rcode ||
+		len(r.FailoverPolicy.FallbackIPs) != len(newRecord.FailoverPolicy.FallbackIPs) {
+		log.Debugf("[%s] failover policy changed", r.Fqdn)
+		r.FailoverPolicy = newRecord.FailoverPolicy
 	}
 
 	// Update or add backends
