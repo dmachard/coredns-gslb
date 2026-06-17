@@ -34,6 +34,7 @@ type Backend struct {
 	LatitudeRad     float64              // Precomputed latitude in radians for distance calculations
 	HasCoordinates  bool                 // Indicates whether both coordinates were explicitly configured
 	LastHealthcheck time.Time            // Last time a healthcheck was launched
+	AssumeHealthy   bool                 `yaml:"assume_healthy"` // Bypass healthchecks and assume UP
 	mutex           sync.RWMutex
 }
 
@@ -74,6 +75,10 @@ func (b *Backend) GetWeight() int {
 
 func (b *Backend) IsEnabled() bool {
 	return b.Enable
+}
+
+func (b *Backend) GetAssumeHealthy() bool {
+	return b.AssumeHealthy
 }
 
 func (b *Backend) GetTags() []string {
@@ -134,22 +139,23 @@ func (b *Backend) HasGeoCoordinates() bool {
 
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Description  string        `yaml:"description" default:""`
-		Address      string        `yaml:"address" default:"127.0.0.1"`
-		Priority     int           `yaml:"priority" default:"0"`
-		Weight       int           `yaml:"weight" default:"1"`
-		Enable       bool          `yaml:"enable" default:"true"`
-		Tags         []string      `yaml:"tags"`
-		Timeout      string        `yaml:"timeout" default:"5s"`
-		HealthChecks []HealthCheck `yaml:"healthchecks"`
-		Continent    string        `yaml:"continent"`
-		Country      string        `yaml:"country"`
-		Subdivision  string        `yaml:"subdivision"`
-		City         string        `yaml:"city"`
-		ASN          string        `yaml:"asn"`
-		Location     string        `yaml:"location"`
-		Longitude    *float64      `yaml:"longitude"`
-		Latitude     *float64      `yaml:"latitude"`
+		Description   string        `yaml:"description" default:""`
+		Address       string        `yaml:"address" default:"127.0.0.1"`
+		Priority      int           `yaml:"priority" default:"0"`
+		Weight        int           `yaml:"weight" default:"1"`
+		Enable        bool          `yaml:"enable" default:"true"`
+		Tags          []string      `yaml:"tags"`
+		Timeout       string        `yaml:"timeout" default:"5s"`
+		HealthChecks  []HealthCheck `yaml:"healthchecks"`
+		Continent     string        `yaml:"continent"`
+		Country       string        `yaml:"country"`
+		Subdivision   string        `yaml:"subdivision"`
+		City          string        `yaml:"city"`
+		ASN           string        `yaml:"asn"`
+		Location      string        `yaml:"location"`
+		Longitude     *float64      `yaml:"longitude"`
+		Latitude      *float64      `yaml:"latitude"`
+		AssumeHealthy bool          `yaml:"assume_healthy" default:"false"`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -168,6 +174,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.City = raw.City
 	b.ASN = raw.ASN
 	b.Location = raw.Location
+	b.AssumeHealthy = raw.AssumeHealthy
 	longitudeSet := false
 	latitudeSet := false
 	if raw.Longitude != nil {
@@ -215,6 +222,11 @@ func (b *Backend) updateBackend(newBackend BackendInterface) {
 	if b.Enable != newBackend.IsEnabled() {
 		log.Infof("[%s] backend %s updated, enable changed from %v to %v", b.Fqdn, b.Address, b.Enable, newBackend.IsEnabled())
 		b.Enable = newBackend.IsEnabled()
+	}
+
+	if b.AssumeHealthy != newBackend.GetAssumeHealthy() {
+		log.Infof("[%s] backend %s updated, assume_healthy changed from %v to %v", b.Fqdn, b.Address, b.AssumeHealthy, newBackend.GetAssumeHealthy())
+		b.AssumeHealthy = newBackend.GetAssumeHealthy()
 	}
 
 	if b.Description != newBackend.GetDescription() {
@@ -291,6 +303,19 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 	b.mutex.Lock()
 	b.LastHealthcheck = time.Now()
 	b.mutex.Unlock()
+
+	b.mutex.RLock()
+	assumeHealthy := b.AssumeHealthy
+	b.mutex.RUnlock()
+
+	if assumeHealthy {
+		b.mutex.Lock()
+		b.Alive = true
+		b.mutex.Unlock()
+		log.Debugf("[%s] health check bypassed for backend: %s (assume_healthy is true)", b.Fqdn, b.Address)
+		return
+	}
+
 	var wg sync.WaitGroup
 	results := make([]bool, len(b.HealthChecks))
 
@@ -360,7 +385,7 @@ func (b *Backend) IsHealthy() bool {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
 
-	return b.Alive && b.Enable
+	return (b.Alive || b.AssumeHealthy) && b.Enable
 }
 
 // tagsEqual compares two slices of strings (tags) for equality.
@@ -394,6 +419,7 @@ type BackendInterface interface {
 	GetPriority() int
 	GetWeight() int
 	IsEnabled() bool
+	GetAssumeHealthy() bool
 	GetTags() []string
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string

@@ -119,6 +119,53 @@ func TestAPIOverviewZoneEndpoint(t *testing.T) {
 	assert.Contains(t, errResp["error"], "Zone not found")
 }
 
+func TestAPIOverviewEndpoint_AssumeHealthy(t *testing.T) {
+	g := &GSLB{
+		Records: make(map[string]map[string]*Record),
+	}
+	rec := &Record{
+		Fqdn: "assume.example.com.",
+		Mode: "failover",
+	}
+	// Backend is not alive, but assume_healthy is true
+	backend := &Backend{
+		Address:         "4.3.2.1",
+		Priority:        1,
+		Enable:          true,
+		Alive:           false,
+		AssumeHealthy:   true,
+		LastHealthcheck: time.Date(2026, 6, 17, 11, 0, 0, 0, time.UTC),
+	}
+	rec.Backends = []BackendInterface{backend}
+	g.Records["example.com."] = map[string]*Record{rec.Fqdn: rec}
+
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/overview/example.com.")
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var records []map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&records)
+	assert.NoError(t, err)
+	assert.Len(t, records, 1)
+
+	recResp := records[0]
+	assert.Equal(t, "assume.example.com.", recResp["record"])
+	assert.Equal(t, "healthy", recResp["status"])
+
+	backends, ok := recResp["backends"].([]interface{})
+	assert.True(t, ok)
+	assert.Len(t, backends, 1)
+	be := backends[0].(map[string]interface{})
+	assert.Equal(t, "4.3.2.1", be["address"])
+	assert.Equal(t, "healthy", be["alive"])
+}
+
 func TestAPIDisableBackendsEndpoint(t *testing.T) {
 	tempYaml := `records:
   test.example.com.:

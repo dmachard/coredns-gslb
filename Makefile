@@ -3,6 +3,9 @@ ifndef $(GOPATH)
 	export GOPATH
 endif
 
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c
+
 .PHONY: tests stats lint build clean
 
 # Runs linters.

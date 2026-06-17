@@ -269,3 +269,22 @@ healthchecks:
         end
         return false
 ```
+
+---
+
+## Healthcheck Bypass
+
+In multi-region setups, you might want to bypass health checking for remote backends (e.g. to prevent WAN/cross-region network blips from marking them as down in a local resolver). You can specify `assume_healthy: true` on any backend:
+
+```yaml
+backends:
+  - address: "172.16.0.10"
+    healthchecks: [ https_default ] # Checked normally
+  - address: "172.16.0.20"
+    assume_healthy: true            # No health probes executed, always assumed healthy
+```
+
+- **If `assume_healthy: true` is set**, no health checks are performed for this backend, and `IsHealthy()` always returns `true` (as long as `enable` is also `true`).
+- It defaults to `false`.
+
+---

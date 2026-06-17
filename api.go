@@ -119,7 +119,7 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					b := be.(*Backend)
 					b.mutex.RLock()
 					aliveStr := statusUnhealthy
-					if b.Alive && b.Enable {
+					if b.IsHealthy() {
 						aliveStr = statusHealthy
 						atLeastOneBackendHealthy = true
 					}
@@ -161,7 +161,7 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					b := be.(*Backend)
 					b.mutex.RLock()
 					aliveStr := statusUnhealthy
-					if b.Alive && b.Enable {
+					if b.IsHealthy() {
 						aliveStr = statusHealthy
 						atLeastOneBackendHealthy = true
 					}
