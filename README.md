@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-170-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-75.6%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-4203-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/go%20tests-186-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-75.5%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-4532-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-9-blue" alt="Integration tests"/>
 </p>
 
@@ -23,7 +23,7 @@ What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
 - **Reusable healthcheck profiles**: Define health check templates globally (in the Corefile) or per zone, and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
-- **Load balancing** with failover, round-robin, random, weighted or GeoIP-based selection
+- **Load balancing** with failover, round-robin, random, weighted, GeoIP or GeoIP-affinity selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
@@ -140,7 +140,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 
 | Topic | Description |
 |-------|-------------|
-| [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP routing, weighted |
+| [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP, GeoIP affinity, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
 | [Configuration](docs/configuration.md) | Complete parameter reference |

@@ -694,6 +694,190 @@ func TestGSLB_PickBackendWithWeighted(t *testing.T) {
 	}
 }
 
+func TestGSLB_PickBackendWithGeoIPAffinity(t *testing.T) {
+	cityDB, err := geoip2.Open("tests/GeoLite2-City.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-City.mmdb not found, skipping TestGSLB_PickBackendWithGeoIPAffinity")
+	}
+	defer cityDB.Close()
+
+	g := &GSLB{
+		GeoIPCityDB: cityDB,
+	}
+
+	// 1. Test case: Subnet Pinning wins over global distance.
+	// Paris client IP is 81.185.159.80.
+	// We have two backends:
+	// - backendUS: us-east, New York coordinates (40.7128, -74.0060), Address 1.2.3.4
+	// - backendEU: eu-west, Berlin coordinates (52.5200, 13.4050), Address 5.6.7.8
+	// Berlin is closer to Paris than New York is.
+	// BUT, if we have a location map mapping Paris client IP's subnet to "us-east":
+	// "81.185.159.0/24": "us-east",
+	// Then geoip_affinity should select backendUS!
+	t.Run("Subnet Pinning wins", func(t *testing.T) {
+		g.Mutex.Lock()
+		g.LocationMap = map[string]string{
+			"81.185.159.0/24": "us-east",
+		}
+		g.Mutex.Unlock()
+
+		backendUS := &MockBackend{Backend: &Backend{
+			Address: "1.2.3.4", Enable: true, Priority: 10, Location: "us-east",
+			Latitude: 40.7128, Longitude: -74.0060, HasCoordinates: true,
+		}}
+		backendEU := &MockBackend{Backend: &Backend{
+			Address: "5.6.7.8", Enable: true, Priority: 20, Location: "eu-west",
+			Latitude: 52.52, Longitude: 13.405, HasCoordinates: true,
+		}}
+		backendUS.recomputeCoordinateRadians()
+		backendEU.recomputeCoordinateRadians()
+
+		backendUS.On("IsHealthy").Return(true)
+		backendEU.On("IsHealthy").Return(true)
+
+		record := &Record{
+			Fqdn:     "affinity.example.com.",
+			Mode:     "geoip_affinity",
+			Backends: []BackendInterface{backendUS, backendEU},
+		}
+
+		ips, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("81.185.159.80"))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"1.2.3.4"}, ips)
+	})
+
+	// 2. Test case: Country Preference narrowing.
+	// Client IP: 81.185.159.80 (FR).
+	// Backends:
+	// - backendFR: Country FR, coordinates in Paris (48.8566, 2.3522), Address 10.0.0.1
+	// - backendDE: Country DE, coordinates in Berlin (52.5200, 13.4050), Address 20.0.0.1
+	// - backendUS: Country US, coordinates in NY (40.7128, -74.0060), Address 30.0.0.1
+	// If we query, since client is in FR, candidate set should narrow to backendFR and pick it.
+	t.Run("Country preference narrow", func(t *testing.T) {
+		g.Mutex.Lock()
+		g.LocationMap = nil
+		g.Mutex.Unlock()
+
+		backendFR := &MockBackend{Backend: &Backend{
+			Address: "10.0.0.1", Enable: true, Priority: 10, Country: "FR",
+			Latitude: 48.8566, Longitude: 2.3522, HasCoordinates: true,
+		}}
+		backendDE := &MockBackend{Backend: &Backend{
+			Address: "20.0.0.1", Enable: true, Priority: 20, Country: "DE",
+			Latitude: 52.52, Longitude: 13.405, HasCoordinates: true,
+		}}
+		backendUS := &MockBackend{Backend: &Backend{
+			Address: "30.0.0.1", Enable: true, Priority: 30, Country: "US",
+			Latitude: 40.7128, Longitude: -74.006, HasCoordinates: true,
+		}}
+		backendFR.recomputeCoordinateRadians()
+		backendDE.recomputeCoordinateRadians()
+		backendUS.recomputeCoordinateRadians()
+
+		backendFR.On("IsHealthy").Return(true)
+		backendDE.On("IsHealthy").Return(true)
+		backendUS.On("IsHealthy").Return(true)
+
+		record := &Record{
+			Fqdn:     "affinity.example.com.",
+			Mode:     "geoip_affinity",
+			Backends: []BackendInterface{backendFR, backendDE, backendUS},
+		}
+
+		ips, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("81.185.159.80"))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"10.0.0.1"}, ips)
+	})
+
+	// 3. Test case: Distance picking within the narrowed candidates.
+	// Client IP: 8.8.8.8 (US).
+	// Backends:
+	// - backendUS_West: Country US, coordinates in Seattle (47.6062, -122.3321), Address 10.0.0.1
+	// - backendUS_East: Country US, coordinates in New York (40.7128, -74.0060), Address 10.0.0.2
+	// - backendFR: Country FR, coordinates in Paris (48.8566, 2.3522), Address 10.0.0.3
+	// US client IP (8.8.8.8) is closer to US_East (NY) than US_West (Seattle).
+	// Candidate pool should narrow to both US backends, and coordinate distance should select backendUS_East.
+	t.Run("Distance pick within narrowed country subset", func(t *testing.T) {
+		g.Mutex.Lock()
+		g.LocationMap = nil
+		g.Mutex.Unlock()
+
+		backendUS_West := &MockBackend{Backend: &Backend{
+			Address: "10.0.0.1", Enable: true, Priority: 10, Country: "US",
+			Latitude: 47.6062, Longitude: -122.3321, HasCoordinates: true,
+		}}
+		backendUS_East := &MockBackend{Backend: &Backend{
+			Address: "10.0.0.2", Enable: true, Priority: 20, Country: "US",
+			Latitude: 40.7128, Longitude: -74.0060, HasCoordinates: true,
+		}}
+		backendFR := &MockBackend{Backend: &Backend{
+			Address: "10.0.0.3", Enable: true, Priority: 30, Country: "FR",
+			Latitude: 48.8566, Longitude: 2.3522, HasCoordinates: true,
+		}}
+		backendUS_West.recomputeCoordinateRadians()
+		backendUS_East.recomputeCoordinateRadians()
+		backendFR.recomputeCoordinateRadians()
+
+		backendUS_West.On("IsHealthy").Return(true)
+		backendUS_East.On("IsHealthy").Return(true)
+		backendFR.On("IsHealthy").Return(true)
+
+		record := &Record{
+			Fqdn:     "affinity.example.com.",
+			Mode:     "geoip_affinity",
+			Backends: []BackendInterface{backendUS_West, backendUS_East, backendFR},
+		}
+
+		ips, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("8.8.8.8"))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"10.0.0.2"}, ips)
+	})
+
+	// 4. Test case: Fallback to global coordinates if all affinity candidates are unhealthy.
+	// Client IP: 81.185.159.80 (FR).
+	// Backends:
+	// - backendFR: Country FR, Paris coordinates (48.8566, 2.3522), Address 10.0.0.1 (UNHEALTHY!)
+	// - backendDE: Country DE, Berlin coordinates (52.5200, 13.4050), Address 20.0.0.1 (HEALTHY)
+	// - backendUS: Country US, NY coordinates (40.7128, -74.0060), Address 30.0.0.1 (HEALTHY)
+	// Since backendFR is unhealthy, we fall back to all healthy backends globally (closest first).
+	// Berlin (DE) is closer to Paris than NY, so it should select backendDE!
+	t.Run("Fallback to global coordinates", func(t *testing.T) {
+		g.Mutex.Lock()
+		g.LocationMap = nil
+		g.Mutex.Unlock()
+
+		backendFR := &MockBackend{Backend: &Backend{
+			Address: "10.0.0.1", Enable: true, Priority: 10, Country: "FR",
+			Latitude: 48.8566, Longitude: 2.3522, HasCoordinates: true,
+		}}
+		backendDE := &MockBackend{Backend: &Backend{
+			Address: "20.0.0.1", Enable: true, Priority: 20, Country: "DE",
+			Latitude: 52.52, Longitude: 13.405, HasCoordinates: true,
+		}}
+		backendUS := &MockBackend{Backend: &Backend{
+			Address: "30.0.0.1", Enable: true, Priority: 30, Country: "US",
+			Latitude: 40.7128, Longitude: -74.006, HasCoordinates: true,
+		}}
+		backendFR.recomputeCoordinateRadians()
+		backendDE.recomputeCoordinateRadians()
+		backendUS.recomputeCoordinateRadians()
+
+		backendFR.On("IsHealthy").Return(false)
+		backendDE.On("IsHealthy").Return(true)
+		backendUS.On("IsHealthy").Return(true)
+
+		record := &Record{
+			Fqdn:     "affinity.example.com.",
+			Mode:     "geoip_affinity",
+			Backends: []BackendInterface{backendFR, backendDE, backendUS},
+		}
+
+		ips, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("81.185.159.80"))
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"20.0.0.1"}, ips)
+	})
+}
+
 // TestResponseWriter is a mock dns.ResponseWriter for testing
 // It captures the DNS message sent by WriteMsg
 type TestResponseWriter struct {
