@@ -50,14 +50,17 @@ func ResolveHealthcheckProfile(profileName string, localProfiles map[string]*Hea
 			}, nil
 		}
 	}
+	ProfilesMutex.RLock()
 	if GlobalHealthcheckProfiles != nil {
 		if profile, exists := GlobalHealthcheckProfiles[profileName]; exists {
+			ProfilesMutex.RUnlock()
 			return &HealthCheck{
 				Type:   profile.Type,
 				Params: profile.Params,
 			}, nil
 		}
 	}
+	ProfilesMutex.RUnlock()
 	return nil, fmt.Errorf("healthcheck profile '%s' not found", profileName)
 }
 

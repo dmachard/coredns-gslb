@@ -207,7 +207,9 @@ func setup(c *caddy.Controller) error {
 					if err := yaml.Unmarshal(data, &tmp); err != nil {
 						return fmt.Errorf("failed to parse global healthcheck_profiles: %w", err)
 					}
+					ProfilesMutex.Lock()
 					GlobalHealthcheckProfiles = tmp.HealthcheckProfiles
+					ProfilesMutex.Unlock()
 
 					// Start watcher for global healthcheck profiles
 					go watchHealthcheckProfiles(g, globalProfilesPath)
@@ -457,7 +459,9 @@ func reloadHealthcheckProfiles(profilesPath string) error {
 	}
 
 	// Update global healthcheck profiles atomically
+	ProfilesMutex.Lock()
 	GlobalHealthcheckProfiles = tmp.HealthcheckProfiles
+	ProfilesMutex.Unlock()
 
 	log.Infof("Loaded %d healthcheck profiles", len(tmp.HealthcheckProfiles))
 

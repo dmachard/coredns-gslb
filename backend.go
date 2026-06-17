@@ -139,22 +139,23 @@ func (b *Backend) HasGeoCoordinates() bool {
 
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Description  string        `yaml:"description" default:""`
-		Address      string        `yaml:"address" default:"127.0.0.1"`
-		Priority     int           `yaml:"priority" default:"0"`
-		Weight       int           `yaml:"weight" default:"1"`
-		Enable       bool          `yaml:"enable" default:"true"`
-		Tags         []string      `yaml:"tags"`
-		Timeout      string        `yaml:"timeout" default:"5s"`
-		HealthChecks []HealthCheck `yaml:"healthchecks"`
-		Continent    string        `yaml:"continent"`
-		Country      string        `yaml:"country"`
-		Subdivision  string        `yaml:"subdivision"`
-		City         string        `yaml:"city"`
-		ASN          string        `yaml:"asn"`
-		Location     string        `yaml:"location"`
-		Longitude    *float64      `yaml:"longitude"`
-		Latitude     *float64      `yaml:"latitude"`
+		Description   string        `yaml:"description" default:""`
+		Address       string        `yaml:"address" default:"127.0.0.1"`
+		Priority      int           `yaml:"priority" default:"0"`
+		Weight        int           `yaml:"weight" default:"1"`
+		Enable        bool          `yaml:"enable" default:"true"`
+		Tags          []string      `yaml:"tags"`
+		Timeout       string        `yaml:"timeout" default:"5s"`
+		HealthChecks  []HealthCheck `yaml:"healthchecks"`
+		Continent     string        `yaml:"continent"`
+		Country       string        `yaml:"country"`
+		Subdivision   string        `yaml:"subdivision"`
+		City          string        `yaml:"city"`
+		ASN           string        `yaml:"asn"`
+		Location      string        `yaml:"location"`
+		Longitude     *float64      `yaml:"longitude"`
+		Latitude      *float64      `yaml:"latitude"`
+		AssumeHealthy bool          `yaml:"assume_healthy" default:"false"`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -173,6 +174,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.City = raw.City
 	b.ASN = raw.ASN
 	b.Location = raw.Location
+	b.AssumeHealthy = raw.AssumeHealthy
 	longitudeSet := false
 	latitudeSet := false
 	if raw.Longitude != nil {

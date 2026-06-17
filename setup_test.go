@@ -343,13 +343,19 @@ func TestCustomLocationMapWatcherDetectsChanges(t *testing.T) {
 
 func TestHealthcheckProfilesWatcherDetectsChanges(t *testing.T) {
 	// Save original global profiles and restore at the end
+	ProfilesMutex.Lock()
 	originalProfiles := GlobalHealthcheckProfiles
+	ProfilesMutex.Unlock()
 	defer func() {
+		ProfilesMutex.Lock()
 		GlobalHealthcheckProfiles = originalProfiles
+		ProfilesMutex.Unlock()
 	}()
 
 	// Reset global profiles for this test
+	ProfilesMutex.Lock()
 	GlobalHealthcheckProfiles = make(map[string]*HealthCheck)
+	ProfilesMutex.Unlock()
 
 	// Create a temporary directory and file
 	tmpDir := t.TempDir()
@@ -427,6 +433,7 @@ func TestHealthcheckProfilesWatcherDetectsChanges(t *testing.T) {
 	time.Sleep(1200 * time.Millisecond)
 
 	// Verify the profiles were reloaded
+	ProfilesMutex.RLock()
 	assert.NotNil(t, GlobalHealthcheckProfiles, "GlobalHealthcheckProfiles should not be nil after reload")
 	assert.Len(t, GlobalHealthcheckProfiles, 3, "Should have 3 profiles after reload")
 
@@ -434,6 +441,7 @@ func TestHealthcheckProfilesWatcherDetectsChanges(t *testing.T) {
 	_, hasHttpsAfter := GlobalHealthcheckProfiles["https_default"]
 	_, hasIcmpAfter := GlobalHealthcheckProfiles["icmp_default"]
 	grpcProfile, hasGrpc := GlobalHealthcheckProfiles["grpc_default"]
+	ProfilesMutex.RUnlock()
 
 	assert.True(t, hasHttpsAfter, "Should still have https_default")
 	assert.True(t, hasIcmpAfter, "Should still have icmp_default")
@@ -441,10 +449,15 @@ func TestHealthcheckProfilesWatcherDetectsChanges(t *testing.T) {
 
 	// Verify the new profile properties
 	if hasGrpc && grpcProfile != nil {
+		ProfilesMutex.RLock()
 		assert.NotNil(t, grpcProfile, "grpc_default profile should not be nil")
 		assert.Equal(t, "grpc", grpcProfile.Type, "grpc_default should have type 'grpc'")
 		assert.NotNil(t, grpcProfile.Params, "grpc_default should have params")
+		ProfilesMutex.RUnlock()
 	}
 
-	t.Logf("Test passed - healthcheck profiles reloaded successfully with %d profiles", len(GlobalHealthcheckProfiles))
+	ProfilesMutex.RLock()
+	numProfiles := len(GlobalHealthcheckProfiles)
+	ProfilesMutex.RUnlock()
+	t.Logf("Test passed - healthcheck profiles reloaded successfully with %d profiles", numProfiles)
 }
