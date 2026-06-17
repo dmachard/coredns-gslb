@@ -273,7 +273,7 @@ subnets:
     location: ["us-east-1"]
 ```
 
-Example backend with all GeoIP location fields
+Example backend with all GeoIP location fields and health options
 
 ~~~yaml
 - address: "172.16.0.12"
@@ -284,6 +284,7 @@ Example backend with all GeoIP location fields
   asn: "12345"
   location: "eu-west-1"
   enable: true
+  assume_healthy: true  # Optional, bypasses healthchecks and treats this backend as permanently UP
   priority: 1
   healthchecks:
     - type: grpc

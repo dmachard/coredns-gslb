@@ -133,6 +133,69 @@ func TestBackend_IsHealthy(t *testing.T) {
 	assert.False(t, b4.IsHealthy())
 }
 
+func TestBackend_AssumeHealthy_Unmarshal(t *testing.T) {
+	configYAML := `
+address: "1.2.3.4"
+enable: true
+assume_healthy: true
+`
+	var b Backend
+	err := yaml.Unmarshal([]byte(configYAML), &b)
+	assert.NoError(t, err)
+	assert.True(t, b.AssumeHealthy)
+	assert.True(t, b.GetAssumeHealthy())
+
+	// Test default false
+	configYAMLDefault := `
+address: "1.2.3.4"
+enable: true
+`
+	var bDefault Backend
+	err = yaml.Unmarshal([]byte(configYAMLDefault), &bDefault)
+	assert.NoError(t, err)
+	assert.False(t, bDefault.AssumeHealthy)
+	assert.False(t, bDefault.GetAssumeHealthy())
+}
+
+func TestBackend_IsHealthy_AssumeHealthy(t *testing.T) {
+	// Enabled, not alive, but assume healthy is true
+	b1 := &Backend{
+		Enable:        true,
+		Alive:         false,
+		AssumeHealthy: true,
+	}
+	assert.True(t, b1.IsHealthy())
+
+	// Disabled, not alive, but assume healthy is true -> should be false
+	b2 := &Backend{
+		Enable:        false,
+		Alive:         false,
+		AssumeHealthy: true,
+	}
+	assert.False(t, b2.IsHealthy())
+}
+
+func TestBackend_RunHealthChecks_AssumeHealthy(t *testing.T) {
+	// Create a backend with assume_healthy: true and an invalid health check
+	// If assume_healthy is respected, the check should not run and the status should be set to alive
+	b := &Backend{
+		Address:       "invalid-address",
+		Enable:        true,
+		AssumeHealthy: true,
+		HealthChecks: []GenericHealthCheck{
+			&MySQLHealthCheck{
+				Host: "127.0.0.1",
+				Port: 3306,
+			},
+		},
+	}
+
+	assert.False(t, b.Alive)
+	b.runHealthChecks(1, 1*time.Second)
+	assert.True(t, b.Alive)
+}
+
+
 // Mock Backend and Record
 // For testing purpopose
 type MockBackend struct {
