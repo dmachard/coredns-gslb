@@ -984,3 +984,106 @@ func TestGSLB_WildcardRecordMatching(t *testing.T) {
 		assert.Nil(t, rec)
 	})
 }
+
+func TestGSLB_FailoverPolicy(t *testing.T) {
+	// 1. Setup mock backends that are unhealthy
+	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true}}
+	backend1.On("IsHealthy").Return(false)
+
+	// 2. Setup GSLB and different records to test policies
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: make(map[string]map[string]*Record),
+	}
+	g.Records["example.org."] = make(map[string]*Record)
+
+	// A: Record with default fail-open
+	g.Records["example.org."]["fail-open.example.org."] = &Record{
+		Fqdn:      "fail-open.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+	}
+
+	// B: Record with fail-closed and NXDOMAIN
+	g.Records["example.org."]["fail-closed-nxdomain.example.org."] = &Record{
+		Fqdn:      "fail-closed-nxdomain.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+		FailoverPolicy: FailoverPolicy{
+			Mode:  "fail-closed",
+			Rcode: "NXDOMAIN",
+		},
+	}
+
+	// C: Record with fail-closed and REFUSED
+	g.Records["example.org."]["fail-closed-refused.example.org."] = &Record{
+		Fqdn:      "fail-closed-refused.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+		FailoverPolicy: FailoverPolicy{
+			Mode:  "fail-closed",
+			Rcode: "REFUSED",
+		},
+	}
+
+	// D: Record with fail-specific and fallback IPs
+	g.Records["example.org."]["fail-specific.example.org."] = &Record{
+		Fqdn:      "fail-specific.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+		FailoverPolicy: FailoverPolicy{
+			Mode:        "fail-specific",
+			FallbackIPs: []string{"1.2.3.4", "5.6.7.8"},
+		},
+	}
+
+	// Run Test cases
+	t.Run("fail-open (default) returns all enabled backends", func(t *testing.T) {
+		msg := new(dns.Msg)
+		msg.SetQuestion("fail-open.example.org.", dns.TypeA)
+		w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		code, err := g.ServeDNS(context.Background(), w, msg)
+		assert.NoError(t, err)
+		assert.Equal(t, dns.RcodeSuccess, code)
+		assert.Len(t, w.msg.Answer, 1)
+		assert.Equal(t, "192.168.1.1", w.msg.Answer[0].(*dns.A).A.String())
+	})
+
+	t.Run("fail-closed with NXDOMAIN returns NameError and empty answers", func(t *testing.T) {
+		msg := new(dns.Msg)
+		msg.SetQuestion("fail-closed-nxdomain.example.org.", dns.TypeA)
+		w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		code, err := g.ServeDNS(context.Background(), w, msg)
+		assert.NoError(t, err)
+		assert.Equal(t, dns.RcodeSuccess, code) // ServeDNS returns RcodeSuccess because it wrote the response successfully
+		assert.Equal(t, dns.RcodeNameError, w.msg.Rcode)
+		assert.Len(t, w.msg.Answer, 0)
+	})
+
+	t.Run("fail-closed with REFUSED returns Refused and empty answers", func(t *testing.T) {
+		msg := new(dns.Msg)
+		msg.SetQuestion("fail-closed-refused.example.org.", dns.TypeA)
+		w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		code, err := g.ServeDNS(context.Background(), w, msg)
+		assert.NoError(t, err)
+		assert.Equal(t, dns.RcodeSuccess, code)
+		assert.Equal(t, dns.RcodeRefused, w.msg.Rcode)
+		assert.Len(t, w.msg.Answer, 0)
+	})
+
+	t.Run("fail-specific returns fallback IPs", func(t *testing.T) {
+		msg := new(dns.Msg)
+		msg.SetQuestion("fail-specific.example.org.", dns.TypeA)
+		w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		code, err := g.ServeDNS(context.Background(), w, msg)
+		assert.NoError(t, err)
+		assert.Equal(t, dns.RcodeSuccess, code)
+		assert.Len(t, w.msg.Answer, 2)
+		assert.Equal(t, "1.2.3.4", w.msg.Answer[0].(*dns.A).A.String())
+		assert.Equal(t, "5.6.7.8", w.msg.Answer[1].(*dns.A).A.String())
+	})
+}

@@ -291,17 +291,49 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 	ip, err := g.pickResponse(domain, recordType, ci.IP)
 	if err != nil {
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 
-		// Fallback: get all IP addresses
-		ipAddresses, err := g.pickAllAddresses(domain, recordType)
-		if err != nil {
-			log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
-			ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
-			return dns.RcodeServerFailure, nil
+		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		if policyMode == "" {
+			policyMode = "fail-open"
 		}
 
-		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
-		return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
+		g.logFailSafeWarning(domain, policyMode)
+
+		switch policyMode {
+		case "fail-closed":
+			rcode := dns.RcodeServerFailure
+			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			case "NXDOMAIN":
+				rcode = dns.RcodeNameError
+			case "REFUSED":
+				rcode = dns.RcodeRefused
+			case "NOERROR":
+				rcode = dns.RcodeSuccess
+			case "SERVFAIL":
+				rcode = dns.RcodeServerFailure
+			}
+			return g.sendRcodeResponse(w, r, domain, rcode)
+
+		case "fail-specific":
+			fallbackIPs, err := g.pickFallbackAddresses(record, recordType)
+			if err != nil {
+				log.Debugf("Error retrieving fallback IPs for domain %s: %v", domain, err)
+				return dns.RcodeServerFailure, nil
+			}
+			return g.sendAddressRecordResponse(w, r, domain, fallbackIPs, record.RecordTTL, recordType)
+
+		case "fail-open":
+			fallthrough
+		default:
+			// Fallback: get all IP addresses
+			ipAddresses, err := g.pickAllAddresses(domain, recordType)
+			if err != nil {
+				log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
+				return dns.RcodeServerFailure, nil
+			}
+			return g.sendAddressRecordResponse(w, r, domain, ipAddresses, record.RecordTTL, recordType)
+		}
 	}
 
 	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
@@ -460,6 +492,50 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	}
 	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
+}
+
+func (g *GSLB) logFailSafeWarning(domain string, policyMode string) {
+	key := "logfail:" + domain + ":" + policyMode
+	now := time.Now()
+	if val, ok := g.LastResolution.Load(key); ok {
+		if lastLog, ok := val.(time.Time); ok && now.Sub(lastLog) < 10*time.Second {
+			return
+		}
+	}
+	g.LastResolution.Store(key, now)
+	log.Warningf("[%s] no healthy backends available, applying failover policy: %s", domain, policyMode)
+}
+
+func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string, rcode int) (int, error) {
+	response := new(dns.Msg)
+	response.SetReply(r)
+	response.Rcode = rcode
+	err := w.WriteMsg(response)
+	if err != nil {
+		log.Error("Failed to write DNS rcode response: ", err)
+		IncRecordResolutions(domain, "fail")
+		return dns.RcodeServerFailure, err
+	}
+	IncRecordResolutions(domain, "success")
+	return dns.RcodeSuccess, nil
+}
+
+func (g *GSLB) pickFallbackAddresses(record *Record, recordType uint16) ([]string, error) {
+	var ipAddresses []string
+	for _, ip := range record.FailoverPolicy.FallbackIPs {
+		parsedIP := net.ParseIP(ip)
+		if parsedIP == nil {
+			continue
+		}
+		if (recordType == dns.TypeA && parsedIP.To4() != nil) ||
+			(recordType == dns.TypeAAAA && parsedIP.To16() != nil && parsedIP.To4() == nil) {
+			ipAddresses = append(ipAddresses, ip)
+		}
+	}
+	if len(ipAddresses) == 0 {
+		return nil, fmt.Errorf("no fallback backends exist for domain: %s", record.Fqdn)
+	}
+	return ipAddresses, nil
 }
 
 func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
