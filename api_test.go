@@ -124,8 +124,8 @@ func TestAPIOverviewEndpoint_AssumeHealthy(t *testing.T) {
 		Records: make(map[string]map[string]*Record),
 	}
 	rec := &Record{
-		Fqdn:           "assume.example.com.",
-		Mode:           "failover",
+		Fqdn: "assume.example.com.",
+		Mode: "failover",
 	}
 	// Backend is not alive, but assume_healthy is true
 	backend := &Backend{

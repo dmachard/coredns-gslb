@@ -195,7 +195,6 @@ func TestBackend_RunHealthChecks_AssumeHealthy(t *testing.T) {
 	assert.True(t, b.Alive)
 }
 
-
 // Mock Backend and Record
 // For testing purpopose
 type MockBackend struct {
