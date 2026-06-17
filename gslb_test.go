@@ -984,4 +984,3 @@ func TestGSLB_WildcardRecordMatching(t *testing.T) {
 		assert.Nil(t, rec)
 	})
 }
-
