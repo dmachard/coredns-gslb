@@ -928,3 +928,60 @@ func writeTempYAML(t *testing.T, content string) string {
 	f.Close()
 	return f.Name()
 }
+
+func TestGSLB_WildcardRecordMatching(t *testing.T) {
+	backendWildcard := &Backend{Address: "192.168.1.1", Enable: true, Priority: 1}
+	recordWildcard := &Record{
+		Fqdn:      "*.example.com.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backendWildcard},
+		RecordTTL: 60,
+	}
+
+	backendSpecific := &Backend{Address: "192.168.1.2", Enable: true, Priority: 1}
+	recordSpecific := &Record{
+		Fqdn:      "specific.example.com.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backendSpecific},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones: map[string]string{
+			"example.com.": "dummy.yml",
+		},
+		Records: map[string]map[string]*Record{
+			"example.com.": {
+				"*.example.com.":        recordWildcard,
+				"specific.example.com.": recordSpecific,
+			},
+		},
+	}
+
+	t.Run("Exact match wins over wildcard", func(t *testing.T) {
+		rec, zone := g.findRecord("specific.example.com.")
+		assert.Equal(t, "example.com.", zone)
+		assert.NotNil(t, rec)
+		assert.Equal(t, "specific.example.com.", rec.Fqdn)
+	})
+
+	t.Run("Wildcard match for single-label subdomain", func(t *testing.T) {
+		rec, zone := g.findRecord("anything.example.com.")
+		assert.Equal(t, "example.com.", zone)
+		assert.NotNil(t, rec)
+		assert.Equal(t, "*.example.com.", rec.Fqdn)
+	})
+
+	t.Run("Wildcard match for multi-label subdomain", func(t *testing.T) {
+		rec, zone := g.findRecord("sub.anything.example.com.")
+		assert.Equal(t, "example.com.", zone)
+		assert.NotNil(t, rec)
+		assert.Equal(t, "*.example.com.", rec.Fqdn)
+	})
+
+	t.Run("No match for non-existent domain outside zone", func(t *testing.T) {
+		rec, _ := g.findRecord("other.com.")
+		assert.Nil(t, rec)
+	})
+}
+

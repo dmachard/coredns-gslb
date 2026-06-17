@@ -129,6 +129,31 @@ records:
           enable_tls: true
 ~~~
 
+### Wildcard Records Support
+
+CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
+If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.
+
+**Example Configuration:**
+
+~~~yaml
+records:
+  "*.example.org.":
+    mode: "geoip"
+    backends:
+      - address: "172.16.0.10"
+        priority: 1
+        location: "eu-west-1"
+      - address: "172.16.0.20"
+        priority: 1
+        location: "us-east-1"
+~~~
+
+With this configuration:
+- A query for `anything.example.org.` will match `*.example.org.` (if there is no exact record `anything.example.org.`).
+- A query for `sub.anything.example.org.` will also match `*.example.org.`.
+- An exact match always takes precedence over a wildcard match.
+
 ### Using the `defaults` block in YAML zone files
 
 You can define a `defaults` block at the top of your zone YAML file to avoid repeating common fields in every record. Any field defined in `defaults` will be automatically applied to all records, unless a record explicitly overrides that field.

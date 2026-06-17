@@ -638,11 +638,39 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 }
 
 func (g *GSLB) findRecord(domain string) (*Record, string) {
+	// Exact match first
 	for zone, recs := range g.Records {
 		if rec, ok := recs[domain]; ok {
 			return rec, zone
 		}
 	}
+
+	// Wildcard fallback: find the most specific authoritative zone for the domain
+	var bestZone string
+	for zone := range g.Records {
+		if strings.HasSuffix(domain, zone) {
+			if len(zone) > len(bestZone) {
+				bestZone = zone
+			}
+		}
+	}
+
+	if bestZone != "" {
+		recs := g.Records[bestZone]
+		for i := 0; i < len(domain); i++ {
+			if domain[i] == '.' {
+				suffix := domain[i+1:]
+				if !strings.HasSuffix(suffix, bestZone) {
+					break
+				}
+				wildcardPattern := "*." + suffix
+				if rec, ok := recs[wildcardPattern]; ok {
+					return rec, bestZone
+				}
+			}
+		}
+	}
+
 	return nil, ""
 }
 
