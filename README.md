@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/go%20tests-187-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-75.6%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-4543-blue" alt="Lines of code"/>
-  <img src="https://img.shields.io/badge/integration%20tests-16-blue" alt="Integration tests"/>
+  <img src="https://img.shields.io/badge/integration%20tests-18-blue" alt="Integration tests"/>
 </p>
 
 <p align="center">

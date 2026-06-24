@@ -6,6 +6,31 @@ networks:
         - subnet: 172.16.0.0/24
 
 services:
+  # Consul for discovery integration tests
+  consul:
+    image: hashicorp/consul:2.0.1
+    container_name: consul
+    ports:
+      - "8500:8500"
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.40
+
+  # Dedicated upstream DNS server for discovery integration tests
+  coredns_discovery:
+    image: coredns/coredns:1.11.1
+    container_name: coredns_discovery
+    ports:
+      - "8054:53/udp"
+      - "8054:53/tcp"
+    volumes:
+      - ./tests/Corefile.discovery:/Corefile
+      - ./tests/db.discovery.internal:/db.discovery.internal
+    command: -conf /Corefile
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.41
+
   # generate rootca, server and client certificates
   gen_certs:
     build:
@@ -22,6 +47,8 @@ services:
       - webapp10
       - webapp11
       - webapp12
+      - consul
+      - coredns_discovery
     container_name: coredns
     ports:
       - "${COREDNS_PORT_UDP:-8053}:53/udp"
@@ -93,18 +120,18 @@ services:
       - gen_certs
     container_name: webapp12
     ports:
-      - "12990:9090"  # Expose gRPC port
+      - "12990:9090" # Expose gRPC port
     volumes:
       - devcerts:/app/certs/:ro
     environment:
       - APP_NAME=WebApplication12
-      - ENABLE_GRPC_HEALTH=1  # Custom env to enable gRPC health endpoint in the app (implement in webapp if needed)
+      - ENABLE_GRPC_HEALTH=1 # Custom env to enable gRPC health endpoint in the app (implement in webapp if needed)
     networks:
       gslb_net:
         ipv4_address: 172.16.0.12
 
   prometheus:
-    image: prom/prometheus:v3.4.2
+    image: prom/prometheus:v3.12.0
     ports:
       - "9090:9090/tcp"
     volumes:
@@ -120,13 +147,13 @@ services:
         ipv4_address: 172.16.0.50
 
   grafana:
-    image: grafana/grafana:12.0.2
+    image: grafana/grafana:13.0.3
     ports:
       - "3000:3000/tcp"
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_DISABLE_LOGIN_FORM=true      
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
       - grafana_data:/var/lib/grafana
       - ./tests/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
@@ -135,7 +162,6 @@ services:
     networks:
       gslb_net:
         ipv4_address: 172.16.0.51
-
 
 volumes:
   prometheus_data:

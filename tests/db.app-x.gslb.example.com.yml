@@ -131,3 +131,22 @@ records:
         priority: 2
     description: Dynamic DNS responses based on backend status
     mode: random
+  webapp-consul.app-x.gslb.example.com.:
+    description: Dynamic Discovery from Consul
+    mode: failover
+    discovery:
+      type: "consul"
+      endpoint: "http://172.16.0.40:8500"
+      service: "web-service"
+      interval: "5s"
+    backends: []
+  webapp-dns.app-x.gslb.example.com.:
+    description: Dynamic Discovery from DNS HTTPS
+    mode: failover
+    discovery:
+      type: "https"
+      endpoint: "172.16.0.41:53"
+      service: "web.discovery.internal."
+      interval: "5s"
+    backends: []
+

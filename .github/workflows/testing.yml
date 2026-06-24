@@ -11,7 +11,7 @@ permissions:
   pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
 
 env:
-  GOLANGCI_LINT_VERSION: "v2.10.1"
+  GOLANGCI_LINT_VERSION: "v2.12.2"
   
 jobs:
   unit_tests:
@@ -22,10 +22,10 @@ jobs:
         go-version: ['1.25']
         
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-go@v5
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
 
-    - uses: actions/setup-go@v5
+    - uses: actions/setup-go@v6
       with:
         go-version: ${{ matrix.go-version }}
         # workaround: when the files to be extracted are already present, 
@@ -34,7 +34,7 @@ jobs:
         cache: false
 
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
+      uses: golangci/golangci-lint-action@v9
       with:
         version: "${{ env.GOLANGCI_LINT_VERSION }}"
         args: --timeout 3m --verbose

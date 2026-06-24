@@ -30,6 +30,7 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 	}
 	backend := &Backend{
 		Address:         "1.2.3.4",
+		Port:            8080,
 		Priority:        1,
 		Enable:          true,
 		Alive:           true,
@@ -64,6 +65,7 @@ func TestAPIOverviewEndpoint(t *testing.T) {
 	assert.Len(t, backends, 1)
 	be := backends[0].(map[string]interface{})
 	assert.Equal(t, "1.2.3.4", be["address"])
+	assert.Equal(t, float64(8080), be["port"])
 	assert.Equal(t, "healthy", be["alive"])
 	assert.Equal(t, "2025-07-21T13:03:29Z", be["last_healthcheck"])
 }
@@ -130,6 +132,7 @@ func TestAPIOverviewEndpoint_AssumeHealthy(t *testing.T) {
 	// Backend is not alive, but assume_healthy is true
 	backend := &Backend{
 		Address:         "4.3.2.1",
+		Port:            443,
 		Priority:        1,
 		Enable:          true,
 		Alive:           false,
@@ -163,6 +166,7 @@ func TestAPIOverviewEndpoint_AssumeHealthy(t *testing.T) {
 	assert.Len(t, backends, 1)
 	be := backends[0].(map[string]interface{})
 	assert.Equal(t, "4.3.2.1", be["address"])
+	assert.Equal(t, float64(443), be["port"])
 	assert.Equal(t, "healthy", be["alive"])
 }
 
