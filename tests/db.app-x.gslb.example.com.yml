@@ -144,7 +144,7 @@ records:
     description: Dynamic Discovery from DNS HTTPS
     mode: failover
     discovery:
-      type: "https"
+      type: "dns_https"
       endpoint: "172.16.0.41:53"
       service: "web.discovery.internal."
       interval: "5s"

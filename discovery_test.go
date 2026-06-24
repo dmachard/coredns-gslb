@@ -206,7 +206,7 @@ func TestDiscovery_HTTPS_DNS(t *testing.T) {
 	defer dnsServer.Shutdown()
 
 	d := &DiscoveryConfig{
-		Type:     "https",
+		Type:     "dns_https",
 		Endpoint: pc.LocalAddr().String(),
 		Service:  "https.service.internal.",
 	}

@@ -29,7 +29,7 @@ func (d *DiscoveryConfig) FetchEndpoints() ([]DiscoveredEndpoint, error) {
 		return d.fetchConsulEndpoints()
 	case "http":
 		return d.fetchHTTPEndpoints()
-	case "svcb", "https":
+	case "dns_svcb", "dns_https":
 		return d.fetchDNSEndpoints()
 	default:
 		return nil, fmt.Errorf("unsupported discovery type: %s", d.Type)
@@ -127,7 +127,7 @@ func (d *DiscoveryConfig) fetchHTTPEndpoints() ([]DiscoveredEndpoint, error) {
 func (d *DiscoveryConfig) fetchDNSEndpoints() ([]DiscoveredEndpoint, error) {
 	m := new(dns.Msg)
 	qtype := dns.TypeSVCB
-	if strings.ToLower(d.Type) == "https" {
+	if strings.ToLower(d.Type) == "dns_https" {
 		qtype = dns.TypeHTTPS
 	}
 	m.SetQuestion(dns.Fqdn(d.Service), qtype)

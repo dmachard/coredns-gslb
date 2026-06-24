@@ -142,7 +142,7 @@ records:
   secure.example.org.:
     mode: "roundrobin"
     discovery:
-      type: "svcb"  # Or "https"
+      type: "dns_svcb"  # Or "dns_https"
       endpoint: "10.0.0.10:53"
       service: "_https._tcp.secure.internal."
       interval: "30s"
