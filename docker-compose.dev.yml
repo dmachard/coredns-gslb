@@ -24,10 +24,10 @@ services:
       - webapp12
     container_name: coredns
     ports:
-      - "8053:53/udp"
-      - "8053:53/tcp"
-      - "9153:9153/tcp"
-      - "8080:8080/tcp"
+      - "${COREDNS_PORT_UDP:-8053}:53/udp"
+      - "${COREDNS_PORT_TCP:-8053}:53/tcp"
+      - "${COREDNS_PORT_METRICS:-9153}:9153/tcp"
+      - "${COREDNS_PORT_API:-8080}:8080/tcp"
     volumes:
       - devcerts:/certs/:ro
       - ./tests/Corefile:/Corefile
