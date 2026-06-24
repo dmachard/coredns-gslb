@@ -30,7 +30,6 @@ type Record struct {
 	ScrapeTimeout  string
 	FailoverPolicy FailoverPolicy
 	Discovery      *DiscoveryConfig
-	SvcbAlpn       []string
 	ticker         *time.Ticker
 	mutex          sync.RWMutex
 	cancelFunc     context.CancelFunc
@@ -48,7 +47,6 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Backends       []interface{}    `yaml:"backends"`
 		FailoverPolicy FailoverPolicy   `yaml:"failover_policy"`
 		Discovery      *DiscoveryConfig `yaml:"discovery"`
-		SvcbAlpn       []string         `yaml:"svcb_alpn"`
 	}
 	defaults.Set(&raw)
 
@@ -65,11 +63,6 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	r.ScrapeTimeout = raw.ScrapeTimeout
 	r.FailoverPolicy = raw.FailoverPolicy
 	r.Discovery = raw.Discovery
-	if len(raw.SvcbAlpn) == 0 {
-		r.SvcbAlpn = []string{"h2", "http/1.1"}
-	} else {
-		r.SvcbAlpn = raw.SvcbAlpn
-	}
 
 	for _, backendData := range raw.Backends {
 		var backend Backend
@@ -138,7 +131,6 @@ func (r *Record) updateRecord(newRecord *Record) {
 	}
 
 	r.Discovery = newRecord.Discovery
-	r.SvcbAlpn = newRecord.SvcbAlpn
 
 	// Update or add backends
 	for _, newBackend := range newRecord.Backends {

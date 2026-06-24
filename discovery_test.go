@@ -157,7 +157,7 @@ func TestDiscovery_SVCB_DNS(t *testing.T) {
 	defer dnsServer.Shutdown()
 
 	d := &DiscoveryConfig{
-		Type:     "svcb",
+		Type:     "dns_svcb",
 		Endpoint: pc.LocalAddr().String(),
 		Service:  "service.internal.",
 	}

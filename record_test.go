@@ -150,9 +150,6 @@ func (b *callCounter) Unlock()                                   {}
 func TestRecord_UnmarshalYAML_Discovery(t *testing.T) {
 	yamlData := `
 mode: "failover"
-svcb_alpn:
-  - "h3"
-  - "h2"
 discovery:
   type: "consul"
   endpoint: "http://consul:8500"
@@ -165,7 +162,6 @@ backends:
 	var record Record
 	err := yaml.Unmarshal([]byte(yamlData), &record)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"h3", "h2"}, record.SvcbAlpn)
 	assert.NotNil(t, record.Discovery)
 	assert.Equal(t, "consul", record.Discovery.Type)
 	assert.Equal(t, "http://consul:8500", record.Discovery.Endpoint)
@@ -176,7 +172,6 @@ backends:
 func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 	record := &Record{
 		Fqdn:     "example.com",
-		SvcbAlpn: []string{"h2"},
 		Discovery: &DiscoveryConfig{
 			Type: "http",
 		},
@@ -184,7 +179,6 @@ func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 
 	newRecord := &Record{
 		Fqdn:     "example.com",
-		SvcbAlpn: []string{"h3"},
 		Discovery: &DiscoveryConfig{
 			Type: "consul",
 		},
@@ -192,7 +186,6 @@ func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 
 	record.updateRecord(newRecord)
 
-	assert.Equal(t, []string{"h3"}, record.SvcbAlpn)
 	assert.NotNil(t, record.Discovery)
 	assert.Equal(t, "consul", record.Discovery.Type)
 }
