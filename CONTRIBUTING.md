@@ -124,6 +124,14 @@ Run a specific test
 go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 ~~~
 
+## Running Integration Tests
+
+You can run the entire integration test suite (failover, GeoIP, and API checks) locally using:
+
+~~~ bash
+make test-integration
+~~~
+
 ## Run linters
 
 **Install make:**

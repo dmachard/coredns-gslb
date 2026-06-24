@@ -6,13 +6,18 @@ endif
 SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
-.PHONY: tests stats lint build clean
+.PHONY: tests test-integration stats lint build clean
 
 # Runs linters.
 lint:
 	$(GOPATH)/bin/golangci-lint run --config=.golangci.yml ./...
 
+test-integration:
+	@chmod +x tests/integration.sh
+	./tests/integration.sh
+
 tests:
+
 	@echo "Running tests..."
 	@go test -v -race -coverprofile=coverage.out -json ./... | tee test_output.json | \
 	jq -r 'select(.Output != null) | .Output' | sed '/^\s*$$/d' | sed 's/^[ \t]*//'
