@@ -6,7 +6,7 @@ endif
 SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
-.PHONY: tests test-integration stats lint build clean
+.PHONY: tests test-unit test-integration stats lint build clean
 
 # Runs linters.
 lint:
@@ -16,9 +16,12 @@ test-integration:
 	@chmod +x tests/integration.sh
 	./tests/integration.sh
 
-tests:
+# Runs all tests.
+tests: test-unit test-integration
 
-	@echo "Running tests..."
+# Runs unit tests.
+test-unit:
+	@echo "Running unit tests..."
 	@go test -v -race -coverprofile=coverage.out -json ./... | tee test_output.json | \
 	jq -r 'select(.Output != null) | .Output' | sed '/^\s*$$/d' | sed 's/^[ \t]*//'
 	go tool cover -func=coverage.out

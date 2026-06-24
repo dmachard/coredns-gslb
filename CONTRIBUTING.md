@@ -118,6 +118,12 @@ make
 
 ## Running Unit Tests
 
+Run all unit tests
+
+~~~ bash
+make test-unit
+~~~
+
 Run a specific test
 
 ~~~ bash
@@ -131,6 +137,20 @@ You can run the entire integration test suite (failover, GeoIP, and API checks) 
 ~~~ bash
 make test-integration
 ~~~
+
+### Troubleshooting Port Conflicts
+
+If some ports (like `8080` or `8053`) are already in use on your host machine, you will see a Docker bind error. You can override these ports using environment variables:
+
+~~~ bash
+COREDNS_PORT_API=8082 COREDNS_PORT_TCP=8055 make test-integration
+~~~
+
+Supported variables:
+- `COREDNS_PORT_API` (default: `8080`)
+- `COREDNS_PORT_TCP` (default: `8053`)
+- `COREDNS_PORT_UDP` (default: `8053`)
+- `COREDNS_PORT_METRICS` (default: `9153`)
 
 ## Run linters
 

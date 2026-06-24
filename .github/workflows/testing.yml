@@ -40,7 +40,7 @@ jobs:
         args: --timeout 3m --verbose
 
     - name: Test
-      run: make tests
+      run: make test-unit
 
     - name: Line of Code
       run: make stats
