@@ -277,10 +277,27 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 	return false
 }
 
+func (g *GSLB) hasRecordTypeConfigured(record *Record, recordType uint16) bool {
+	for _, backend := range record.Backends {
+		if isAddressTypeCompatible(backend.GetAddress(), recordType) {
+			return true
+		}
+	}
+	for _, ip := range record.FailoverPolicy.FallbackIPs {
+		if isAddressTypeCompatible(ip, recordType) {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16) (int, error) {
 	record, _ := g.findRecord(domain)
 	if record == nil {
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+	}
+	if !g.hasRecordTypeConfigured(record, recordType) {
+		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess)
 	}
 	ci := GetClientInfo(ctx)
 	if ci == nil || ci.IP == nil {

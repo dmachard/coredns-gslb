@@ -27,6 +27,7 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
+- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, and `TXT` queries based on backend status
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
 - **No external database**: Records are defined using a YAML file.

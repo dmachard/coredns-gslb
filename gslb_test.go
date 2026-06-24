@@ -1135,3 +1135,31 @@ func TestServeDNS_GeoIPAffinity(t *testing.T) {
 		}
 	}
 }
+
+func TestServeDNS_UnsupportedRecordTypeReturnsNoData(t *testing.T) {
+	// Create a record with IPv4-only backend (no AAAA)
+	backend := &Backend{Address: "192.168.1.1", Enable: true, Priority: 1}
+	record := &Record{
+		Fqdn:      "ipv4-only.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"ipv4-only.example.org.": {"ipv4-only.example.org.": record}},
+	}
+
+	// Query for AAAA
+	msg := new(dns.Msg)
+	msg.SetQuestion("ipv4-only.example.org.", dns.TypeAAAA)
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err := g.ServeDNS(context.Background(), w, msg)
+	assert.NoError(t, err)
+	// We expect NOERROR (dns.RcodeSuccess) and empty Answer
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Equal(t, dns.RcodeSuccess, w.msg.Rcode)
+	assert.Len(t, w.msg.Answer, 0)
+}
