@@ -38,15 +38,15 @@ type Record struct {
 
 func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Mode           string         `yaml:"mode" default:"failover"`
-		Owner          string         `yaml:"owner" default:""`
-		Description    string         `yaml:"description" default:""`
-		Ttl            int            `yaml:"record_ttl" default:"30"`
-		ScrapeInterval string         `yaml:"scrape_interval" default:"10s"`
-		ScrapeRetries  int            `yaml:"scrape_retries" default:"1"`
-		ScrapeTimeout  string         `yaml:"scrape_timeout" default:"5s"`
-		Backends       []interface{}  `yaml:"backends"`
-		FailoverPolicy FailoverPolicy `yaml:"failover_policy"`
+		Mode           string           `yaml:"mode" default:"failover"`
+		Owner          string           `yaml:"owner" default:""`
+		Description    string           `yaml:"description" default:""`
+		Ttl            int              `yaml:"record_ttl" default:"30"`
+		ScrapeInterval string           `yaml:"scrape_interval" default:"10s"`
+		ScrapeRetries  int              `yaml:"scrape_retries" default:"1"`
+		ScrapeTimeout  string           `yaml:"scrape_timeout" default:"5s"`
+		Backends       []interface{}    `yaml:"backends"`
+		FailoverPolicy FailoverPolicy   `yaml:"failover_policy"`
 		Discovery      *DiscoveryConfig `yaml:"discovery"`
 		SvcbAlpn       []string         `yaml:"svcb_alpn"`
 	}
@@ -194,7 +194,7 @@ func (r *Record) GetScrapeTimeout() time.Duration {
 }
 
 func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
-	log.Infof("[%s] Scraper loop started with interval %s", r.Fqdn, r.GetScrapeInterval())
+	log.Debugf("[%s] Scraper loop started with interval %s", r.Fqdn, r.GetScrapeInterval())
 	// Initialize ticker if it does not exist
 	scrapeInterval := r.GetScrapeInterval()
 	if r.ticker == nil {
@@ -210,7 +210,7 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 	for {
 		select {
 		case <-r.ticker.C:
-			log.Infof("[%s] Scraper ticker fired", r.Fqdn)
+			log.Debugf("[%s] Scraper ticker fired", r.Fqdn)
 			now := time.Now()
 
 			// Check if scraping should be slowed down
@@ -242,7 +242,7 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 
 			// Run service discovery if configured
 			if r.Discovery != nil {
-				log.Infof("[%s] Fetching endpoints from discovery type: %s", r.Fqdn, r.Discovery.Type)
+				log.Debugf("[%s] Fetching endpoints from discovery type: %s", r.Fqdn, r.Discovery.Type)
 				endpoints, err := r.Discovery.FetchEndpoints()
 				if err == nil {
 					log.Infof("[%s] Discovered endpoints: %+v", r.Fqdn, endpoints)
@@ -362,12 +362,12 @@ func (r *Record) updateBackendsFromDiscovery(discovered []DiscoveredEndpoint) {
 			newBackends = append(newBackends, found)
 		} else {
 			b := &Backend{
-				Fqdn:     r.Fqdn,
-				Address:  dep.Address,
-				Port:     dep.Port,
-				Enable:   true,
-				Weight:   1,
-				Priority: 0,
+				Fqdn:          r.Fqdn,
+				Address:       dep.Address,
+				Port:          dep.Port,
+				Enable:        true,
+				Weight:        1,
+				Priority:      0,
 				AssumeHealthy: false,
 			}
 			newBackends = append(newBackends, b)

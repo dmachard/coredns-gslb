@@ -30,6 +30,7 @@ What it does:
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
 - **No external database**: Records are defined using a YAML file.
+- **Dynamic backend discovery**: Automatic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS)
 
 Unlike many existing solutions, this plugin is designed for non-Kubernetes infrastructures — including virtual machines, bare metal servers, and hybrid environments.
 
@@ -143,7 +144,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP, GeoIP affinity, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Dynamic Backend Discovery](docs/discovery.md) | Dynamic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS) |
+| [Backend Discovery](docs/discovery.md) | Dynamic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS) |
 | [Configuration](docs/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |

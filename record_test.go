@@ -196,4 +196,3 @@ func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 	assert.NotNil(t, record.Discovery)
 	assert.Equal(t, "consul", record.Discovery.Type)
 }
-
