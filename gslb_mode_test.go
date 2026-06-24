@@ -953,3 +953,27 @@ func (w *TestResponseWriter) TsigStatus() error         { return nil }
 func (w *TestResponseWriter) TsigTimersOnly(bool)       {}
 func (w *TestResponseWriter) Hijack()                   {}
 func (w *TestResponseWriter) Write([]byte) (int, error) { return 0, nil }
+
+func TestIsAddressTypeCompatible(t *testing.T) {
+	testCases := []struct {
+		name       string
+		ip         string
+		recordType uint16
+		expected   bool
+	}{
+		{"IPv4 compatible with A", "192.168.1.1", dns.TypeA, true},
+		{"IPv4 not compatible with AAAA", "192.168.1.1", dns.TypeAAAA, false},
+		{"IPv6 compatible with AAAA", "2001:db8::1", dns.TypeAAAA, true},
+		{"IPv6 not compatible with A", "2001:db8::1", dns.TypeA, false},
+		{"Invalid IP with A", "invalid-ip", dns.TypeA, false},
+		{"Invalid IP with AAAA", "invalid-ip", dns.TypeAAAA, false},
+		{"IPv4 compatible with other type", "192.168.1.1", dns.TypeTXT, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isAddressTypeCompatible(tc.ip, tc.recordType)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}

@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-187-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-75.6%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-4543-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/go%20tests-204-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-75.8%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-4843-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-18-blue" alt="Integration tests"/>
 </p>
 
@@ -27,6 +27,7 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
+- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, and `TXT` queries based on backend status
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
 - **No external database**: Records are defined using a YAML file.
