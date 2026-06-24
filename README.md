@@ -143,6 +143,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP, GeoIP affinity, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
+| [Dynamic Backend Discovery](docs/discovery.md) | Dynamic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS) |
 | [Configuration](docs/configuration.md) | Complete parameter reference |
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |

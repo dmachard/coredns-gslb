@@ -15,6 +15,7 @@ type Backend struct {
 	Fqdn            string               // Fully qualified domain name
 	Description     string               // Description of the backend
 	Address         string               // IP address or hostname
+	Port            int                  // Port number of the backend
 	Priority        int                  // Priority for load balancing
 	Weight          int                  // Weight for weighted load balancing
 	Enable          bool                 // Enable or disable the backend
@@ -60,6 +61,10 @@ func (b *Backend) GetDescription() string {
 
 func (b *Backend) GetAddress() string {
 	return b.Address
+}
+
+func (b *Backend) GetPort() int {
+	return b.Port
 }
 
 func (b *Backend) GetPriority() int {
@@ -141,6 +146,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
 		Description   string        `yaml:"description" default:""`
 		Address       string        `yaml:"address" default:"127.0.0.1"`
+		Port          int           `yaml:"port" default:"0"`
 		Priority      int           `yaml:"priority" default:"0"`
 		Weight        int           `yaml:"weight" default:"1"`
 		Enable        bool          `yaml:"enable" default:"true"`
@@ -163,6 +169,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	b.Description = raw.Description
 	b.Address = raw.Address
+	b.Port = raw.Port
 	b.Priority = raw.Priority
 	b.Weight = raw.Weight
 	b.Enable = raw.Enable
@@ -208,6 +215,11 @@ func (b *Backend) removeBackend() {
 func (b *Backend) updateBackend(newBackend BackendInterface) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
+
+	if b.Port != newBackend.GetPort() {
+		log.Infof("[%s] backend %s updated, port changed from %d to %d", b.Fqdn, b.Address, b.Port, newBackend.GetPort())
+		b.Port = newBackend.GetPort()
+	}
 
 	if b.Priority != newBackend.GetPriority() {
 		log.Infof("[%s] backend %s updated, priority changed from %d to %d", b.Fqdn, b.Address, b.Priority, newBackend.GetPriority())
@@ -416,6 +428,7 @@ type BackendInterface interface {
 	SetFqdn(fqdn string)
 	GetDescription() string
 	GetAddress() string
+	GetPort() int
 	GetPriority() int
 	GetWeight() int
 	IsEnabled() bool
