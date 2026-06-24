@@ -128,7 +128,7 @@ func TestLoadRealConfig(t *testing.T) {
 	assert.NotNil(t, g.Records)
 	assert.Len(t, g.Records, 1)
 	for _, recs := range g.Records {
-		assert.Len(t, recs, 4)
+		assert.Len(t, recs, 6)
 	}
 
 	zone = "webapp.app-x.gslb.example.com."

@@ -249,6 +249,10 @@ records:
 - Tags are used by the API to enable/disable backends in bulk (see API documentation).
 - Tags can be used for your own grouping or inventory purposes as well.
 
+### Dynamic Service Discovery & Backend Discovery
+
+For details on configuring backend pools, static configs, API bulk updates, or dynamic service discovery (via Consul, HTTP APIs, or DNS SVCB/HTTPS records), please refer to the dedicated [Backends Discovery](discovery.md) guide.
+
 ### GeoIP
 
 #### MaxMind Databases

@@ -13,6 +13,7 @@ import (
 func TestBackend_UnmarshalYAML(t *testing.T) {
 	yamlData := `
 address: "127.0.0.1"
+port: 8080
 priority: 10
 description: "helloworld"
 continent: "EU"
@@ -35,6 +36,7 @@ healthchecks:
 	err := yaml.Unmarshal([]byte(yamlData), &backend)
 	assert.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", backend.Address)
+	assert.Equal(t, 8080, backend.Port)
 	assert.Equal(t, 10, backend.Priority)
 	assert.Equal(t, true, backend.Enable)
 	assert.Equal(t, "10s", backend.Timeout)
@@ -73,6 +75,7 @@ func TestBackend_Getters(t *testing.T) {
 		Fqdn:           "test.example.com.",
 		Description:    "desc",
 		Address:        "1.2.3.4",
+		Port:           8080,
 		Priority:       10,
 		Enable:         true,
 		HealthChecks:   []GenericHealthCheck{},
@@ -89,6 +92,7 @@ func TestBackend_Getters(t *testing.T) {
 	assert.Equal(t, "test.example.com.", b.GetFqdn())
 	assert.Equal(t, "desc", b.GetDescription())
 	assert.Equal(t, "1.2.3.4", b.GetAddress())
+	assert.Equal(t, 8080, b.GetPort())
 	assert.Equal(t, 10, b.GetPriority())
 	assert.Equal(t, true, b.IsEnabled())
 	assert.Equal(t, []GenericHealthCheck{}, b.GetHealthChecks())
@@ -240,6 +244,7 @@ func TestBackend_LockUnlock(t *testing.T) {
 func TestBackend_UpdateBackend(t *testing.T) {
 	b := &Backend{
 		Address:        "1.2.3.4",
+		Port:           8080,
 		Priority:       10,
 		Weight:         5,
 		Enable:         true,
@@ -262,6 +267,7 @@ func TestBackend_UpdateBackend(t *testing.T) {
 
 	newBackend := &Backend{
 		Address:        "1.2.3.4", // Same address
+		Port:           9090,      // Different port
 		Priority:       20,        // Different priority
 		Weight:         10,        // Different weight
 		Enable:         false,     // Different enable state
@@ -289,6 +295,7 @@ func TestBackend_UpdateBackend(t *testing.T) {
 	})
 
 	// Verify all fields were updated
+	assert.Equal(t, 9090, b.Port, "Port should be updated")
 	assert.Equal(t, 20, b.Priority, "Priority should be updated")
 	assert.Equal(t, 10, b.Weight, "Weight should be updated")
 	assert.Equal(t, false, b.Enable, "Enable should be updated")

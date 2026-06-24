@@ -87,6 +87,18 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
+# Wait for Consul to elect leader and register service
+echo "=== Waiting for Consul to be ready ==="
+for i in {1..30}; do
+    if curl -s http://127.0.0.1:8500/v1/status/leader | grep -q '172.16.0'; then
+        break
+    fi
+    sleep 1
+done
+
+echo "=== Registering Service in Consul ==="
+curl -s -X PUT -H "Content-Type: application/json" -d '{"Node": "node1", "Address": "172.16.0.10", "Service": {"ID": "web1", "Service": "web-service", "Address": "172.16.0.10", "Port": 80}}' http://127.0.0.1:8500/v1/catalog/register
+
 # Wait for healthcheck to be fully ready
 echo "=== Waiting 15s for healthchecks to stabilize ==="
 sleep 15
@@ -242,9 +254,29 @@ test_api_records() {
     local resp
     resp=$(curl -s -X GET http://127.0.0.1:"$COREDNS_PORT_API"/api/overview | jq 'map(length) | add')
     echo "Got Nb records: $resp"
-    [ "$resp" = "7" ]
+    [ "$resp" = "9" ]
 }
-run_test "Check API Overview - count records (should be 7)" test_api_records
+run_test "Check API Overview - count records (should be 9)" test_api_records
+
+
+# 9b. Dynamic Service Discovery Integration Tests
+echo "=== Running Dynamic Discovery Tests ==="
+
+test_consul_discovery() {
+    local ip
+    ip=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp-consul.app-x.gslb.example.com +short)
+    echo "Got IP from Consul discovery: $ip"
+    [ "$ip" = "172.16.0.10" ]
+}
+run_test "Check Consul Discovery (should resolve to 172.16.0.10)" test_consul_discovery
+
+test_dns_https_discovery() {
+    local ip
+    ip=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp-dns.app-x.gslb.example.com +short)
+    echo "Got IP from DNS HTTPS discovery: $ip"
+    [ "$ip" = "172.16.0.12" ]
+}
+run_test "Check DNS HTTPS Discovery (should resolve to 172.16.0.12)" test_dns_https_discovery
 
 
 # 10. Output Statistics

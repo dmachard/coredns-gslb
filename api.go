@@ -125,6 +125,7 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					}
 					beMap := map[string]interface{}{
 						"address":          b.Address,
+						"port":             b.Port,
 						"alive":            aliveStr,
 						"last_healthcheck": b.LastHealthcheck.Format(time.RFC3339),
 					}
@@ -167,6 +168,7 @@ func (g *GSLB) handleOverview() http.HandlerFunc {
 					}
 					beMap := map[string]interface{}{
 						"address":          b.Address,
+						"port":             b.Port,
 						"alive":            aliveStr,
 						"last_healthcheck": b.LastHealthcheck.Format(time.RFC3339),
 					}

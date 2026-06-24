@@ -146,3 +146,46 @@ func (b *callCounter) removeBackend()                            {}
 func (b *callCounter) updateBackend(newBackend BackendInterface) {}
 func (b *callCounter) Lock()                                     {}
 func (b *callCounter) Unlock()                                   {}
+
+func TestRecord_UnmarshalYAML_Discovery(t *testing.T) {
+	yamlData := `
+mode: "failover"
+discovery:
+  type: "consul"
+  endpoint: "http://consul:8500"
+  service: "my-service"
+  interval: "10s"
+backends:
+  - address: "192.168.1.1"
+`
+
+	var record Record
+	err := yaml.Unmarshal([]byte(yamlData), &record)
+	assert.NoError(t, err)
+	assert.NotNil(t, record.Discovery)
+	assert.Equal(t, "consul", record.Discovery.Type)
+	assert.Equal(t, "http://consul:8500", record.Discovery.Endpoint)
+	assert.Equal(t, "my-service", record.Discovery.Service)
+	assert.Equal(t, "10s", record.Discovery.Interval)
+}
+
+func TestRecord_UpdateRecord_Discovery(t *testing.T) {
+	record := &Record{
+		Fqdn: "example.com",
+		Discovery: &DiscoveryConfig{
+			Type: "http",
+		},
+	}
+
+	newRecord := &Record{
+		Fqdn: "example.com",
+		Discovery: &DiscoveryConfig{
+			Type: "consul",
+		},
+	}
+
+	record.updateRecord(newRecord)
+
+	assert.NotNil(t, record.Discovery)
+	assert.Equal(t, "consul", record.Discovery.Type)
+}

@@ -1,0 +1,13 @@
+$TTL 3600
+@   IN  SOA ns1.discovery.internal. admin.discovery.internal. (
+        2026062401 ; Serial
+        3600       ; Refresh
+        1800       ; Retry
+        604800     ; Expire
+        600        ; Minimum TTL
+)
+
+@   IN  NS  ns1.discovery.internal.
+ns1 IN  A   127.0.0.1
+
+web.discovery.internal. IN HTTPS 1 . port=443 ipv4hint=172.16.0.12

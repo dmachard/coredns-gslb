@@ -29,6 +29,7 @@ type Record struct {
 	ScrapeRetries  int
 	ScrapeTimeout  string
 	FailoverPolicy FailoverPolicy
+	Discovery      *DiscoveryConfig
 	ticker         *time.Ticker
 	mutex          sync.RWMutex
 	cancelFunc     context.CancelFunc
@@ -36,15 +37,16 @@ type Record struct {
 
 func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Mode           string         `yaml:"mode" default:"failover"`
-		Owner          string         `yaml:"owner" default:""`
-		Description    string         `yaml:"description" default:""`
-		Ttl            int            `yaml:"record_ttl" default:"30"`
-		ScrapeInterval string         `yaml:"scrape_interval" default:"10s"`
-		ScrapeRetries  int            `yaml:"scrape_retries" default:"1"`
-		ScrapeTimeout  string         `yaml:"scrape_timeout" default:"5s"`
-		Backends       []interface{}  `yaml:"backends"`
-		FailoverPolicy FailoverPolicy `yaml:"failover_policy"`
+		Mode           string           `yaml:"mode" default:"failover"`
+		Owner          string           `yaml:"owner" default:""`
+		Description    string           `yaml:"description" default:""`
+		Ttl            int              `yaml:"record_ttl" default:"30"`
+		ScrapeInterval string           `yaml:"scrape_interval" default:"10s"`
+		ScrapeRetries  int              `yaml:"scrape_retries" default:"1"`
+		ScrapeTimeout  string           `yaml:"scrape_timeout" default:"5s"`
+		Backends       []interface{}    `yaml:"backends"`
+		FailoverPolicy FailoverPolicy   `yaml:"failover_policy"`
+		Discovery      *DiscoveryConfig `yaml:"discovery"`
 	}
 	defaults.Set(&raw)
 
@@ -60,6 +62,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	r.ScrapeRetries = raw.ScrapeRetries
 	r.ScrapeTimeout = raw.ScrapeTimeout
 	r.FailoverPolicy = raw.FailoverPolicy
+	r.Discovery = raw.Discovery
 
 	for _, backendData := range raw.Backends {
 		var backend Backend
@@ -127,6 +130,8 @@ func (r *Record) updateRecord(newRecord *Record) {
 		r.FailoverPolicy = newRecord.FailoverPolicy
 	}
 
+	r.Discovery = newRecord.Discovery
+
 	// Update or add backends
 	for _, newBackend := range newRecord.Backends {
 		newBackend.SetFqdn(r.Fqdn)
@@ -181,6 +186,7 @@ func (r *Record) GetScrapeTimeout() time.Duration {
 }
 
 func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
+	log.Debugf("[%s] Scraper loop started with interval %s", r.Fqdn, r.GetScrapeInterval())
 	// Initialize ticker if it does not exist
 	scrapeInterval := r.GetScrapeInterval()
 	if r.ticker == nil {
@@ -196,6 +202,7 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 	for {
 		select {
 		case <-r.ticker.C:
+			log.Debugf("[%s] Scraper ticker fired", r.Fqdn)
 			now := time.Now()
 
 			// Check if scraping should be slowed down
@@ -219,14 +226,31 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 				scrapeInterval = newInterval
 				r.ticker.Reset(scrapeInterval)
 				if shouldSlowDown {
-					log.Debugf("[%s] Slow down scrape interval to %s", r.Fqdn, scrapeInterval)
+					log.Infof("[%s] Slow down scrape interval to %s", r.Fqdn, scrapeInterval)
 				} else {
-					log.Debugf("[%s] Resume normal scrape interval to %s", r.Fqdn, scrapeInterval)
+					log.Infof("[%s] Resume normal scrape interval to %s", r.Fqdn, scrapeInterval)
+				}
+			}
+
+			// Run service discovery if configured
+			if r.Discovery != nil {
+				log.Debugf("[%s] Fetching endpoints from discovery type: %s", r.Fqdn, r.Discovery.Type)
+				endpoints, err := r.Discovery.FetchEndpoints()
+				if err == nil {
+					log.Infof("[%s] Discovered endpoints: %+v", r.Fqdn, endpoints)
+					r.updateBackendsFromDiscovery(endpoints)
+				} else {
+					log.Errorf("[%s] service discovery failed: %v", r.Fqdn, err)
 				}
 			}
 
 			// Run health checks for backends
-			for _, backend := range r.Backends {
+			r.mutex.RLock()
+			backendsCopy := make([]BackendInterface, len(r.Backends))
+			copy(backendsCopy, r.Backends)
+			r.mutex.RUnlock()
+
+			for _, backend := range backendsCopy {
 				backend.Lock()
 				if !backend.IsEnabled() {
 					backend.Unlock()
@@ -238,7 +262,7 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 
 			// Update Prometheus gauge for active backends
 			healthyCount := 0
-			for _, backend := range r.Backends {
+			for _, backend := range backendsCopy {
 				if backend.IsHealthy() {
 					healthyCount++
 				}
@@ -268,9 +292,14 @@ func (r *Record) UpdateRecord() {
 }
 
 func (r *Record) updateRecordHealthStatus() {
+	r.mutex.RLock()
+	backendsCopy := make([]BackendInterface, len(r.Backends))
+	copy(backendsCopy, r.Backends)
+	r.mutex.RUnlock()
+
 	// Check if any backend is healthy
 	hasHealthyBackend := false
-	for _, backend := range r.Backends {
+	for _, backend := range backendsCopy {
 		if backend.IsHealthy() {
 			hasHealthyBackend = true
 			break
@@ -285,7 +314,7 @@ func (r *Record) updateRecordHealthStatus() {
 	}
 
 	// Update individual backend health status
-	for _, backend := range r.Backends {
+	for _, backend := range backendsCopy {
 		switch {
 		case !backend.IsEnabled():
 			SetBackendHealthStatus(r.Fqdn, backend.GetAddress(), 2)
@@ -298,14 +327,43 @@ func (r *Record) updateRecordHealthStatus() {
 		// Update healthcheck status for each type
 		for _, healthcheck := range backend.GetHealthChecks() {
 			healthcheckType := healthcheck.GetType()
-			switch {
-			case !backend.IsEnabled():
-				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 2)
-			case backend.IsHealthy():
+			if backend.IsHealthy() {
 				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 1)
-			default:
+			} else {
 				SetBackendHealthcheckStatus(r.Fqdn, backend.GetAddress(), healthcheckType, 0)
 			}
 		}
 	}
+}
+
+func (r *Record) updateBackendsFromDiscovery(discovered []DiscoveredEndpoint) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	var newBackends []BackendInterface
+	for _, dep := range discovered {
+		var found BackendInterface
+		for _, b := range r.Backends {
+			if b.GetAddress() == dep.Address && b.GetPort() == dep.Port {
+				found = b
+				break
+			}
+		}
+
+		if found != nil {
+			newBackends = append(newBackends, found)
+		} else {
+			b := &Backend{
+				Fqdn:          r.Fqdn,
+				Address:       dep.Address,
+				Port:          dep.Port,
+				Enable:        true,
+				Weight:        1,
+				Priority:      0,
+				AssumeHealthy: false,
+			}
+			newBackends = append(newBackends, b)
+		}
+	}
+	r.Backends = newBackends
 }

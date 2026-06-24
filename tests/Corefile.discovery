@@ -1,0 +1,4 @@
+. {
+    log
+    file /db.discovery.internal discovery.internal
+}
