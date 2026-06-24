@@ -568,6 +568,64 @@ func TestGSLB_PickBackendWithGeoIP_CoordinatesNearest_Backend(t *testing.T) {
 	assert.Equal(t, []string{"90.0.0.1"}, ips)
 }
 
+func TestGSLB_PickBackendWithGeoIP_MultipleNearest_Coordinates(t *testing.T) {
+	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-City.mmdb not found, skipping multiple nearest test")
+	}
+	defer db.Close()
+
+	backendNear1 := &MockBackend{Backend: &Backend{
+		Address:        "90.0.0.1",
+		Enable:         true,
+		Priority:       20,
+		Longitude:      -122.2727, // Oakland, CA
+		Latitude:       37.8044,
+		LongitudeRad:   -122.2727 * math.Pi / 180,
+		LatitudeRad:    37.8044 * math.Pi / 180,
+		HasCoordinates: true,
+	}}
+	backendNear2 := &MockBackend{Backend: &Backend{
+		Address:        "90.0.0.2",
+		Enable:         true,
+		Priority:       20,
+		Longitude:      -122.2727, // Oakland, CA
+		Latitude:       37.8044,
+		LongitudeRad:   -122.2727 * math.Pi / 180,
+		LatitudeRad:    37.8044 * math.Pi / 180,
+		HasCoordinates: true,
+	}}
+	backendFar := &MockBackend{Backend: &Backend{
+		Address:        "91.0.0.1",
+		Enable:         true,
+		Priority:       10,
+		Longitude:      2.3522, // Paris, FR
+		Latitude:       48.8566,
+		LongitudeRad:   2.3522 * math.Pi / 180,
+		LatitudeRad:    48.8566 * math.Pi / 180,
+		HasCoordinates: true,
+	}}
+	backendNear1.On("IsHealthy").Return(true)
+	backendNear2.On("IsHealthy").Return(true)
+	backendFar.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo-coordinates-multiple.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendNear1, backendNear2, backendFar},
+	}
+
+	g := &GSLB{
+		GeoIPCityDB: db,
+	}
+
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("9.9.9.9")) // Berkeley, CA in test DB
+	assert.NoError(t, err)
+	assert.Len(t, ips, 2)
+	assert.Contains(t, ips, "90.0.0.1")
+	assert.Contains(t, ips, "90.0.0.2")
+}
+
 func TestGSLB_PickBackendWithGeoIP_CoordinatesNearest_BackendUnavailableFallbackToNext(t *testing.T) {
 	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
 	if err != nil {

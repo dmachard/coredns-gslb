@@ -158,9 +158,11 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 		if err == nil && recordCity != nil {
 			clientLatitude := recordCity.Location.Latitude
 			clientLongitude := recordCity.Location.Longitude
-			if nearest, ok := g.pickNearestBackendByCoordinates(record, recordType, clientLatitude, clientLongitude); ok {
-				IncBackendSelected(record.Fqdn, nearest)
-				return []string{nearest}, nil
+			if nearestIPs, ok := g.pickNearestBackendByCoordinates(record, recordType, clientLatitude, clientLongitude); ok {
+				for _, ip := range nearestIPs {
+					IncBackendSelected(record.Fqdn, ip)
+				}
+				return nearestIPs, nil
 			}
 
 			cityName := ""
@@ -418,11 +420,11 @@ func isAddressTypeCompatible(ip string, recordType uint16) bool {
 	return false
 }
 
-func (g *GSLB) pickNearestBackendFromSubset(backends []BackendInterface, recordType uint16, clientLatitude, clientLongitude float64) (string, bool) {
+func (g *GSLB) pickNearestBackendFromSubset(backends []BackendInterface, recordType uint16, clientLatitude, clientLongitude float64) ([]string, bool) {
 	clientLatitudeRad := clientLatitude * math.Pi / 180
 	clientLongitudeRad := clientLongitude * math.Pi / 180
 
-	bestAddress := ""
+	var bestAddresses []string
 	bestDistance := 0.0
 	bestPriority := 0
 	found := false
@@ -439,24 +441,29 @@ func (g *GSLB) pickNearestBackendFromSubset(backends []BackendInterface, recordT
 		distance := haversineDistanceRad(clientLatitudeRad, clientLongitudeRad, backend.GetLatitudeRad(), backend.GetLongitudeRad())
 		priority := backend.GetPriority()
 		if !found {
-			bestAddress = address
+			bestAddresses = []string{address}
 			bestDistance = distance
 			bestPriority = priority
 			found = true
 			continue
 		}
-		if distance < bestDistance ||
-			(distance == bestDistance && (priority < bestPriority ||
-				(priority == bestPriority && address < bestAddress))) {
-			bestAddress = address
+		if distance < bestDistance {
+			bestAddresses = []string{address}
 			bestDistance = distance
 			bestPriority = priority
+		} else if distance == bestDistance {
+			if priority < bestPriority {
+				bestAddresses = []string{address}
+				bestPriority = priority
+			} else if priority == bestPriority {
+				bestAddresses = append(bestAddresses, address)
+			}
 		}
 	}
-	return bestAddress, found
+	return bestAddresses, found
 }
 
-func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16, clientLatitude, clientLongitude float64) (string, bool) {
+func (g *GSLB) pickNearestBackendByCoordinates(record *Record, recordType uint16, clientLatitude, clientLongitude float64) ([]string, bool) {
 	return g.pickNearestBackendFromSubset(record.Backends, recordType, clientLatitude, clientLongitude)
 }
 
@@ -640,9 +647,11 @@ func (g *GSLB) pickBackendWithGeoIPAffinity(record *Record, recordType uint16, c
 			geo, _ = g.getClientGeoInfo(clientIP)
 		}
 		if geo != nil && geo.Latitude != nil && geo.Longitude != nil {
-			if nearest, ok := g.pickNearestBackendFromSubset(candidates, recordType, *geo.Latitude, *geo.Longitude); ok {
-				IncBackendSelected(record.Fqdn, nearest)
-				return []string{nearest}, nil
+			if nearestIPs, ok := g.pickNearestBackendFromSubset(candidates, recordType, *geo.Latitude, *geo.Longitude); ok {
+				for _, ip := range nearestIPs {
+					IncBackendSelected(record.Fqdn, ip)
+				}
+				return nearestIPs, nil
 			}
 		}
 		ips, err := g.pickBackendWithFailoverFromSubset(candidates, recordType, record.Fqdn)
@@ -656,9 +665,11 @@ func (g *GSLB) pickBackendWithGeoIPAffinity(record *Record, recordType uint16, c
 		geo, _ = g.getClientGeoInfo(clientIP)
 	}
 	if geo != nil && geo.Latitude != nil && geo.Longitude != nil {
-		if nearest, ok := g.pickNearestBackendByCoordinates(record, recordType, *geo.Latitude, *geo.Longitude); ok {
-			IncBackendSelected(record.Fqdn, nearest)
-			return []string{nearest}, nil
+		if nearestIPs, ok := g.pickNearestBackendByCoordinates(record, recordType, *geo.Latitude, *geo.Longitude); ok {
+			for _, ip := range nearestIPs {
+				IncBackendSelected(record.Fqdn, ip)
+			}
+			return nearestIPs, nil
 		}
 	}
 
