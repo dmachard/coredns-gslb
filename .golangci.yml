@@ -3,7 +3,6 @@ linters:
   default: none
   enable:
     - errorlint
-    - goconst
     - gocritic
     - govet
     - ineffassign

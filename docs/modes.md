@@ -44,11 +44,11 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 
 - **Description:** Selects the backend(s) closest to the client based on a location map (subnet-to-location mapping), by country, city, or ASN using MaxMind databases. Requires the `geoip_maxmind` or `geoip_custom` options.
 - **Matching behavior (current logic):**
-  - If `city_db` is loaded and backends define `latitude` and `longitude`, the plugin computes client coordinates from MaxMind and returns the closest healthy+enabled backend for the requested record type.
+  - If `city_db` is loaded and backends define `latitude` and `longitude`, the plugin computes client coordinates from MaxMind and returns the closest healthy+enabled backend(s) for the requested record type. If multiple backends share the same nearest coordinates (same datacenter) and have the same priority, all of them are returned.
   - Evaluates sources in this order: `city_db` hierarchy (`city -> subdivision -> country -> continent`), then `country_db` (`country -> continent`), then `asn_db`, then `geoip_custom` location map, then failover fallback.
   - Returns all healthy+enabled matches for `city_db`, `country_db`, and `geoip_custom` steps.
   - Returns only the first healthy+enabled ASN match in `asn_db` step.
-  - If the nearest backend is unhealthy/disabled, the next nearest healthy backend is selected.
+  - If the nearest backend is unhealthy/disabled, the next nearest healthy backend(s) are selected.
 - **Use case:** Directs users to the nearest datacenter, region, or country for lower latency.
 - **Coordinates fields:** `longitude` and `latitude` are supported.
 - **Example (distance-based with coordinates):**
@@ -183,8 +183,8 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 - **Matching behavior:**
   1. **Subnet Pinning**: Checks if the client IP matches any subnet in the `geoip_custom` `location_map`. If yes, restricts candidate backends to those with the matching `location`.
   2. **Geo Hierarchy Narrowing**: If no subnet pin matches, queries MaxMind DBs to determine the client's location. Restricts candidates by searching in order of specificity: City, then Subdivision, then Country, then Continent.
-  3. **Distance Pick**: Within the filtered candidate subset, selects the closest healthy backend using coordinate distance (if coordinates are defined on backends and client location is found). If no coordinates are defined, it falls back to failover priority within the subset.
-  4. **Global Fallback**: If no candidates match the affinity group, or all of them are unhealthy/disabled, falls back to selecting the closest backend globally, and finally to global failover priority.
+  3. **Distance Pick**: Within the filtered candidate subset, selects the closest healthy backend(s) using coordinate distance (if coordinates are defined on backends and client location is found). If multiple backends share the same nearest coordinates and the same priority, all of them are returned. If no coordinates are defined, it falls back to failover priority within the subset.
+  4. **Global Fallback**: If no candidates match the affinity group, or all of them are unhealthy/disabled, falls back to selecting the closest backend(s) globally, and finally to global failover priority.
 - **Use case:** Gives country/region/subnet preference first (e.g. keep European users in European datacenters, or pin specific subnets to specific sites), and then uses latency/distance optimization *within* that preferred region.
 - **Example:**
   ```yaml
