@@ -171,14 +171,14 @@ backends:
 
 func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 	record := &Record{
-		Fqdn:     "example.com",
+		Fqdn: "example.com",
 		Discovery: &DiscoveryConfig{
 			Type: "http",
 		},
 	}
 
 	newRecord := &Record{
-		Fqdn:     "example.com",
+		Fqdn: "example.com",
 		Discovery: &DiscoveryConfig{
 			Type: "consul",
 		},
