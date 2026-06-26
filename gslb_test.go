@@ -1163,3 +1163,115 @@ func TestServeDNS_UnsupportedRecordTypeReturnsNoData(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, w.msg.Rcode)
 	assert.Len(t, w.msg.Answer, 0)
 }
+
+func TestGSLB_ECSEchoing(t *testing.T) {
+	// Create mock backends
+	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 1}}
+	backend1.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:      "example.com.",
+		Mode:      "geoip", // GeoIP mode means geo-specific
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		UseEDNSCSubnet: true,
+		Records:        map[string]map[string]*Record{"example.com.": {"example.com.": record}},
+		Zones:          map[string]string{"example.com.": "dummy.yml"},
+	}
+
+	// Create DNS request with ECS option
+	r := new(dns.Msg)
+	r.SetQuestion("example.com.", dns.TypeA)
+	o := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecs := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("1.2.3.4"),
+		SourceNetmask: 24,
+		Family:        1,
+	}
+	o.Option = append(o.Option, ecs)
+	r.Extra = append(r.Extra, o)
+
+	w := &TestResponseWriter{}
+	ctx := context.Background()
+
+	// Call ServeDNS
+	code, err := g.ServeDNS(ctx, w, r)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.Msg)
+
+	// Verify that the response contains the EDNS0 option with expected scope
+	respOpt := w.Msg.IsEdns0()
+	assert.NotNil(t, respOpt, "Response should have EDNS0")
+	var respEcs *dns.EDNS0_SUBNET
+	for _, opt := range respOpt.Option {
+		if sub, ok := opt.(*dns.EDNS0_SUBNET); ok {
+			respEcs = sub
+			break
+		}
+	}
+	assert.NotNil(t, respEcs, "Response should have EDNS0 subnet option")
+	assert.Equal(t, uint8(24), respEcs.SourceNetmask)
+	assert.Equal(t, uint8(24), respEcs.SourceScope, "Scope netmask should match Source netmask in geo mode")
+	assert.Equal(t, "1.2.3.4", respEcs.Address.String())
+}
+
+func TestGSLB_ECSEchoing_NonGeo(t *testing.T) {
+	// Create mock backends
+	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true, Priority: 1}}
+	backend1.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:      "example.com.",
+		Mode:      "roundrobin", // Non-geo mode
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		UseEDNSCSubnet: true,
+		Records:        map[string]map[string]*Record{"example.com.": {"example.com.": record}},
+		Zones:          map[string]string{"example.com.": "dummy.yml"},
+	}
+
+	// Create DNS request with ECS option
+	r := new(dns.Msg)
+	r.SetQuestion("example.com.", dns.TypeA)
+	o := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecs := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("1.2.3.4"),
+		SourceNetmask: 24,
+		Family:        1,
+	}
+	o.Option = append(o.Option, ecs)
+	r.Extra = append(r.Extra, o)
+
+	w := &TestResponseWriter{}
+	ctx := context.Background()
+
+	// Call ServeDNS
+	code, err := g.ServeDNS(ctx, w, r)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.Msg)
+
+	// Verify that the response contains the EDNS0 option with scope 0
+	respOpt := w.Msg.IsEdns0()
+	assert.NotNil(t, respOpt, "Response should have EDNS0")
+	var respEcs *dns.EDNS0_SUBNET
+	for _, opt := range respOpt.Option {
+		if sub, ok := opt.(*dns.EDNS0_SUBNET); ok {
+			respEcs = sub
+			break
+		}
+	}
+	assert.NotNil(t, respEcs, "Response should have EDNS0 subnet option")
+	assert.Equal(t, uint8(24), respEcs.SourceNetmask)
+	assert.Equal(t, uint8(0), respEcs.SourceScope, "Scope netmask should be 0 in non-geo mode")
+	assert.Equal(t, "1.2.3.4", respEcs.Address.String())
+}

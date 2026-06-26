@@ -415,6 +415,8 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 		response.Answer = append(response.Answer, txt)
 	}
 
+	g.decorateWithECS(r, response, domain)
+
 	// Send the DNS response with the multiple TXT records
 	if err := w.WriteMsg(response); err != nil {
 		log.Error("Failed to write DNS TXT response: ", err)
@@ -503,6 +505,8 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 		response.Answer = append(response.Answer, rr)
 	}
 
+	g.decorateWithECS(r, response, domain)
+
 	err := w.WriteMsg(response)
 	if err != nil {
 		log.Error("Failed to write DNS response: ", err)
@@ -529,6 +533,8 @@ func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string
 	response := new(dns.Msg)
 	response.SetReply(r)
 	response.Rcode = rcode
+	g.decorateWithECS(r, response, domain)
+
 	err := w.WriteMsg(response)
 	if err != nil {
 		log.Error("Failed to write DNS rcode response: ", err)
@@ -537,6 +543,82 @@ func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string
 	}
 	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
+}
+
+func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string) {
+	if !g.UseEDNSCSubnet {
+		return
+	}
+	o := r.IsEdns0()
+	if o == nil {
+		return
+	}
+	var reqEcs *dns.EDNS0_SUBNET
+	for _, option := range o.Option {
+		if ecs, ok := option.(*dns.EDNS0_SUBNET); ok {
+			reqEcs = ecs
+			break
+		}
+	}
+	if reqEcs == nil {
+		return
+	}
+
+	// Determine if the response is geo-specific
+	isGeo := false
+	record, _ := g.findRecord(domain)
+	if record != nil {
+		if record.Mode == "geoip" || record.Mode == "geoip_affinity" {
+			isGeo = true
+		} else if len(g.LocationMap) > 0 {
+			isGeo = true
+		}
+	}
+
+	sourceScope := uint8(0)
+	if isGeo {
+		sourceScope = reqEcs.SourceNetmask
+	}
+
+	respEcs := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Family:        reqEcs.Family,
+		SourceNetmask: reqEcs.SourceNetmask,
+		SourceScope:   sourceScope,
+		Address:       reqEcs.Address,
+	}
+
+	// Create or find the OPT record in response.Extra
+	var respOpt *dns.OPT
+	for _, extra := range response.Extra {
+		if opt, ok := extra.(*dns.OPT); ok {
+			respOpt = opt
+			break
+		}
+	}
+
+	if respOpt == nil {
+		respOpt = &dns.OPT{
+			Hdr: dns.RR_Header{
+				Name:   ".",
+				Rrtype: dns.TypeOPT,
+			},
+		}
+		respOpt.SetUDPSize(o.UDPSize())
+		response.Extra = append(response.Extra, respOpt)
+	}
+
+	// Check if EDNS0_SUBNET is already in response options, if not, append it
+	found := false
+	for _, opt := range respOpt.Option {
+		if _, ok := opt.(*dns.EDNS0_SUBNET); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		respOpt.Option = append(respOpt.Option, respEcs)
+	}
 }
 
 func (g *GSLB) pickFallbackAddresses(record *Record, recordType uint16) ([]string, error) {
