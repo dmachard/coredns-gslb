@@ -8,6 +8,9 @@ CoreDNS-GSLB dynamically resolves and serves several DNS resource record types t
 
 * **A** (Type 1): Resolves IPv4 addresses for healthy backends.
 * **AAAA** (Type 28): Resolves IPv6 addresses for healthy backends.
+* **CNAME**: Backend addresses can be configured as a hostname/FQDN (e.g. `some-alb.aws.com`) instead of a raw IP address:
+    * **Health Checks**: Standard health checks (such as HTTP, HTTPS, TCP, gRPC, or custom Lua checks) will resolve the FQDN dynamically and run normally against the resolved target.
+    * **DNS Resolution**: When a query (A, AAAA, or CNAME) is received and a hostname-based backend is selected by the routing policy, the plugin automatically returns a CNAME record pointing to that FQDN target.
 
 When a query is received, the GSLB plugin uses the configured load-balancing or routing policy (e.g., `geoip`, `round-robin`, `failover`, `weighted`, `random`) to select the best active backend(s) matching the requested address family.
 

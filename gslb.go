@@ -208,6 +208,8 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 		return g.handleIPRecord(ctx, w, r, domain, dns.TypeA)
 	case dns.TypeAAAA:
 		return g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA)
+	case dns.TypeCNAME:
+		return g.handleIPRecord(ctx, w, r, domain, dns.TypeCNAME)
 	case dns.TypeTXT:
 		if g.DisableTXT {
 			return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
@@ -618,8 +620,7 @@ func (g *GSLB) pickAllAddresses(domain string, recordType uint16) ([]string, err
 	for _, backend := range record.Backends {
 		if backend.IsEnabled() {
 			ip := backend.GetAddress()
-			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
-				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+			if isAddressTypeCompatible(ip, recordType) {
 				ipAddresses = append(ipAddresses, ip)
 			}
 		}
@@ -661,29 +662,44 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 	response.SetReply(r)
 	for _, ip := range ipAddresses {
 		var rr dns.RR
-		switch recordType {
-		case dns.TypeA:
-			rr = &dns.A{
+		parsedIP := net.ParseIP(ip)
+		if parsedIP == nil {
+			rr = &dns.CNAME{
 				Hdr: dns.RR_Header{
 					Name:   domain,
-					Rrtype: dns.TypeA,
+					Rrtype: dns.TypeCNAME,
 					Class:  dns.ClassINET,
 					Ttl:    uint32(ttl),
 				},
-				A: net.ParseIP(ip),
+				Target: dns.Fqdn(ip),
 			}
-		case dns.TypeAAAA:
-			rr = &dns.AAAA{
-				Hdr: dns.RR_Header{
-					Name:   domain,
-					Rrtype: dns.TypeAAAA,
-					Class:  dns.ClassINET,
-					Ttl:    uint32(ttl),
-				},
-				AAAA: net.ParseIP(ip),
+		} else {
+			switch recordType {
+			case dns.TypeA:
+				rr = &dns.A{
+					Hdr: dns.RR_Header{
+						Name:   domain,
+						Rrtype: dns.TypeA,
+						Class:  dns.ClassINET,
+						Ttl:    uint32(ttl),
+					},
+					A: parsedIP,
+				}
+			case dns.TypeAAAA:
+				rr = &dns.AAAA{
+					Hdr: dns.RR_Header{
+						Name:   domain,
+						Rrtype: dns.TypeAAAA,
+						Class:  dns.ClassINET,
+						Ttl:    uint32(ttl),
+					},
+					AAAA: parsedIP,
+				}
 			}
 		}
-		response.Answer = append(response.Answer, rr)
+		if rr != nil {
+			response.Answer = append(response.Answer, rr)
+		}
 	}
 
 	g.decorateWithECS(r, response, domain)
@@ -805,12 +821,7 @@ func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string) {
 func (g *GSLB) pickFallbackAddresses(record *Record, recordType uint16) ([]string, error) {
 	var ipAddresses []string
 	for _, ip := range record.FailoverPolicy.FallbackIPs {
-		parsedIP := net.ParseIP(ip)
-		if parsedIP == nil {
-			continue
-		}
-		if (recordType == dns.TypeA && parsedIP.To4() != nil) ||
-			(recordType == dns.TypeAAAA && parsedIP.To16() != nil && parsedIP.To4() == nil) {
+		if isAddressTypeCompatible(ip, recordType) {
 			ipAddresses = append(ipAddresses, ip)
 		}
 	}

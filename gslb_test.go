@@ -1523,3 +1523,54 @@ func TestServeDNS_SVCBAndHTTPS(t *testing.T) {
 	assert.Equal(t, []net.IP{net.ParseIP("192.168.5.5")}, foundV4HintsSpecific)
 	assert.Equal(t, []net.IP{net.ParseIP("2001:db8::5")}, foundV6HintsSpecific)
 }
+
+func TestCNAMEBackendResolution(t *testing.T) {
+	backend := &MockBackend{Backend: &Backend{Address: "some-alb.aws.com", Enable: true, Priority: 10}}
+	backend.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:      "cname.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"example.org.": {"cname.example.org.": record}},
+	}
+
+	// 1. Query TypeA
+	msgA := new(dns.Msg)
+	msgA.SetQuestion("cname.example.org.", dns.TypeA)
+	wA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err := g.ServeDNS(context.Background(), wA, msgA)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Len(t, wA.msg.Answer, 1)
+
+	cnameA, ok := wA.msg.Answer[0].(*dns.CNAME)
+	assert.True(t, ok, "Expected CNAME record")
+	assert.Equal(t, "cname.example.org.", cnameA.Hdr.Name)
+	assert.Equal(t, dns.TypeCNAME, cnameA.Hdr.Rrtype)
+	assert.Equal(t, uint32(60), cnameA.Hdr.Ttl)
+	assert.Equal(t, "some-alb.aws.com.", cnameA.Target)
+
+	// 2. Query TypeAAAA
+	msgAAAA := new(dns.Msg)
+	msgAAAA.SetQuestion("cname.example.org.", dns.TypeAAAA)
+	wAAAA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err = g.ServeDNS(context.Background(), wAAAA, msgAAAA)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Len(t, wAAAA.msg.Answer, 1)
+
+	cnameAAAA, ok := wAAAA.msg.Answer[0].(*dns.CNAME)
+	assert.True(t, ok, "Expected CNAME record")
+	assert.Equal(t, "cname.example.org.", cnameAAAA.Hdr.Name)
+	assert.Equal(t, dns.TypeCNAME, cnameAAAA.Hdr.Rrtype)
+	assert.Equal(t, uint32(60), cnameAAAA.Hdr.Ttl)
+	assert.Equal(t, "some-alb.aws.com.", cnameAAAA.Target)
+}
