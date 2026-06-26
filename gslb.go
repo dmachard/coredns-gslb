@@ -652,6 +652,8 @@ func (g *GSLB) pickResponse(domain string, recordType uint16, clientIP net.IP) (
 		return g.pickBackendWithGeoIPAffinity(record, recordType, clientIP)
 	case "weighted":
 		return g.pickBackendWithWeighted(record, recordType)
+	case "ip-hash":
+		return g.pickBackendWithHash(record, recordType, clientIP)
 	default:
 		return nil, fmt.Errorf("unsupported mode: %s", record.Mode)
 	}
@@ -765,7 +767,7 @@ func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string) {
 	isGeo := false
 	record, _ := g.findRecord(domain)
 	if record != nil {
-		if record.Mode == "geoip" || record.Mode == "geoip_affinity" {
+		if record.Mode == "geoip" || record.Mode == "geoip_affinity" || record.Mode == "hash" || record.Mode == "ip-hash" || record.Mode == "client-ip-hash" {
 			isGeo = true
 		} else if len(g.LocationMap) > 0 {
 			isGeo = true

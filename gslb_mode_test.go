@@ -1172,3 +1172,86 @@ func TestGeoIPAffinityLookupUsesPreparsedCache(t *testing.T) {
 	assert.Equal(t, "us-east", g.LocationMapIPNet[0].Location)
 	assert.NotNil(t, g.LocationMapIPNet[0].IPNet)
 }
+
+func TestGSLB_PickBackendWithHash(t *testing.T) {
+	backend1 := &Backend{Address: "192.168.1.1", Enable: true, Alive: true}
+	backend2 := &Backend{Address: "192.168.1.2", Enable: true, Alive: true}
+	backend3 := &Backend{Address: "192.168.1.3", Enable: true, Alive: true}
+
+	record := &Record{
+		Fqdn:     "hash.example.com.",
+		Mode:     "hash",
+		Backends: []BackendInterface{backend1, backend2, backend3},
+	}
+	g := &GSLB{}
+
+	// Test consistency for the same client IP (IPv4)
+	clientIP1 := net.ParseIP("192.168.100.1")
+	ips1_first, err := g.pickBackendWithHash(record, dns.TypeA, clientIP1)
+	assert.NoError(t, err)
+	assert.Len(t, ips1_first, 1)
+
+	ips1_second, err := g.pickBackendWithHash(record, dns.TypeA, clientIP1)
+	assert.NoError(t, err)
+	assert.Equal(t, ips1_first, ips1_second)
+
+	// Test consistency with another client IP (IPv6)
+	clientIP2 := net.ParseIP("2001:db8::1")
+	ips2_first, err := g.pickBackendWithHash(record, dns.TypeA, clientIP2)
+	assert.NoError(t, err)
+	assert.Len(t, ips2_first, 1)
+
+	ips2_second, err := g.pickBackendWithHash(record, dns.TypeA, clientIP2)
+	assert.NoError(t, err)
+	assert.Equal(t, ips2_first, ips2_second)
+
+	// Test distribution: over 100 random client IPs, we should hit all backends
+	hits := make(map[string]int)
+	for i := 0; i < 100; i++ {
+		ip := net.IPv4(10, 0, 0, byte(i))
+		res, err := g.pickBackendWithHash(record, dns.TypeA, ip)
+		assert.NoError(t, err)
+		hits[res[0]]++
+	}
+	assert.Len(t, hits, 3, "All 3 backends should be selected at least once with 100 different client IPs")
+
+	// Test with one unhealthy backend
+	backend2.Alive = false
+	hits2 := make(map[string]int)
+	for i := 0; i < 100; i++ {
+		ip := net.IPv4(10, 0, 0, byte(i))
+		res, err := g.pickBackendWithHash(record, dns.TypeA, ip)
+		assert.NoError(t, err)
+		hits2[res[0]]++
+	}
+	assert.Len(t, hits2, 2, "Only healthy backends should be selected")
+	assert.NotContains(t, hits2, "192.168.1.2", "Unhealthy backend should not be selected")
+
+	// Test when no healthy backends are available
+	backend1.Alive = false
+	backend3.Alive = false
+	_, err = g.pickBackendWithHash(record, dns.TypeA, clientIP1)
+	assert.Error(t, err, "Should fail when no backends are healthy")
+}
+
+func TestGSLB_PickResponse_Hash(t *testing.T) {
+	backend1 := &Backend{Address: "192.168.1.1", Enable: true, Alive: true}
+	backend2 := &Backend{Address: "192.168.1.2", Enable: true, Alive: true}
+
+	record := &Record{
+		Fqdn:     "hash.example.com.",
+		Mode:     "ip-hash",
+		Backends: []BackendInterface{backend1, backend2},
+	}
+	g := &GSLB{
+		Records: map[string]map[string]*Record{
+			"example.com.": {
+				"hash.example.com.": record,
+			},
+		},
+	}
+
+	ips, err := g.pickResponse("hash.example.com.", dns.TypeA, net.ParseIP("192.168.100.1"))
+	assert.NoError(t, err)
+	assert.Len(t, ips, 1)
+}

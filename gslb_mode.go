@@ -2,6 +2,7 @@ package gslb
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand"
 	"net"
@@ -715,4 +716,40 @@ func haversineDistanceRad(lat1Rad, lon1Rad, lat2Rad, lon2Rad float64) float64 {
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return earthRadiusKm * c
+}
+
+// pickBackendWithHash returns one healthy backend consistently based on the client's IP.
+func (g *GSLB) pickBackendWithHash(record *Record, recordType uint16, clientIP net.IP) ([]string, error) {
+	if len(clientIP) == 0 {
+		return nil, fmt.Errorf("no client IP provided for hash mode")
+	}
+
+	healthyBackends := []BackendInterface{}
+	for _, backend := range record.Backends {
+		if backend.IsHealthy() {
+			ip := backend.GetAddress()
+			if isAddressTypeCompatible(ip, recordType) {
+				healthyBackends = append(healthyBackends, backend)
+			}
+		}
+	}
+
+	if len(healthyBackends) == 0 {
+		return nil, fmt.Errorf("no healthy backends in hash mode for type %d", recordType)
+	}
+
+	// Sort backends to ensure consistent index mapping even if order in slice changes
+	sort.Slice(healthyBackends, func(i, j int) bool {
+		return healthyBackends[i].GetAddress() < healthyBackends[j].GetAddress()
+	})
+
+	h := fnv.New32a()
+	h.Write([]byte(clientIP.String()))
+	hashVal := h.Sum32()
+	index := int(hashVal) % len(healthyBackends)
+
+	selectedBackend := healthyBackends[index]
+	IncBackendSelected(record.Fqdn, selectedBackend.GetAddress())
+
+	return []string{selectedBackend.GetAddress()}, nil
 }

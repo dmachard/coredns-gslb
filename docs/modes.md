@@ -229,6 +229,24 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 
 If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
 
+### Hash (or IP Hash)
+
+- **Description:** Consistently maps a client to the same healthy backend by computing a hash (using FNV-1a) of the client's IP address (or the EDNS Client Subnet, if present and enabled).
+- **Use case:** Stateful applications requiring session affinity/persistence at the DNS layer (such as database connections, VPN endpoints, or custom TCP/UDP services).
+- **Example:**
+  ```yaml
+  mode: "ip-hash"
+  backends:
+    - address: "10.0.0.1"
+    - address: "10.0.0.2"
+  ```
+- **How it works:**
+  - Compiles the list of currently healthy and enabled backends compatible with the query record type.
+  - Sorts this list of backends alphabetically by their address to guarantee a deterministic order.
+  - Computes the FNV-1a hash of the client's IP (or EDNS Client Subnet IP).
+  - Selects the backend at index `hash % number_of_healthy_backends`.
+  - Ensures the client always resolves to the same backend IP address as long as the backend pool state remains unchanged.
+
 ### Fail-safe behavior (Fallback)
 
 For all selection modes, if **no healthy backends** are available (including during initial startup before the first health checks complete), the plugin implements a **fail-safe mechanism**:
