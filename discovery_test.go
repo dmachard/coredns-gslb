@@ -217,3 +217,123 @@ func TestDiscovery_HTTPS_DNS(t *testing.T) {
 	assert.Equal(t, "10.0.0.6", endpoints[0].Address)
 	assert.Equal(t, 8443, endpoints[0].Port)
 }
+
+func TestDiscovery_Errors(t *testing.T) {
+	// Unsupported type
+	d := &DiscoveryConfig{Type: "invalid"}
+	_, err := d.FetchEndpoints()
+	assert.Error(t, err)
+
+	// Consul HTTP error
+	dConsulErr := &DiscoveryConfig{Type: "consul", Endpoint: "http://invalid-domain-name-xyz", Service: "s"}
+	_, err = dConsulErr.FetchEndpoints()
+	assert.Error(t, err)
+
+	// Consul HTTP Status 500
+	server500 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer server500.Close()
+	dConsul500 := &DiscoveryConfig{Type: "consul", Endpoint: server500.URL, Service: "s"}
+	_, err = dConsul500.FetchEndpoints()
+	assert.Error(t, err)
+
+	// Consul Invalid JSON
+	serverBadJSON := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("{invalid-json"))
+	}))
+	defer serverBadJSON.Close()
+	dConsulBad := &DiscoveryConfig{Type: "consul", Endpoint: serverBadJSON.URL, Service: "s"}
+	_, err = dConsulBad.FetchEndpoints()
+	assert.Error(t, err)
+
+	// HTTP HTTP error
+	dHTTPErr := &DiscoveryConfig{Type: "http", Endpoint: "http://invalid-domain-name-xyz"}
+	_, err = dHTTPErr.FetchEndpoints()
+	assert.Error(t, err)
+
+	// HTTP HTTP Status 500
+	dHTTP500 := &DiscoveryConfig{Type: "http", Endpoint: server500.URL}
+	_, err = dHTTP500.FetchEndpoints()
+	assert.Error(t, err)
+
+	// HTTP Invalid JSON
+	dHTTPBad := &DiscoveryConfig{Type: "http", Endpoint: serverBadJSON.URL}
+	_, err = dHTTPBad.FetchEndpoints()
+	assert.Error(t, err)
+}
+
+func TestDiscovery_DNS_TargetResolve(t *testing.T) {
+	dns.HandleFunc("target-service.internal.", func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+
+		q := r.Question[0]
+		switch q.Qtype {
+		case dns.TypeSVCB:
+			svcb := &dns.SVCB{
+				Hdr: dns.RR_Header{
+					Name:   "target-service.internal.",
+					Rrtype: dns.TypeSVCB,
+					Class:  dns.ClassINET,
+					Ttl:    60,
+				},
+				Priority: 1,
+				Target:   "target.target-service.internal.",
+				Value: []dns.SVCBKeyValue{
+					&dns.SVCBPort{Port: 8080},
+				},
+			}
+			m.Answer = append(m.Answer, svcb)
+		case dns.TypeA:
+			if q.Name == "target.target-service.internal." {
+				a := &dns.A{
+					Hdr: dns.RR_Header{
+						Name:   "target.target-service.internal.",
+						Rrtype: dns.TypeA,
+						Class:  dns.ClassINET,
+						Ttl:    60,
+					},
+					A: net.ParseIP("10.0.0.100"),
+				}
+				m.Answer = append(m.Answer, a)
+			}
+		case dns.TypeAAAA:
+			if q.Name == "target.target-service.internal." {
+				aaaa := &dns.AAAA{
+					Hdr: dns.RR_Header{
+						Name:   "target.target-service.internal.",
+						Rrtype: dns.TypeAAAA,
+						Class:  dns.ClassINET,
+						Ttl:    60,
+					},
+					AAAA: net.ParseIP("2001:db8::100"),
+				}
+				m.Answer = append(m.Answer, aaaa)
+			}
+		}
+		w.WriteMsg(m)
+	})
+
+	dnsServer := &dns.Server{Addr: "127.0.0.1:0", Net: "udp"}
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	assert.NoError(t, err)
+	dnsServer.PacketConn = pc
+
+	go dnsServer.ActivateAndServe()
+	defer dnsServer.Shutdown()
+
+	d := &DiscoveryConfig{
+		Type:     "dns_svcb",
+		Endpoint: pc.LocalAddr().String(),
+		Service:  "target-service.internal.",
+	}
+
+	endpoints, err := d.FetchEndpoints()
+	assert.NoError(t, err)
+	assert.Len(t, endpoints, 2)
+	assert.Contains(t, []string{endpoints[0].Address, endpoints[1].Address}, "10.0.0.100")
+	assert.Contains(t, []string{endpoints[0].Address, endpoints[1].Address}, "2001:db8::100")
+	assert.Equal(t, 8080, endpoints[0].Port)
+	assert.Equal(t, 8080, endpoints[1].Port)
+}

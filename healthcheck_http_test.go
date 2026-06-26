@@ -164,3 +164,62 @@ func TestHTTPHealthCheck_Equals(t *testing.T) {
 	// Assert that hc1 and hc3 are not equal
 	assert.False(t, hc1.Equals(hc3))
 }
+
+func TestHTTPHealthCheck_More(t *testing.T) {
+	// 1. Invalid timeout
+	hc := &HTTPHealthCheck{
+		Timeout: "invalid",
+	}
+	backend := &Backend{Address: "127.0.0.1"}
+	assert.False(t, hc.PerformCheck(backend, "example.com", 0))
+
+	// 2. Regex Failure
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	}))
+	defer ts.Close()
+
+	hcRegex := &HTTPHealthCheck{
+		Port:         ts.Listener.Addr().(*net.TCPAddr).Port,
+		EnableTLS:    false,
+		URI:          "/health",
+		Method:       "GET",
+		Host:         ts.URL,
+		Timeout:      "2s",
+		ExpectedCode: 200,
+		ExpectedBody: "[[", // Invalid regex
+	}
+	assert.False(t, hcRegex.PerformCheck(backend, "example.com", 0))
+
+	// 3. TLS cert creation failure (triggers error inside NewTLSClientConfig)
+	hcTLS := &HTTPHealthCheck{
+		Port:         443,
+		EnableTLS:    true,
+		Cert:         "/invalid/cert.pem",
+		Key:          "/invalid/key.pem",
+		Timeout:      "2s",
+		ExpectedCode: 200,
+	}
+	_ = hcTLS.PerformCheck(backend, "example.com", 0)
+
+	// 4. Equals more checks
+	base := &HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}
+
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 81, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: false, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "x", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "x", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "x", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/x", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "POST", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "x", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "2s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 500, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "x", SkipTLSVerify: true, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: false, Headers: map[string]string{"A": "B"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "B", "C": "D"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"A": "X"}}))
+	assert.False(t, base.Equals(&HTTPHealthCheck{Port: 80, EnableTLS: true, Cert: "c", Key: "k", CA: "ca", URI: "/", Method: "GET", Host: "h", Timeout: "1s", ExpectedCode: 200, ExpectedBody: "ok", SkipTLSVerify: true, Headers: map[string]string{"Y": "B"}}))
+	assert.False(t, base.Equals(&TCPHealthCheck{}))
+}

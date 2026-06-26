@@ -108,7 +108,7 @@ func (r *RealPinger) SetPrivileged(privileged bool) {
 	r.pinger.SetPrivileged(privileged)
 }
 
-func createPinger(address string, count int, timeout time.Duration) (Pinger, error) {
+var createPinger = func(address string, count int, timeout time.Duration) (Pinger, error) {
 	pinger, err := probing.NewPinger(address)
 	if err != nil {
 		return nil, err

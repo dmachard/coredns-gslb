@@ -188,3 +188,46 @@ func TestHealthCheck_PerformCheck(t *testing.T) {
 		assert.False(t, result)
 	})
 }
+
+func TestResolveHealthcheckProfile_Global(t *testing.T) {
+	GlobalHealthcheckProfiles = map[string]*HealthCheck{
+		"global_profile": {
+			Type:   "http",
+			Params: map[string]interface{}{"port": 80},
+		},
+	}
+	defer func() {
+		GlobalHealthcheckProfiles = nil
+	}()
+
+	profile, err := ResolveHealthcheckProfile("global_profile", nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, profile)
+	assert.Equal(t, "http", profile.Type)
+
+	// Test profile not found
+	_, err = ResolveHealthcheckProfile("non_existent", nil)
+	assert.Error(t, err)
+}
+
+func TestToSpecificHealthCheck_DecodeErrors(t *testing.T) {
+	testCases := []struct {
+		typ    string
+		params map[string]interface{}
+	}{
+		{"http", map[string]interface{}{"port": "invalid"}},
+		{"tcp", map[string]interface{}{"port": "invalid"}},
+		{"mysql", map[string]interface{}{"port": "invalid"}},
+		{"grpc", map[string]interface{}{"port": "invalid"}},
+		{"icmp", map[string]interface{}{"count": "invalid"}},
+		{"lua", map[string]interface{}{"timeout": "invalid"}},
+	}
+	for _, tc := range testCases {
+		hc := &HealthCheck{
+			Type:   tc.typ,
+			Params: tc.params,
+		}
+		_, err := hc.ToSpecificHealthCheck()
+		assert.Error(t, err, "Expected error when decoding invalid params for type %s", tc.typ)
+	}
+}

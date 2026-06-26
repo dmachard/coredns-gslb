@@ -224,3 +224,26 @@ func TestLuaHealthCheck_MetricGet_Auth(t *testing.T) {
 		t.Errorf("Expected Lua healthcheck to succeed with metric_get and HTTP Basic auth")
 	}
 }
+
+func TestLuaHealthCheck_SSHExec_Fail(t *testing.T) {
+	script := `
+		local body = ssh_exec("127.0.0.1", "user", "pass", "ls", 1)
+		return body == ""
+	`
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected Lua healthcheck to succeed since ssh_exec returns empty string on failure")
+	}
+}
+
+func TestSSHInsecureIgnoreHostKey(t *testing.T) {
+	err := sshInsecureIgnoreHostKey("", nil, nil)
+	if err != nil {
+		t.Errorf("Expected sshInsecureIgnoreHostKey to return nil, got: %v", err)
+	}
+}

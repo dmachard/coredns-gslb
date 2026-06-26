@@ -95,3 +95,26 @@ MC4CAQAwBQYDK2VwBCIEIAyPq2Ewm+RPPw617qcne588ouPmlY1v3Jed0M+F1Y9k
 
 	return tempDir, nil
 }
+
+func TestNewTLSClientConfig_Errors(t *testing.T) {
+	// 1. loadRoots non-existent file
+	_, err := NewTLSClientConfig("", "", "/nonexistent/ca.pem")
+	if err == nil {
+		t.Error("Expected error for non-existent CA path, got nil")
+	}
+
+	// 2. loadRoots invalid PEM file
+	tempDir := t.TempDir()
+	invalidCA := filepath.Join(tempDir, "invalid_ca.pem")
+	_ = os.WriteFile(invalidCA, []byte("invalid pem data"), 0600)
+	_, err = NewTLSClientConfig("", "", invalidCA)
+	if err == nil {
+		t.Error("Expected error for invalid CA PEM content, got nil")
+	}
+
+	// 3. cert/key load error
+	_, err = NewTLSClientConfig("/nonexistent/cert.pem", "/nonexistent/key.pem", "")
+	if err == nil {
+		t.Error("Expected error for non-existent cert/key path, got nil")
+	}
+}

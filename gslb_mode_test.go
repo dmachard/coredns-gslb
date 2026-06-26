@@ -977,3 +977,134 @@ func TestIsAddressTypeCompatible(t *testing.T) {
 		})
 	}
 }
+
+func TestGSLB_PickBackendWithFailoverFromSubset(t *testing.T) {
+	g := &GSLB{}
+	b1 := &MockBackend{Backend: &Backend{Address: "10.0.0.1", Enable: true, Priority: 10}}
+	b2 := &MockBackend{Backend: &Backend{Address: "10.0.0.2", Enable: true, Priority: 20}}
+	b3 := &MockBackend{Backend: &Backend{Address: "10.0.0.3", Enable: true, Priority: 5}}
+	b1.On("IsHealthy").Return(true)
+	b2.On("IsHealthy").Return(true)
+	b3.On("IsHealthy").Return(false) // unhealthy, should be skipped
+
+	backends := []BackendInterface{b1, b2, b3}
+
+	// Should pick b1 (lowest priority among healthy)
+	ips, err := g.pickBackendWithFailoverFromSubset(backends, dns.TypeA, "test.local.")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.1"}, ips)
+
+	// No healthy backends
+	b1_unhealthy := &MockBackend{Backend: &Backend{Address: "10.0.0.1", Enable: true, Priority: 10}}
+	b1_unhealthy.On("IsHealthy").Return(false)
+	_, err = g.pickBackendWithFailoverFromSubset([]BackendInterface{b1_unhealthy}, dns.TypeA, "test.local.")
+	assert.Error(t, err)
+}
+
+func TestGSLB_GeoIPAffinityAndHierarchy(t *testing.T) {
+	db, err := geoip2.Open("tests/GeoLite2-City.mmdb")
+	if err != nil {
+		t.Skip("GeoLite2-City.mmdb not found, skipping TestGSLB_GeoIPAffinityAndHierarchy")
+	}
+	defer db.Close()
+
+	g := &GSLB{
+		GeoIPCityDB: db,
+	}
+
+	// 1. Subnet Pinning
+	g.LocationMap = map[string]string{
+		"10.0.0.0/24": "dc-us",
+	}
+	backendSubnetMatched := &Backend{Address: "192.168.1.1", Enable: true, Location: "dc-us", Alive: true}
+	backendSubnetOther := &Backend{Address: "192.168.1.2", Enable: true, Location: "dc-eu", Alive: true}
+
+	record := &Record{
+		Backends: []BackendInterface{backendSubnetMatched, backendSubnetOther},
+	}
+
+	res, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("10.0.0.5"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.1.1"}, res)
+
+	// 2. City Level Match with mismatches to cover continues
+	g.LocationMap = nil // disable subnet pinning
+
+	// Client IP from Talence (81.185.159.80): city "Talence", country "FR", continent "EU", subdivision "NAQ"
+	clientIP := net.ParseIP("81.185.159.80")
+
+	// Create backends with different mismatch attributes
+	bCityMatch := &Backend{Address: "192.168.10.1", Enable: true, City: "Talence", Country: "FR", Continent: "EU", Alive: true}
+	bCityContMismatch := &Backend{Address: "192.168.10.2", Enable: true, City: "Talence", Continent: "NA", Alive: true}                                  // Continent mismatch
+	bCityCountryMismatch := &Backend{Address: "192.168.10.3", Enable: true, City: "Talence", Country: "US", Alive: true}                                 // Country mismatch
+	bCitySubMismatch := &Backend{Address: "192.168.10.4", Enable: true, City: "Talence", Country: "FR", Continent: "EU", Subdivision: "US", Alive: true} // Subdivision mismatch
+
+	recordCity := &Record{
+		Backends: []BackendInterface{bCityMatch, bCityContMismatch, bCityCountryMismatch, bCitySubMismatch},
+	}
+
+	res, err = g.pickBackendWithGeoIPAffinity(recordCity, dns.TypeA, clientIP)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.10.1"}, res)
+
+	// 3. Subdivision Level Match
+	bSubdivisionMatch := &Backend{Address: "192.168.20.1", Enable: true, Country: "FR", Subdivision: "NAQ", Continent: "EU", Alive: true}
+	bSubdivisionContMismatch := &Backend{Address: "192.168.20.2", Enable: true, Country: "FR", Subdivision: "NAQ", Continent: "NA", Alive: true}
+
+	recordSub := &Record{
+		Backends: []BackendInterface{bSubdivisionMatch, bSubdivisionContMismatch},
+	}
+	res, err = g.pickBackendWithGeoIPAffinity(recordSub, dns.TypeA, clientIP)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.20.1"}, res)
+
+	// 4. Country Level Match
+	bCountryMatch := &Backend{Address: "192.168.30.1", Enable: true, Country: "FR", Continent: "EU", Alive: true}
+	bCountryContMismatch := &Backend{Address: "192.168.30.2", Enable: true, Country: "FR", Continent: "NA", Alive: true}
+
+	recordCountry := &Record{
+		Backends: []BackendInterface{bCountryMatch, bCountryContMismatch},
+	}
+	res, err = g.pickBackendWithGeoIPAffinity(recordCountry, dns.TypeA, clientIP)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.30.1"}, res)
+
+	// 5. Continent Level Match
+	bContinentMatch := &Backend{Address: "192.168.40.1", Enable: true, Continent: "EU", Alive: true}
+
+	recordContinent := &Record{
+		Backends: []BackendInterface{bContinentMatch},
+	}
+	res, err = g.pickBackendWithGeoIPAffinity(recordContinent, dns.TypeA, clientIP)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.40.1"}, res)
+
+	// 6. Coordinate Distance Match
+	bCoord := &Backend{
+		Address: "192.168.50.1", Enable: true, Alive: true,
+		Latitude: 48.8566, Longitude: 2.3522, HasCoordinates: true,
+	}
+	bCoord.recomputeCoordinateRadians()
+
+	recordCoord := &Record{
+		Backends: []BackendInterface{bCoord},
+	}
+	res, err = g.pickBackendWithGeoIPAffinity(recordCoord, dns.TypeA, clientIP)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.50.1"}, res)
+
+	// 7. Country DB Fallback in getClientGeoInfo
+	g.GeoIPCityDB = nil
+	g.GeoIPCountryDB = db
+
+	info, err := g.getClientGeoInfo(clientIP)
+	assert.NoError(t, err)
+	assert.NotNil(t, info)
+	assert.Equal(t, "FR", info.Country)
+	assert.Equal(t, "EU", info.Continent)
+
+	// 8. No DB or no match error
+	g.GeoIPCountryDB = nil
+	_, err = g.getClientGeoInfo(clientIP)
+	assert.Error(t, err)
+}
