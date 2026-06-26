@@ -1170,4 +1170,3 @@ func TestGeoIPAffinityLookupUsesPreparsedCache(t *testing.T) {
 	assert.Equal(t, "us-east", g.LocationMapIPNet[0].Location)
 	assert.NotNil(t, g.LocationMapIPNet[0].IPNet)
 }
-
