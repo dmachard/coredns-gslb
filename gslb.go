@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -211,6 +212,10 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 			return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 		}
 		return g.handleTXTRecord(ctx, w, r, domain)
+	case dns.TypeSVCB:
+		return g.handleSVCBRecord(ctx, w, r, domain, dns.TypeSVCB)
+	case dns.TypeHTTPS:
+		return g.handleSVCBRecord(ctx, w, r, domain, dns.TypeHTTPS)
 	default:
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
@@ -424,6 +429,181 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 	}
 
 	// Return success
+	return dns.RcodeSuccess, nil
+}
+
+func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string, recordType uint16) (int, error) {
+	record, _ := g.findRecord(domain)
+	if record == nil {
+		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+	}
+
+	ci := GetClientInfo(ctx)
+	if ci == nil || ci.IP == nil {
+		log.Error("No client info in context")
+		return dns.RcodeServerFailure, nil
+	}
+
+	start := time.Now()
+
+	// Pick IPv4 and IPv6 hint addresses using the selected load-balancing/failover policy
+	ipv4ips, errA := g.pickResponse(domain, dns.TypeA, ci.IP)
+	ipv6ips, errAAAA := g.pickResponse(domain, dns.TypeAAAA, ci.IP)
+
+	var ips []string
+	var ipsV6 []string
+
+	// Check if both failed
+	if errA != nil && errAAAA != nil {
+		log.Debugf("[%s] no backend available for SVCB/HTTPS: %v, %v", domain, errA, errAAAA)
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
+
+		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		if policyMode == "" {
+			policyMode = "fail-open"
+		}
+
+		g.logFailSafeWarning(domain, policyMode)
+
+		switch policyMode {
+		case "fail-closed":
+			rcode := dns.RcodeServerFailure
+			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			case "NXDOMAIN":
+				rcode = dns.RcodeNameError
+			case "REFUSED":
+				rcode = dns.RcodeRefused
+			case "NOERROR":
+				rcode = dns.RcodeSuccess
+			case "SERVFAIL":
+				rcode = dns.RcodeServerFailure
+			}
+			return g.sendRcodeResponse(w, r, domain, rcode)
+
+		case "fail-specific":
+			fallbackA, _ := g.pickFallbackAddresses(record, dns.TypeA)
+			fallbackAAAA, _ := g.pickFallbackAddresses(record, dns.TypeAAAA)
+			ips = fallbackA
+			ipsV6 = fallbackAAAA
+
+		case "fail-open":
+			fallthrough
+		default:
+			allA, _ := g.pickAllAddresses(domain, dns.TypeA)
+			allAAAA, _ := g.pickAllAddresses(domain, dns.TypeAAAA)
+			ips = allA
+			ipsV6 = allAAAA
+		}
+	} else {
+		if errA == nil {
+			ips = ipv4ips
+		}
+		if errAAAA == nil {
+			ipsV6 = ipv6ips
+		}
+	}
+
+	// If we still have no IPs at all, let's send a success response with no answers (NODATA)
+	if len(ips) == 0 && len(ipsV6) == 0 {
+		ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
+		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess)
+	}
+
+	// Construct the SVCB / HTTPS record response
+	response := new(dns.Msg)
+	response.SetReply(r)
+
+	var pairs []dns.SVCBKeyValue
+
+	// 1. ALPN (defaulting to h3, h2 if not configured)
+	alpnVals := record.ALPN
+	if len(alpnVals) == 0 {
+		alpnVals = []string{"h3", "h2"}
+	}
+	pairs = append(pairs, &dns.SVCBAlpn{Alpn: alpnVals})
+
+	// 2. Port (map dynamically to the backend's configured/discovered port)
+	var svcPort uint16 = 0
+	for _, backend := range record.Backends {
+		if backend.GetPort() > 0 {
+			svcPort = uint16(backend.GetPort())
+			break
+		}
+	}
+	if svcPort > 0 {
+		pairs = append(pairs, &dns.SVCBPort{Port: svcPort})
+	}
+
+	// 3. IPv4 Hints
+	if len(ips) > 0 {
+		var v4hints []net.IP
+		for _, ipStr := range ips {
+			if ip := net.ParseIP(ipStr); ip != nil {
+				v4hints = append(v4hints, ip)
+			}
+		}
+		if len(v4hints) > 0 {
+			pairs = append(pairs, &dns.SVCBIPv4Hint{Hint: v4hints})
+		}
+	}
+
+	// 4. IPv6 Hints
+	if len(ipsV6) > 0 {
+		var v6hints []net.IP
+		for _, ipStr := range ipsV6 {
+			if ip := net.ParseIP(ipStr); ip != nil {
+				v6hints = append(v6hints, ip)
+			}
+		}
+		if len(v6hints) > 0 {
+			pairs = append(pairs, &dns.SVCBIPv6Hint{Hint: v6hints})
+		}
+	}
+
+	// Sort SvcParams by key code to comply with RFC 9460
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Key() < pairs[j].Key()
+	})
+
+	var rr dns.RR
+	hdr := dns.RR_Header{
+		Name:   domain,
+		Rrtype: recordType,
+		Class:  dns.ClassINET,
+		Ttl:    uint32(record.RecordTTL),
+	}
+
+	if recordType == dns.TypeSVCB {
+		rr = &dns.SVCB{
+			Hdr:      hdr,
+			Priority: 1,
+			Target:   ".",
+			Value:    pairs,
+		}
+	} else {
+		rr = &dns.HTTPS{
+			SVCB: dns.SVCB{
+				Hdr:      hdr,
+				Priority: 1,
+				Target:   ".",
+				Value:    pairs,
+			},
+		}
+	}
+
+	response.Answer = append(response.Answer, rr)
+
+	g.decorateWithECS(r, response, domain)
+
+	err := w.WriteMsg(response)
+	if err != nil {
+		log.Error("Failed to write DNS SVCB/HTTPS response: ", err)
+		IncRecordResolutions(domain, "fail")
+		return dns.RcodeServerFailure, err
+	}
+
+	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
+	IncRecordResolutions(domain, "success")
 	return dns.RcodeSuccess, nil
 }
 

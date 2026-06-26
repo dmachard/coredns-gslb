@@ -113,6 +113,9 @@ records:
     mode: "failover"
     record_ttl: 30
     scrape_interval: 10s
+    alpn:
+      - "h3"
+      - "h2"
     backends:
     - address: "172.16.0.10"
       priority: 1
@@ -212,6 +215,9 @@ defaults:
   scrape_interval: 10s
   scrape_retries: 1
   scrape_timeout: 5s
+  alpn:
+    - "h3"
+    - "h2"
 
 records:
   web1.example.org.:

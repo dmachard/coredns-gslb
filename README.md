@@ -1,10 +1,10 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-267-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-85.3%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/go%20tests-269-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-85.2%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-4843-blue" alt="Lines of code"/>
-  <img src="https://img.shields.io/badge/integration%20tests-18-blue" alt="Integration tests"/>
+  <img src="https://img.shields.io/badge/integration%20tests-19-blue" alt="Integration tests"/>
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
-- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, and `TXT` queries based on backend status
+- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, `TXT`, `SVCB`, and `HTTPS` (RFC 9460) queries based on backend status
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
 - **No external database**: Records are defined using a YAML file.
@@ -85,7 +85,6 @@ Create the `Corefile`
 ```
 .:53 {
     file /coredns/db.gslb.example.com gslb.example.com
-    template IN HTTPS { rcode NOERROR }
     gslb {
         zone  gslb.example.com. /coredns/db.gslb.example.com.yml
     }
@@ -142,11 +141,13 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 
 | Topic | Description |
 |-------|-------------|
+| [Supported Records](docs/records.md) | Supported DNS record types (A, AAAA, TXT, SVCB, HTTPS) |
 | [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP, GeoIP affinity, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
+| [Backend Discovery](docs/discovery.md) | Static, API-driven, and dynamic backend pool management |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Backend Discovery](docs/discovery.md) | Dynamic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS) |
 | [Configuration](docs/configuration.md) | Complete parameter reference |
+
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [CLI Guide](docs/cli.md) | Command-line tool for operations |

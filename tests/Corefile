@@ -7,14 +7,7 @@
 
     # Load SOA zone from a file
     file /coredns/db.gslb.example.com gslb.example.com
-
-    # Ignore HTTPS/SVCB DNS queries to avoid NXDOMAIN + SOA negative caching issues
-    template IN HTTPS {
-        rcode NOERROR
-    }
-    template IN SVCB {
-        rcode NOERROR
-    }
+    log
 
     # Configure the GSLB plugin with the specified parameters
     gslb {
