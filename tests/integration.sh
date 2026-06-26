@@ -214,6 +214,23 @@ test_lua_healthcheck() {
 }
 run_test "Check Lua Healthcheck resolution (should be webapp10: 172.16.0.10)" test_lua_healthcheck
 
+test_svcb_https_queries() {
+    local resp
+    resp=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp.app-x.gslb.example.com HTTPS +noall +answer)
+    echo "Got HTTPS Response: $resp"
+    echo "$resp" | grep -q 'HTTPS'
+    echo "$resp" | grep -q 'alpn="h3,h2"'
+    echo "$resp" | grep -q 'ipv4hint=172.16.0.10'
+
+    local resp_svcb
+    resp_svcb=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp.app-x.gslb.example.com SVCB +noall +answer)
+    echo "Got SVCB Response: $resp_svcb"
+    echo "$resp_svcb" | grep -q 'SVCB'
+    echo "$resp_svcb" | grep -q 'alpn="h3,h2"'
+    echo "$resp_svcb" | grep -q 'ipv4hint=172.16.0.10'
+}
+run_test "Check dynamic SVCB and HTTPS resolutions" test_svcb_https_queries
+
 test_geoip_city_us_ca() {
     local ip
     ip=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp-geoip-city.app-y.gslb.example.com +short +subnet=9.9.9.9/32)

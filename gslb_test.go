@@ -1369,3 +1369,114 @@ records:
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match zone")
 }
+
+func TestServeDNS_SVCBAndHTTPS(t *testing.T) {
+	backend1 := &Backend{Address: "192.168.1.1", Enable: true, Port: 8443, Alive: true}
+	backend2 := &Backend{Address: "2001:db8::2", Enable: true, Port: 8443, Alive: true}
+
+	record := &Record{
+		Fqdn:      "app.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1, backend2},
+		RecordTTL: 60,
+		ALPN:      []string{"h3", "h2"},
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"example.org.": {"app.example.org.": record}},
+	}
+
+	// 1. Query for HTTPS
+	msg := new(dns.Msg)
+	msg.SetQuestion("app.example.org.", dns.TypeHTTPS)
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err := g.ServeDNS(context.Background(), w, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Len(t, w.msg.Answer, 1)
+
+	httpsRecord, ok := w.msg.Answer[0].(*dns.HTTPS)
+	assert.True(t, ok)
+	assert.Equal(t, uint16(1), httpsRecord.Priority)
+	assert.Equal(t, ".", httpsRecord.Target)
+
+	// Check Value fields (Port, ALPN, ipv4hint, ipv6hint)
+	var foundPort uint16
+	var foundAlpn []string
+	var foundV4Hints []net.IP
+	var foundV6Hints []net.IP
+
+	for _, kv := range httpsRecord.Value {
+		switch kv.Key() {
+		case dns.SVCB_PORT:
+			foundPort = kv.(*dns.SVCBPort).Port
+		case dns.SVCB_ALPN:
+			foundAlpn = kv.(*dns.SVCBAlpn).Alpn
+		case dns.SVCB_IPV4HINT:
+			foundV4Hints = kv.(*dns.SVCBIPv4Hint).Hint
+		case dns.SVCB_IPV6HINT:
+			foundV6Hints = kv.(*dns.SVCBIPv6Hint).Hint
+		}
+	}
+
+	assert.Equal(t, uint16(8443), foundPort)
+	assert.Equal(t, []string{"h3", "h2"}, foundAlpn)
+	assert.Equal(t, []net.IP{net.ParseIP("192.168.1.1")}, foundV4Hints)
+	assert.Equal(t, []net.IP{net.ParseIP("2001:db8::2")}, foundV6Hints)
+
+	// 2. Query for SVCB
+	msgSVCB := new(dns.Msg)
+	msgSVCB.SetQuestion("app.example.org.", dns.TypeSVCB)
+	wSVCB := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err = g.ServeDNS(context.Background(), wSVCB, msgSVCB)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Len(t, wSVCB.msg.Answer, 1)
+
+	svcbRecord, ok := wSVCB.msg.Answer[0].(*dns.SVCB)
+	assert.True(t, ok)
+	assert.Equal(t, uint16(1), svcbRecord.Priority)
+	assert.Equal(t, ".", svcbRecord.Target)
+
+	// 3. Test Failover Policies when both are down
+	backend1.Alive = false
+	backend2.Alive = false
+
+	// Failover Mode: fail-closed with NXDOMAIN
+	record.FailoverPolicy = FailoverPolicy{
+		Mode:  "fail-closed",
+		Rcode: "NXDOMAIN",
+	}
+	wFailClosed := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	_, err = g.ServeDNS(context.Background(), wFailClosed, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeNameError, wFailClosed.msg.Rcode)
+
+	// Failover Mode: fail-specific with fallback IPs
+	record.FailoverPolicy = FailoverPolicy{
+		Mode:        "fail-specific",
+		FallbackIPs: []string{"192.168.5.5", "2001:db8::5"},
+	}
+	wFailSpecific := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	code, err = g.ServeDNS(context.Background(), wFailSpecific, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.Len(t, wFailSpecific.msg.Answer, 1)
+
+	httpsRecordFailSpecific := wFailSpecific.msg.Answer[0].(*dns.HTTPS)
+	var foundV4HintsSpecific []net.IP
+	var foundV6HintsSpecific []net.IP
+	for _, kv := range httpsRecordFailSpecific.Value {
+		switch kv.Key() {
+		case dns.SVCB_IPV4HINT:
+			foundV4HintsSpecific = kv.(*dns.SVCBIPv4Hint).Hint
+		case dns.SVCB_IPV6HINT:
+			foundV6HintsSpecific = kv.(*dns.SVCBIPv6Hint).Hint
+		}
+	}
+	assert.Equal(t, []net.IP{net.ParseIP("192.168.5.5")}, foundV4HintsSpecific)
+	assert.Equal(t, []net.IP{net.ParseIP("2001:db8::5")}, foundV6HintsSpecific)
+}

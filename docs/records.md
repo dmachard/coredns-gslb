@@ -1,0 +1,74 @@
+# CoreDNS-GSLB: Supported Record Types
+
+CoreDNS-GSLB dynamically resolves and serves several DNS resource record types to route traffic, optimize client connections, and assist with debugging.
+
+---
+
+## 1. Address Records (A & AAAA)
+
+* **A** (Type 1): Resolves IPv4 addresses for healthy backends.
+* **AAAA** (Type 28): Resolves IPv6 addresses for healthy backends.
+
+When a query is received, the GSLB plugin uses the configured load-balancing or routing policy (e.g., `geoip`, `round-robin`, `failover`, `weighted`, `random`) to select the best active backend(s) matching the requested address family.
+
+If no healthy backends of the requested type are available, the plugin applies the record's configured `failover_policy` (such as returning fallback IPs or a custom response code).
+
+---
+
+## 2. Service Binding Records (SVCB & HTTPS)
+
+Modern web browsers (like Safari and Chrome) and public resolvers (like Cloudflare `1.1.1.1` or Google `8.8.8.8`) frequently send `HTTPS` (Type 65) and `SVCB` (Type 64) queries to negotiate connection parameters (e.g., HTTP/3 ALPN, ports) before initiating a connection.
+
+CoreDNS-GSLB natively resolves these queries dynamically:
+
+* **Target**: Always set to `.` (the queried domain name itself).
+* **IP Hints**: `ipv4hint` and `ipv6hint` are dynamically populated with the IP addresses of the selected healthy backends.
+* **Port**: Automatically mapped to the backend's port (if specified).
+* **ALPN**: Defaults to `h3,h2` or can be customized per record.
+
+### Configuration Example
+You can configure custom ALPN parameters on your record:
+```yaml
+records:
+  webapp.gslb.example.com.:
+    mode: geoip
+    alpn:
+      - h3
+      - h2
+    backends:
+      - address: 192.168.1.10
+        port: 443
+        enable: true
+```
+
+---
+
+## 3. TXT Records (Debugging & Monitoring)
+
+By default, CoreDNS-GSLB serves TXT records summarizing the state of all configured backends. This is useful for real-time monitoring and debugging using standard tools.
+
+### Example Query
+
+```bash
+dig TXT webapp.gslb.example.com @127.0.0.1
+```
+
+### Sample Response
+
+```text
+webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.10 | Priority: 1 | Status: healthy | Enabled: true"
+webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.11 | Priority: 2 | Status: unhealthy | Enabled: true"
+```
+
+### Disabling TXT Record Support
+
+If you wish to hide backend details for security or privacy reasons, you can disable TXT queries by adding the `disable_txt` directive to your `gslb` block in the Corefile:
+
+```corefile
+gslb {
+    ...
+    disable_txt
+}
+```
+
+With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to the next plugin or return empty if none.

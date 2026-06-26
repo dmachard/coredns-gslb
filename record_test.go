@@ -21,6 +21,9 @@ record_ttl: 60
 scrape_interval: "15s"
 scrape_retries: 3
 scrape_timeout: "10s"
+alpn:
+  - "h3"
+  - "h2"
 failover_policy:
   mode: "fail-closed"
   rcode: "NXDOMAIN"
@@ -47,6 +50,7 @@ backends:
 	assert.Equal(t, "1.2.3.4", record.FailoverPolicy.FallbackIPs[0])
 	assert.Len(t, record.Backends, 1)
 	assert.Equal(t, "192.168.1.1", record.Backends[0].GetAddress())
+	assert.Equal(t, []string{"h3", "h2"}, record.ALPN)
 }
 
 func TestRecord_UpdateRecord(t *testing.T) {
@@ -205,6 +209,7 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 		ScrapeTimeout:  "5s",
 		FailoverPolicy: FailoverPolicy{Mode: "fail-open", Rcode: "NOERROR", FallbackIPs: []string{"1.1.1.1"}},
 		Discovery:      &DiscoveryConfig{Type: "consul"},
+		ALPN:           []string{"h3"},
 		Backends:       []BackendInterface{b1, b2},
 		ticker:         time.NewTicker(10 * time.Second),
 	}
@@ -224,6 +229,7 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 		ScrapeTimeout:  "3s",
 		FailoverPolicy: FailoverPolicy{Mode: "fail-closed", Rcode: "NXDOMAIN", FallbackIPs: []string{"1.1.1.1", "2.2.2.2"}},
 		Discovery:      &DiscoveryConfig{Type: "http"},
+		ALPN:           []string{"h3", "h2"},
 		Backends:       []BackendInterface{newB2, newB3},
 	}
 
@@ -240,6 +246,7 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 	assert.Equal(t, "NXDOMAIN", rec.FailoverPolicy.Rcode)
 	assert.Len(t, rec.FailoverPolicy.FallbackIPs, 2)
 	assert.Equal(t, "http", rec.Discovery.Type)
+	assert.Equal(t, []string{"h3", "h2"}, rec.ALPN)
 
 	// Backends check
 	assert.Len(t, rec.Backends, 2)
@@ -248,4 +255,13 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 
 	// Call UpdateRecord to cover it
 	rec.UpdateRecord()
+}
+
+func TestAlpnEqual(t *testing.T) {
+	assert.True(t, alpnEqual(nil, nil))
+	assert.True(t, alpnEqual([]string{}, []string{}))
+	assert.True(t, alpnEqual([]string{"h3", "h2"}, []string{"h3", "h2"}))
+
+	assert.False(t, alpnEqual([]string{"h3"}, []string{"h3", "h2"}))
+	assert.False(t, alpnEqual([]string{"h3", "h2"}, []string{"h3", "h1"}))
 }

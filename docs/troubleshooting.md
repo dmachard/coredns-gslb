@@ -11,69 +11,13 @@ Example Corefile block:
 }
 ~~~
 
-### TXT Record Support for Debugging
+### Unexpected SOA / NXDOMAIN responses (Legacy Workaround)
 
-By default, the GSLB plugin supports DNS TXT queries for any managed domain. When you query a domain with type TXT, the plugin returns a TXT record for each backend, summarizing:
-- Backend address (IP)
-- Priority
-- Health status (healthy/unhealthy)
-- Enabled status (true/false)
+In older versions of CoreDNS-GSLB, when running behind resolvers that perform modern DNS probing (sending HTTPS/type 65 or SVCB queries), you might have seen intermittent negative caching (returning NXDOMAIN or SOA).
 
-This feature is useful for debugging and monitoring: you can instantly see the state of all backends for a domain with a single DNS TXT query.
+**This is now fully supported natively** in CoreDNS-GSLB. The plugin dynamically responds to HTTPS and SVCB queries with RFC 9460-compliant resource records, echoing ALPN, ports, and selected backend IP hints.
 
-**Example:**
-
-```
-dig TXT webapp.gslb.example.com.
-```
-
-**Sample response:**
-
-```
-webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.10 | Priority: 1 | Status: healthy | Enabled: true"
-webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.11 | Priority: 2 | Status: unhealthy | Enabled: true"
-```
-
-This makes it easy to monitor backend health and configuration in real time using standard DNS tools.
-
-**Note:**
-If you want to disable TXT record support (for security or privacy reasons), add the `disable_txt` option in your `gslb` block in the Corefile:
-
-~~~corefile
-gslb {
-    ...
-    disable_txt
-}
-~~~
-
-With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to the next plugin (or return empty if none). No backend information will be exposed via TXT records.
-
-### Unexpected SOA / NXDOMAIN responses
-
-When running CoreDNS-GSLB behind any resolver that performs modern DNS probing, you may see intermittent responses returning only the SOA record or NXDOMAIN, even though the GSLB record is healthy.
-
-This is usually caused by resolvers are sending HTTPS (type 65) or SVCB DNS queries.
-CoreDNS-GSLB does not serve these record types for GSLB-managed zones, so it returns NXDOMAIN + SOA.
-Resolvers then cache this negative response, causing subsequent A/CNAME lookups to temporarily return the SOA instead of the correct GSLB result.
-
-Solution to prevent negative caching:
-
-Ignore HTTPS queries explicitly in your Corefile:
-
-```
-template IN HTTPS {
-    rcode NOERROR
-}
-```
-
-Optionally, you may also ignore SVCB queries:
-
-```
-template IN SVCB {
-    rcode NOERROR
-}
-```
-Issue report with full details: https://github.com/dmachard/CoreDNS-GSLB/issues/83
+Therefore, the legacy workaround using the `template` plugin (e.g., `template IN HTTPS { rcode NOERROR }`) is **no longer required**.
 
 ### Why are all backend IPs returned in the DNS response?
 

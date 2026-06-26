@@ -30,6 +30,7 @@ type Record struct {
 	ScrapeTimeout  string
 	FailoverPolicy FailoverPolicy
 	Discovery      *DiscoveryConfig
+	ALPN           []string
 	ticker         *time.Ticker
 	mutex          sync.RWMutex
 	cancelFunc     context.CancelFunc
@@ -47,6 +48,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Backends       []interface{}    `yaml:"backends"`
 		FailoverPolicy FailoverPolicy   `yaml:"failover_policy"`
 		Discovery      *DiscoveryConfig `yaml:"discovery"`
+		Alpn           []string         `yaml:"alpn"`
 	}
 	defaults.Set(&raw)
 
@@ -63,6 +65,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	r.ScrapeTimeout = raw.ScrapeTimeout
 	r.FailoverPolicy = raw.FailoverPolicy
 	r.Discovery = raw.Discovery
+	r.ALPN = raw.Alpn
 
 	for _, backendData := range raw.Backends {
 		var backend Backend
@@ -128,6 +131,11 @@ func (r *Record) updateRecord(newRecord *Record) {
 		len(r.FailoverPolicy.FallbackIPs) != len(newRecord.FailoverPolicy.FallbackIPs) {
 		log.Debugf("[%s] failover policy changed", r.Fqdn)
 		r.FailoverPolicy = newRecord.FailoverPolicy
+	}
+
+	if !alpnEqual(r.ALPN, newRecord.ALPN) {
+		log.Debugf("[%s] ALPN list changed from %v to %v", r.Fqdn, r.ALPN, newRecord.ALPN)
+		r.ALPN = newRecord.ALPN
 	}
 
 	r.Discovery = newRecord.Discovery
@@ -366,4 +374,16 @@ func (r *Record) updateBackendsFromDiscovery(discovered []DiscoveredEndpoint) {
 		}
 	}
 	r.Backends = newBackends
+}
+
+func alpnEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
