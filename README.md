@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-269-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-272-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-85.2%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-4843-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-5159-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-19-blue" alt="Integration tests"/>
 </p>
 
@@ -147,7 +147,6 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Backend Discovery](docs/discovery.md) | Static, API-driven, and dynamic backend pool management |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
 | [Configuration](docs/configuration.md) | Complete parameter reference |
-
 | [High Availability](docs/architecture.md) | Production deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [CLI Guide](docs/cli.md) | Command-line tool for operations |

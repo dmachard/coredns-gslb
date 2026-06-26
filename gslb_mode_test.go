@@ -1108,3 +1108,65 @@ func TestGSLB_GeoIPAffinityAndHierarchy(t *testing.T) {
 	_, err = g.getClientGeoInfo(clientIP)
 	assert.Error(t, err)
 }
+
+func TestGeoIPLookupUsesPreparsedCache(t *testing.T) {
+	backendEU := &MockBackend{Backend: &Backend{Address: "10.0.0.42", Enable: true, Location: "eu-west"}}
+	backendEU.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip",
+		Backends: []BackendInterface{backendEU},
+	}
+
+	g := &GSLB{
+		LocationMap: map[string]string{
+			"10.0.0.0/8": "eu-west",
+		},
+	}
+
+	// Before lookup, LocationMapIPNet is nil/empty
+	assert.Nil(t, g.LocationMapIPNet)
+
+	// Perform GeoIP lookup
+	ips, err := g.pickBackendWithGeoIP(record, dns.TypeA, net.ParseIP("10.0.0.50"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.42"}, ips)
+
+	// Verify that the lazy rebuild was triggered and populated LocationMapIPNet
+	assert.Len(t, g.LocationMapIPNet, 1)
+	assert.Equal(t, "10.0.0.0/8", g.LocationMapIPNet[0].Subnet)
+	assert.Equal(t, "eu-west", g.LocationMapIPNet[0].Location)
+	assert.NotNil(t, g.LocationMapIPNet[0].IPNet)
+}
+
+func TestGeoIPAffinityLookupUsesPreparsedCache(t *testing.T) {
+	backendUS := &MockBackend{Backend: &Backend{Address: "192.168.1.42", Enable: true, Location: "us-east"}}
+	backendUS.On("IsHealthy").Return(true)
+
+	record := &Record{
+		Fqdn:     "geo.example.com.",
+		Mode:     "geoip_affinity",
+		Backends: []BackendInterface{backendUS},
+	}
+
+	g := &GSLB{
+		LocationMap: map[string]string{
+			"192.168.1.0/24": "us-east",
+		},
+	}
+
+	// Before lookup, LocationMapIPNet is nil/empty
+	assert.Nil(t, g.LocationMapIPNet)
+
+	// Perform GeoIP Affinity lookup (where subnet pinning is evaluated)
+	ips, err := g.pickBackendWithGeoIPAffinity(record, dns.TypeA, net.ParseIP("192.168.1.100"))
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"192.168.1.42"}, ips)
+
+	// Verify that the lazy rebuild was triggered and populated LocationMapIPNet
+	assert.Len(t, g.LocationMapIPNet, 1)
+	assert.Equal(t, "192.168.1.0/24", g.LocationMapIPNet[0].Subnet)
+	assert.Equal(t, "us-east", g.LocationMapIPNet[0].Location)
+	assert.NotNil(t, g.LocationMapIPNet[0].IPNet)
+}

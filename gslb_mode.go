@@ -377,17 +377,29 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 
 	// 4. Custom location map (subnet to location string)
 	g.Mutex.RLock()
-	locationMap := g.LocationMap
+	needsRebuild := len(g.LocationMap) != len(g.LocationMapIPNet)
 	g.Mutex.RUnlock()
-	if len(locationMap) > 0 {
+
+	if needsRebuild {
+		g.Mutex.Lock()
+		if len(g.LocationMap) != len(g.LocationMapIPNet) {
+			g.rebuildLocationMapIPNet()
+		}
+		g.Mutex.Unlock()
+	}
+
+	g.Mutex.RLock()
+	locationMapIPNet := g.LocationMapIPNet
+	g.Mutex.RUnlock()
+
+	if len(locationMapIPNet) > 0 {
 		var matchedIPs []string
 		for _, backend := range record.Backends {
 			if backend.IsHealthy() && backend.IsEnabled() {
 				loc := backend.GetLocation()
-				for subnet, location := range locationMap {
-					_, ipnet, err := net.ParseCIDR(subnet)
-					if err == nil && ipnet.Contains(clientIP) {
-						if loc == location {
+				for _, entry := range locationMapIPNet {
+					if entry.IPNet.Contains(clientIP) {
+						if loc == entry.Location {
 							matchedIPs = append(matchedIPs, backend.GetAddress())
 							IncBackendSelected(record.Fqdn, backend.GetAddress())
 							break
@@ -550,15 +562,26 @@ func (g *GSLB) pickBackendWithGeoIPAffinity(record *Record, recordType uint16, c
 
 	// Step 1: Subnet Pinning
 	g.Mutex.RLock()
-	locationMap := g.LocationMap
+	needsRebuildAffinity := len(g.LocationMap) != len(g.LocationMapIPNet)
+	g.Mutex.RUnlock()
+
+	if needsRebuildAffinity {
+		g.Mutex.Lock()
+		if len(g.LocationMap) != len(g.LocationMapIPNet) {
+			g.rebuildLocationMapIPNet()
+		}
+		g.Mutex.Unlock()
+	}
+
+	g.Mutex.RLock()
+	locationMapIPNet := g.LocationMapIPNet
 	g.Mutex.RUnlock()
 
 	var matchedLocation string
-	if len(locationMap) > 0 {
-		for subnet, location := range locationMap {
-			_, ipnet, err := net.ParseCIDR(subnet)
-			if err == nil && ipnet.Contains(clientIP) {
-				matchedLocation = location
+	if len(locationMapIPNet) > 0 {
+		for _, entry := range locationMapIPNet {
+			if entry.IPNet.Contains(clientIP) {
+				matchedLocation = entry.Location
 				break
 			}
 		}
