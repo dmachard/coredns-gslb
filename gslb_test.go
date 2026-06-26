@@ -1275,4 +1275,3 @@ func TestGSLB_ECSEchoing_NonGeo(t *testing.T) {
 	assert.Equal(t, uint8(0), respEcs.SourceScope, "Scope netmask should be 0 in non-geo mode")
 	assert.Equal(t, "1.2.3.4", respEcs.Address.String())
 }
-
