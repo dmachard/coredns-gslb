@@ -753,4 +753,3 @@ func (g *GSLB) pickBackendWithHash(record *Record, recordType uint16, clientIP n
 
 	return []string{selectedBackend.GetAddress()}, nil
 }
-

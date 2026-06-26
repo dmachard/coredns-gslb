@@ -1255,4 +1255,3 @@ func TestGSLB_PickResponse_Hash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, ips, 1)
 }
-
