@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-275-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-85.3%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-5177-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/go%20tests-278-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-85.4%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-5213-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-21-blue" alt="Integration tests"/>
 </p>
 
@@ -23,7 +23,7 @@ What it does:
 - **Health monitoring** of your backends with HTTP(S), TCP, ICMP, MySQL, gRPC, or custom Lua checks
 - **Reusable healthcheck profiles**: Define health check templates globally (in the Corefile) or per zone, and reference them by name in your backends
 - **Geographic routing** using MaxMind GeoIP databases or custom location mapping
-- **Load balancing** with failover, round-robin, random, weighted, GeoIP or GeoIP-affinity selection
+- **Load balancing** with failover, round-robin, random, weighted, IP-hash, GeoIP or GeoIP-affinity selection
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
@@ -142,8 +142,8 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 
 | Topic | Description |
 |-------|-------------|
-| [Supported Records](docs/records.md) | Supported DNS record types (A, AAAA, TXT, SVCB, HTTPS) |
-| [Selection Modes](docs/modes.md) | Failover, round-robin, random, GeoIP, GeoIP affinity, weighted |
+| [Supported Records](docs/records.md) | Supported DNS record types |
+| [Selection Modes](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, GeoIP affinity, weighted |
 | [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
 | [Backend Discovery](docs/discovery.md) | Static, API-driven, and dynamic backend pool management |
 | [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |

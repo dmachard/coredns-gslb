@@ -499,6 +499,38 @@ func TestServeDNS(t *testing.T) {
 	}
 }
 
+func TestServeDNS_IPHash(t *testing.T) {
+	backend1 := &Backend{Address: "192.168.1.1", Enable: true, Alive: true}
+	backend2 := &Backend{Address: "192.168.1.2", Enable: true, Alive: true}
+	record := &Record{
+		Fqdn:      "hash.example.org.",
+		Mode:      "ip-hash",
+		Backends:  []BackendInterface{backend1, backend2},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"example.org.": {"hash.example.org.": record}},
+	}
+
+	msg := new(dns.Msg)
+	msg.SetQuestion("hash.example.org.", dns.TypeA)
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("192.168.100.1")}
+
+	code, err := g.ServeDNS(context.Background(), w, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.msg)
+	assert.NotEmpty(t, w.msg.Answer)
+
+	// Verify that the returned IP is one of the backends
+	aRecord, ok := w.msg.Answer[0].(*dns.A)
+	assert.True(t, ok)
+	returnedIP := aRecord.A.String()
+	assert.Contains(t, []string{"192.168.1.1", "192.168.1.2"}, returnedIP)
+}
+
 // Plugin following which captures the call for tests ServeDNS
 type nextPlugin struct{ called bool }
 
