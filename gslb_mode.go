@@ -5,12 +5,15 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/miekg/dns"
 )
+
+var fqdnRegex = regexp.MustCompile(`^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+\.?$`)
 
 // pickBackendWithFailover returns all healthy backends with the lowest priority.
 func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]string, error) {
@@ -25,8 +28,7 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 	for _, backend := range sortedBackends {
 		if backend.IsHealthy() {
 			ip := backend.GetAddress()
-			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
-				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+			if isAddressTypeCompatible(ip, recordType) {
 				if minPriority == -1 {
 					minPriority = backend.GetPriority()
 				}
@@ -62,8 +64,7 @@ func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordTy
 	for _, backend := range record.Backends {
 		if backend.IsHealthy() {
 			ip := backend.GetAddress()
-			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
-				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+			if isAddressTypeCompatible(ip, recordType) {
 				healthyBackends = append(healthyBackends, backend)
 			}
 		}
@@ -89,8 +90,7 @@ func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]strin
 	for _, backend := range record.Backends {
 		if backend.IsHealthy() {
 			ip := backend.GetAddress()
-			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
-				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+			if isAddressTypeCompatible(ip, recordType) {
 				healthyBackends = append(healthyBackends, backend)
 			}
 		}
@@ -123,8 +123,7 @@ func (g *GSLB) pickBackendWithWeighted(record *Record, recordType uint16) ([]str
 	for _, backend := range record.Backends {
 		if backend.IsHealthy() && backend.IsEnabled() {
 			ip := backend.GetAddress()
-			if (recordType == dns.TypeA && net.ParseIP(ip).To4() != nil) ||
-				(recordType == dns.TypeAAAA && net.ParseIP(ip).To16() != nil && net.ParseIP(ip).To4() == nil) {
+			if isAddressTypeCompatible(ip, recordType) {
 				w := backend.GetWeight()
 				if w > 0 {
 					weightedBackends = append(weightedBackends, backend)
@@ -182,7 +181,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 				var cityCountryIPs []string
 				var cityOnlyIPs []string
 				for _, backend := range record.Backends {
-					if !backend.IsHealthy() || !backend.IsEnabled() {
+					if !backend.IsHealthy() || !backend.IsEnabled() || !isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						continue
 					}
 
@@ -240,7 +239,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			if subdivisionCode != "" {
 				var subdivisionMatchedIPs []string
 				for _, backend := range record.Backends {
-					if !backend.IsHealthy() || !backend.IsEnabled() {
+					if !backend.IsHealthy() || !backend.IsEnabled() || !isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						continue
 					}
 					backendContinent := backend.GetContinent()
@@ -268,7 +267,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			if countryCode != "" {
 				var countryMatchedIPs []string
 				for _, backend := range record.Backends {
-					if !backend.IsHealthy() || !backend.IsEnabled() {
+					if !backend.IsHealthy() || !backend.IsEnabled() || !isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						continue
 					}
 					backendContinent := backend.GetContinent()
@@ -291,7 +290,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			if continentCode != "" {
 				var continentMatchedIPs []string
 				for _, backend := range record.Backends {
-					if !backend.IsHealthy() || !backend.IsEnabled() {
+					if !backend.IsHealthy() || !backend.IsEnabled() || !isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						continue
 					}
 					if backend.GetContinent() == continentCode {
@@ -317,7 +316,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			var matchedIPs []string
 			if countryCode != "" {
 				for _, backend := range record.Backends {
-					if backend.IsHealthy() && backend.IsEnabled() {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						backendContinent := backend.GetContinent()
 						if backendContinent != "" && backendContinent != continentCode {
 							continue
@@ -338,7 +337,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			// 2.b continent (country DB also provides continent metadata)
 			if continentCode != "" {
 				for _, backend := range record.Backends {
-					if backend.IsHealthy() && backend.IsEnabled() {
+					if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
 						if backend.GetContinent() == continentCode {
 							matchedIPs = append(matchedIPs, backend.GetAddress())
 						}
@@ -361,7 +360,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 			asn := fmt.Sprint(recordASN.AutonomousSystemNumber)
 			var matchedIPs []string
 			for _, backend := range record.Backends {
-				if backend.IsHealthy() && backend.IsEnabled() {
+				if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
 					if backend.GetASN() == asn {
 						matchedIPs = append(matchedIPs, backend.GetAddress())
 						IncBackendSelected(record.Fqdn, backend.GetAddress())
@@ -395,7 +394,7 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 	if len(locationMapIPNet) > 0 {
 		var matchedIPs []string
 		for _, backend := range record.Backends {
-			if backend.IsHealthy() && backend.IsEnabled() {
+			if backend.IsHealthy() && backend.IsEnabled() && isAddressTypeCompatible(backend.GetAddress(), recordType) {
 				loc := backend.GetLocation()
 				for _, entry := range locationMapIPNet {
 					if entry.IPNet.Contains(clientIP) {
@@ -419,9 +418,15 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 }
 
 func isAddressTypeCompatible(ip string, recordType uint16) bool {
+	if ip == "" {
+		return false
+	}
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
-		return false
+		if !fqdnRegex.MatchString(ip) {
+			return false
+		}
+		return recordType == dns.TypeA || recordType == dns.TypeAAAA || recordType == dns.TypeCNAME
 	}
 	if recordType == dns.TypeA {
 		return parsedIP.To4() != nil

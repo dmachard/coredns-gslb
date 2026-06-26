@@ -130,6 +130,9 @@ records:
           host: "localhost"
           expected_code: 200
           enable_tls: true
+    - address: "some-alb.aws.com"  # CNAME-type backend (returns a CNAME record if selected)
+      priority: 3
+      healthchecks: [ https_default ]
 ~~~
 
 ### Wildcard Records Support

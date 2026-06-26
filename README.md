@@ -1,10 +1,10 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-272-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-85.2%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-5159-blue" alt="Lines of code"/>
-  <img src="https://img.shields.io/badge/integration%20tests-19-blue" alt="Integration tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-275-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-85.3%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-5177-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/integration%20tests-21-blue" alt="Integration tests"/>
 </p>
 
 <p align="center">
@@ -27,7 +27,8 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
-- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, `TXT`, `SVCB`, and `HTTPS` (RFC 9460) queries based on backend status
+- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, `CNAME`, `TXT`, `SVCB`, and `HTTPS` queries based on backend status
+- **CNAME Redirection for FQDN Backends**: Support hostname/FQDN targets in backend pools, running healthchecks normally and automatically responding with CNAME records if selected
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
 - **No external database**: Records are defined using a YAML file.

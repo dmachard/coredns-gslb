@@ -68,7 +68,7 @@ trap cleanup EXIT
 
 # 4. Start stack
 echo "=== Starting Dev Stack ==="
-$COMPOSE_CMD up -d
+$COMPOSE_CMD up -d --build
 
 # 5. Wait for coredns_gslb to be ready
 echo "=== Waiting for CoreDNS GSLB to be ready ==="
@@ -271,9 +271,9 @@ test_api_records() {
     local resp
     resp=$(curl -s -X GET http://127.0.0.1:"$COREDNS_PORT_API"/api/overview | jq 'map(length) | add')
     echo "Got Nb records: $resp"
-    [ "$resp" = "9" ]
+    [ "$resp" = "10" ]
 }
-run_test "Check API Overview - count records (should be 9)" test_api_records
+run_test "Check API Overview - count records (should be 10)" test_api_records
 
 
 # 9b. Dynamic Service Discovery Integration Tests
@@ -294,6 +294,26 @@ test_dns_https_discovery() {
     [ "$ip" = "172.16.0.12" ]
 }
 run_test "Check DNS HTTPS Discovery (should resolve to 172.16.0.12)" test_dns_https_discovery
+
+
+# 9c. CNAME Backend Routing Integration Tests
+echo "=== Running CNAME Backend Routing Tests ==="
+
+test_cname_backend_routing() {
+    local target
+    target=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp-cname.app-x.gslb.example.com CNAME +short)
+    echo "Got CNAME target: $target"
+    [ "$target" = "some-alb.aws.com." ]
+}
+run_test "Check CNAME backend routing on CNAME query (should resolve to CNAME some-alb.aws.com.)" test_cname_backend_routing
+
+test_cname_backend_routing_a_query() {
+    local target
+    target=$(dig -p "$COREDNS_PORT_TCP" @127.0.0.1 webapp-cname.app-x.gslb.example.com A +short)
+    echo "Got CNAME target on A query: $target"
+    [ "$target" = "some-alb.aws.com." ]
+}
+run_test "Check CNAME backend routing on A query (should resolve to CNAME some-alb.aws.com.)" test_cname_backend_routing_a_query
 
 
 # 10. Output Statistics

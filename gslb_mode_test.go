@@ -968,6 +968,8 @@ func TestIsAddressTypeCompatible(t *testing.T) {
 		{"Invalid IP with A", "invalid-ip", dns.TypeA, false},
 		{"Invalid IP with AAAA", "invalid-ip", dns.TypeAAAA, false},
 		{"IPv4 compatible with other type", "192.168.1.1", dns.TypeTXT, false},
+		{"CNAME compatible with A", "some-alb.aws.com", dns.TypeA, true},
+		{"CNAME compatible with AAAA", "some-alb.aws.com", dns.TypeAAAA, true},
 	}
 
 	for _, tc := range testCases {

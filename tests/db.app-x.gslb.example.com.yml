@@ -149,4 +149,12 @@ records:
       service: "web.discovery.internal."
       interval: "5s"
     backends: []
+  webapp-cname.app-x.gslb.example.com.:
+    description: CNAME backend routing test
+    mode: failover
+    backends:
+      - address: "some-alb.aws.com"
+        enable: true
+        assume_healthy: true
+        priority: 1
 
