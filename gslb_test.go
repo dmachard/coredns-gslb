@@ -1275,3 +1275,97 @@ func TestGSLB_ECSEchoing_NonGeo(t *testing.T) {
 	assert.Equal(t, uint8(0), respEcs.SourceScope, "Scope netmask should be 0 in non-geo mode")
 	assert.Equal(t, "1.2.3.4", respEcs.Address.String())
 }
+
+type badRemoteAddrWriter struct {
+	mockResponseWriter
+	addrStr string
+}
+
+func (b *badRemoteAddrWriter) RemoteAddr() net.Addr {
+	return &customAddr{addrStr: b.addrStr}
+}
+
+type customAddr struct {
+	net.Addr
+	addrStr string
+}
+
+func (c *customAddr) String() string {
+	return c.addrStr
+}
+
+func TestGSLB_RemainingEdgeCases(t *testing.T) {
+	// 1. Invalid remote addr in client IP extraction
+	g := &GSLB{UseEDNSCSubnet: false}
+	r := new(dns.Msg)
+
+	// net.SplitHostPort error
+	wBadSplit := &badRemoteAddrWriter{addrStr: "invalid_address_no_port"}
+	ip, prefix := g.extractClientIP(wBadSplit, r)
+	assert.Nil(t, ip)
+	assert.Equal(t, uint8(0), prefix)
+
+	// net.ParseIP error
+	wBadParse := &badRemoteAddrWriter{addrStr: "invalid-ip:12345"}
+	ip, prefix = g.extractClientIP(wBadParse, r)
+	assert.Nil(t, ip)
+	assert.Equal(t, uint8(0), prefix)
+
+	// 2. GetMaxStaggerStart with invalid duration
+	gStagger := &GSLB{MaxStaggerStart: "invalid"}
+	assert.Equal(t, 60*time.Second, gStagger.GetMaxStaggerStart())
+
+	// 3. GetResolutionIdleTimeout with invalid duration
+	gIdle := &GSLB{ResolutionIdleTimeout: "invalid"}
+	assert.Equal(t, 3600*time.Second, gIdle.GetResolutionIdleTimeout())
+
+	// 4. UpdateRecords with zone that does not exist
+	gUpdate := &GSLB{
+		Records: map[string]map[string]*Record{
+			"existing.zone.": {},
+		},
+	}
+	newG := &GSLB{
+		Records: map[string]map[string]*Record{
+			"nonexistent.zone.": {},
+		},
+	}
+	// Should log "Not yet implemented" and not crash or fail
+	gUpdate.updateRecords(context.Background(), newG)
+
+	// 5. loadConfigFile error: file empty
+	tmpFileEmpty, err := os.CreateTemp("", "empty-*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFileEmpty.Name())
+	tmpFileEmpty.Close()
+
+	err = loadConfigFile(gUpdate, tmpFileEmpty.Name(), "existing.zone.")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "file empty")
+
+	// 6. loadConfigFile error: invalid YAML
+	tmpFileInvalid, err := os.CreateTemp("", "invalid-*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFileInvalid.Name())
+	_, _ = tmpFileInvalid.Write([]byte("{invalid-yaml"))
+	tmpFileInvalid.Close()
+
+	err = loadConfigFile(gUpdate, tmpFileInvalid.Name(), "existing.zone.")
+	assert.Error(t, err)
+
+	// 7. loadConfigFile error: record zone mismatch
+	tmpFileMismatch, err := os.CreateTemp("", "mismatch-*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFileMismatch.Name())
+	mismatchContent := `
+records:
+  mismatch.other.com.:
+    backends: []
+`
+	_, _ = tmpFileMismatch.Write([]byte(mismatchContent))
+	tmpFileMismatch.Close()
+
+	err = loadConfigFile(gUpdate, tmpFileMismatch.Name(), "existing.zone.")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match zone")
+}

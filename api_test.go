@@ -524,3 +524,61 @@ func (m *MockHealthCheckAPI) PerformCheck(backend *Backend, fqdn string, maxRetr
 }
 func (m *MockHealthCheckAPI) GetType() string                      { return "mock" }
 func (m *MockHealthCheckAPI) Equals(other GenericHealthCheck) bool { return true }
+
+func TestAPI_RemainingEdgeCases(t *testing.T) {
+	g := &GSLB{
+		Zones: map[string]string{
+			"test": "/path/to/nonexistent/file.yml",
+		},
+	}
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// 1. handleOverview with invalid method (POST instead of GET)
+	resp, err := http.Post(ts.URL+"/api/overview", "application/json", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+	resp.Body.Close()
+
+	// 2. handleBulkSetBackendEnable with invalid JSON
+	resp, err = http.Post(ts.URL+"/api/backends/enable", "application/json", strings.NewReader("invalid-json"))
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	var errResp map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errResp)
+	assert.Equal(t, "Invalid JSON", errResp["error"])
+	resp.Body.Close()
+
+	// 3. handleBulkSetBackendEnable with file error (nonexistent file path in Zones)
+	resp, err = http.Post(ts.URL+"/api/backends/enable", "application/json", strings.NewReader(`{"location":"dc-eu"}`))
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	resp.Body.Close()
+
+	// 4. bulkSetBackendEnable with invalid YAML (file contains bad content)
+	f, err := os.CreateTemp("", "bad_yaml_*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(f.Name())
+	_, _ = f.Write([]byte("{invalid-yaml"))
+	f.Close()
+
+	_, err = bulkSetBackendEnable(f.Name(), "dc-eu", "", nil, true)
+	assert.Error(t, err)
+
+	// 5. bulkSetBackendEnable with non-existent file
+	_, err = bulkSetBackendEnable("/nonexistent/file.yml", "dc-eu", "", nil, true)
+	assert.Error(t, err)
+
+	// 6. bulkSetBackendEnable with missing/invalid records type
+	f2, err := os.CreateTemp("", "missing_records_*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(f2.Name())
+	_, _ = f2.Write([]byte("records: 'not a map'"))
+	f2.Close()
+
+	modified, err := bulkSetBackendEnable(f2.Name(), "dc-eu", "", nil, true)
+	assert.NoError(t, err)
+	assert.Nil(t, modified)
+}

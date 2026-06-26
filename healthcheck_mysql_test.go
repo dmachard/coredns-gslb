@@ -29,3 +29,21 @@ func TestMySQLHealthCheck_Equals(t *testing.T) {
 		t.Error("expected h1 != h3")
 	}
 }
+
+func TestMySQLHealthCheck_PerformCheck_InvalidTimeout(t *testing.T) {
+	h := &MySQLHealthCheck{
+		Timeout: "invalid",
+	}
+	backend := &Backend{Address: "127.0.0.1"}
+	res := h.PerformCheck(backend, "test.local.", 1)
+	if res {
+		t.Error("expected PerformCheck to return false for invalid timeout")
+	}
+}
+
+func TestMySQLHealthCheck_EqualsMore(t *testing.T) {
+	h := &MySQLHealthCheck{Host: "127.0.0.1", Port: 3306, User: "a", Database: "b", Query: "SELECT 1"}
+	if h.Equals(&HTTPHealthCheck{}) {
+		t.Error("expected Equals to return false for different type")
+	}
+}

@@ -173,3 +173,14 @@ func TestTCPHealthCheck_Equals(t *testing.T) {
 	// Assert that hc1 and hc3 are not equal
 	assert.False(t, hc1.Equals(hc3))
 }
+
+func TestTCPHealthCheck_Remaining(t *testing.T) {
+	// 1. Invalid Timeout
+	hc := &TCPHealthCheck{Port: 80, Timeout: "invalid"}
+	backend := &Backend{Address: "127.0.0.1"}
+	assert.False(t, hc.PerformCheck(backend, "test", 0))
+
+	// 2. Equals Different Type
+	hc1 := &TCPHealthCheck{Port: 80, Timeout: "1s"}
+	assert.False(t, hc1.Equals(&HTTPHealthCheck{}))
+}

@@ -189,3 +189,63 @@ func TestRecord_UpdateRecord_Discovery(t *testing.T) {
 	assert.NotNil(t, record.Discovery)
 	assert.Equal(t, "consul", record.Discovery.Type)
 }
+
+func TestRecord_UpdateRecord_Full(t *testing.T) {
+	b1 := &Backend{Address: "192.168.1.1", Enable: true}
+	b2 := &Backend{Address: "192.168.1.2", Enable: true}
+
+	rec := &Record{
+		Fqdn:           "test.local",
+		Mode:           "failover",
+		Owner:          "admin",
+		RecordTTL:      30,
+		Description:    "old desc",
+		ScrapeInterval: "10s",
+		ScrapeRetries:  1,
+		ScrapeTimeout:  "5s",
+		FailoverPolicy: FailoverPolicy{Mode: "fail-open", Rcode: "NOERROR", FallbackIPs: []string{"1.1.1.1"}},
+		Discovery:      &DiscoveryConfig{Type: "consul"},
+		Backends:       []BackendInterface{b1, b2},
+		ticker:         time.NewTicker(10 * time.Second),
+	}
+
+	newB2 := &Backend{Address: "192.168.1.2", Enable: true, Weight: 5} // to be updated
+	newB3 := &Backend{Address: "192.168.1.3", Enable: true}            // to be added
+	// b1 will be removed
+
+	newRec := &Record{
+		Fqdn:           "test.local",
+		Mode:           "round-robin",
+		Owner:          "user",
+		RecordTTL:      60,
+		Description:    "new desc",
+		ScrapeInterval: "5s",
+		ScrapeRetries:  2,
+		ScrapeTimeout:  "3s",
+		FailoverPolicy: FailoverPolicy{Mode: "fail-closed", Rcode: "NXDOMAIN", FallbackIPs: []string{"1.1.1.1", "2.2.2.2"}},
+		Discovery:      &DiscoveryConfig{Type: "http"},
+		Backends:       []BackendInterface{newB2, newB3},
+	}
+
+	rec.updateRecord(newRec)
+
+	assert.Equal(t, "round-robin", rec.Mode)
+	assert.Equal(t, "user", rec.Owner)
+	assert.Equal(t, 60, rec.RecordTTL)
+	assert.Equal(t, "new desc", rec.Description)
+	assert.Equal(t, "5s", rec.ScrapeInterval)
+	assert.Equal(t, 2, rec.ScrapeRetries)
+	assert.Equal(t, "3s", rec.ScrapeTimeout)
+	assert.Equal(t, "fail-closed", rec.FailoverPolicy.Mode)
+	assert.Equal(t, "NXDOMAIN", rec.FailoverPolicy.Rcode)
+	assert.Len(t, rec.FailoverPolicy.FallbackIPs, 2)
+	assert.Equal(t, "http", rec.Discovery.Type)
+
+	// Backends check
+	assert.Len(t, rec.Backends, 2)
+	assert.Equal(t, "192.168.1.2", rec.Backends[0].GetAddress())
+	assert.Equal(t, "192.168.1.3", rec.Backends[1].GetAddress())
+
+	// Call UpdateRecord to cover it
+	rec.UpdateRecord()
+}

@@ -92,6 +92,210 @@ func TestSetupGSLB(t *testing.T) {
 			}`,
 			expectError: false,
 		},
+		{
+			name: "use_edns_csubnet valid",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				use_edns_csubnet
+			}`,
+			expectError: false,
+		},
+		{
+			name: "Unknown option error",
+			config: `gslb {
+				unknown_option
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing zone arg error",
+			config: `gslb {
+				zone
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing zone file error",
+			config: `gslb {
+				zone app.example.com
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing max_stagger_start arg error",
+			config: `gslb {
+				max_stagger_start
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Invalid max_stagger_start value error",
+			config: `gslb {
+				max_stagger_start invalid
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing batch_size_start arg error",
+			config: `gslb {
+				batch_size_start
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Invalid batch_size_start value error",
+			config: `gslb {
+				batch_size_start -10
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing resolution_idle_timeout arg error",
+			config: `gslb {
+				resolution_idle_timeout
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Invalid resolution_idle_timeout value error",
+			config: `gslb {
+				resolution_idle_timeout invalid
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing geoip_custom arg error",
+			config: `gslb {
+				geoip_custom
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing geoip_maxmind arg error",
+			config: `gslb {
+				geoip_maxmind
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing geoip_maxmind path error",
+			config: `gslb {
+				geoip_maxmind country_db
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Unknown geoip_maxmind type error",
+			config: `gslb {
+				geoip_maxmind unknown_db ./path
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Failed to open country MaxMind DB error",
+			config: `gslb {
+				geoip_maxmind country_db ./invalid.mmdb
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing healthcheck_idle_multiplier arg error",
+			config: `gslb {
+				healthcheck_idle_multiplier
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Invalid healthcheck_idle_multiplier value error",
+			config: `gslb {
+				healthcheck_idle_multiplier 0
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_enable arg error",
+			config: `gslb {
+				api_enable
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_tls_cert arg error",
+			config: `gslb {
+				api_tls_cert
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_tls_key arg error",
+			config: `gslb {
+				api_tls_key
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_listen_addr arg error",
+			config: `gslb {
+				api_listen_addr
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_listen_port arg error",
+			config: `gslb {
+				api_listen_port
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_basic_user arg error",
+			config: `gslb {
+				api_basic_user
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing api_basic_pass arg error",
+			config: `gslb {
+				api_basic_pass
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Missing healthcheck_profiles arg error",
+			config: `gslb {
+				healthcheck_profiles
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Nonexistent healthcheck_profiles file error",
+			config: `gslb {
+				healthcheck_profiles /path/to/nonexistent
+			}`,
+			expectError: true,
+		},
+		{
+			name: "disable_txt with extra arg error",
+			config: `gslb {
+				disable_txt extra
+			}`,
+			expectError: true,
+		},
+		{
+			name: "use_edns_csubnet with extra arg error",
+			config: `gslb {
+				use_edns_csubnet extra
+			}`,
+			expectError: true,
+		},
+		{
+			name: "No zone directive error",
+			config: `gslb {
+				api_enable false
+			}`,
+			expectError: true,
+		},
 	}
 
 	// Iterate over test cases
@@ -101,9 +305,10 @@ func TestSetupGSLB(t *testing.T) {
 			c := caddy.NewTestController("dns", test.config)
 			err := setup(c)
 
-			// Only expect no error for all cases
-			if err != nil {
-				t.Fatalf("Expected no error, but got: %v for test: %v", err, test.name)
+			if test.expectError {
+				assert.Error(t, err, "Expected error but got nil for test: %v", test.name)
+			} else {
+				assert.NoError(t, err, "Expected no error, but got: %v for test: %v", err, test.name)
 			}
 		})
 	}
@@ -460,4 +665,58 @@ func TestHealthcheckProfilesWatcherDetectsChanges(t *testing.T) {
 	numProfiles := len(GlobalHealthcheckProfiles)
 	ProfilesMutex.RUnlock()
 	t.Logf("Test passed - healthcheck profiles reloaded successfully with %d profiles", numProfiles)
+}
+
+func TestReloadHealthcheckProfilesAndZones_SuccessAndFail(t *testing.T) {
+	// Setup temporary profiles file
+	tmpDir := t.TempDir()
+	profilesFile := filepath.Join(tmpDir, "healthcheck_profiles.yml")
+	initialProfiles := `healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      port: 443`
+	err := os.WriteFile(profilesFile, []byte(initialProfiles), 0644)
+	assert.NoError(t, err)
+
+	// Create GSLB with a mock zone and config file
+	g := &GSLB{
+		Zones:   make(map[string]string),
+		Records: make(map[string]map[string]*Record),
+	}
+
+	// Case 1: Zones mapping points to a valid file
+	validZoneFile := filepath.Join(tmpDir, "valid_zone.yml")
+	initialConfig := `records:
+  app.test.local.:
+    mode: failover`
+	err = os.WriteFile(validZoneFile, []byte(initialConfig), 0644)
+	assert.NoError(t, err)
+
+	zoneName := "test.local."
+	g.Zones[zoneName] = validZoneFile
+
+	err = reloadHealthcheckProfilesAndZones(g, profilesFile)
+	assert.NoError(t, err)
+
+	// Case 2: Zones mapping points to an invalid/non-existent file
+	g.Zones["invalid.local."] = "/path/to/nonexistent/file.yml"
+	err = reloadHealthcheckProfilesAndZones(g, profilesFile)
+	assert.Error(t, err) // Should return error because reloading invalid zone fails
+
+	// Case 3: Invalid profiles file path
+	err = reloadHealthcheckProfilesAndZones(g, "/path/to/nonexistent/profiles.yml")
+	assert.Error(t, err)
+}
+
+func TestFindZoneByFile_NotFound(t *testing.T) {
+	g := &GSLB{
+		Zones: map[string]string{
+			"test.local.": "/path/to/valid.yml",
+		},
+	}
+	// Found
+	assert.Equal(t, "test.local.", findZoneByFile(g, "/path/to/valid.yml"))
+	// Not found
+	assert.Equal(t, "", findZoneByFile(g, "/path/to/invalid.yml"))
 }
