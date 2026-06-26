@@ -312,6 +312,46 @@ func TestLoadCustomLocationMap(t *testing.T) {
 	if g.LocationMap["10.0.0.0/8"] != "us-east-1" {
 		t.Errorf("Expected us-east-1, got %v", g.LocationMap["10.0.0.0/8"])
 	}
+
+	// Verify LocationMapIPNet cache is populated
+	if len(g.LocationMapIPNet) != 2 {
+		t.Fatalf("Expected LocationMapIPNet length 2, got %d", len(g.LocationMapIPNet))
+	}
+	for _, entry := range g.LocationMapIPNet {
+		if entry.Subnet == "192.168.0.0/16" {
+			if entry.Location != "eu-west-1" {
+				t.Errorf("Expected location eu-west-1 for 192.168.0.0/16, got %s", entry.Location)
+			}
+			if entry.IPNet == nil {
+				t.Error("Expected IPNet not to be nil")
+			}
+		}
+	}
+}
+
+func TestRebuildLocationMapIPNet(t *testing.T) {
+	g := &GSLB{
+		LocationMap: map[string]string{
+			"81.185.159.0/24": "us-east",
+			"invalid-subnet":  "nowhere",
+		},
+	}
+	g.rebuildLocationMapIPNet()
+
+	// "invalid-subnet" should be skipped because net.ParseCIDR fails on it
+	if len(g.LocationMapIPNet) != 1 {
+		t.Fatalf("Expected LocationMapIPNet length 1, got %d", len(g.LocationMapIPNet))
+	}
+	entry := g.LocationMapIPNet[0]
+	if entry.Subnet != "81.185.159.0/24" {
+		t.Errorf("Expected subnet 81.185.159.0/24, got %s", entry.Subnet)
+	}
+	if entry.Location != "us-east" {
+		t.Errorf("Expected location us-east, got %s", entry.Location)
+	}
+	if entry.IPNet == nil {
+		t.Error("Expected IPNet not to be nil")
+	}
 }
 
 func TestLoadLocationMap_FileNotFound(t *testing.T) {
@@ -330,6 +370,9 @@ func TestLoadLocationMap_EmptyPath(t *testing.T) {
 	}
 	if g.LocationMap != nil {
 		t.Errorf("Expected LocationMap to be nil for empty path")
+	}
+	if g.LocationMapIPNet != nil {
+		t.Errorf("Expected LocationMapIPNet to be nil for empty path")
 	}
 }
 

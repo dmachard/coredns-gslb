@@ -38,6 +38,7 @@ type GSLB struct {
 	Mutex                     sync.RWMutex
 	UseEDNSCSubnet            bool
 	LocationMap               map[string]string
+	LocationMapIPNet          []CustomSubnet
 	GeoIPCountryDB            *geoip2.Reader // Loaded MaxMind DB (country)
 	GeoIPCityDB               *geoip2.Reader // Loaded MaxMind DB (city)
 	GeoIPASNDB                *geoip2.Reader // Loaded MaxMind DB (ASN)
@@ -966,11 +967,32 @@ func (g *GSLB) GetResolutionIdleTimeout() time.Duration {
 	return d
 }
 
+type CustomSubnet struct {
+	Subnet   string
+	IPNet    *net.IPNet
+	Location string
+}
+
+func (g *GSLB) rebuildLocationMapIPNet() {
+	g.LocationMapIPNet = make([]CustomSubnet, 0, len(g.LocationMap))
+	for subnet, location := range g.LocationMap {
+		_, ipnet, err := net.ParseCIDR(subnet)
+		if err == nil {
+			g.LocationMapIPNet = append(g.LocationMapIPNet, CustomSubnet{
+				Subnet:   subnet,
+				IPNet:    ipnet,
+				Location: location,
+			})
+		}
+	}
+}
+
 func (g *GSLB) loadCustomLocationsMap(path string) error {
 	g.Mutex.Lock()
 	defer g.Mutex.Unlock()
 	if path == "" {
 		g.LocationMap = nil
+		g.LocationMapIPNet = nil
 		return nil
 	}
 	data, err := os.ReadFile(path)
@@ -991,6 +1013,7 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 		m[s.Subnet] = s.Location
 	}
 	g.LocationMap = m
+	g.rebuildLocationMapIPNet()
 	return nil
 }
 
