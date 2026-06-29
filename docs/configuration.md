@@ -51,7 +51,7 @@ gslb {
 * `geoip_maxmind <type> <path>`: Path to a MaxMind GeoLite2 database for GeoIP backend selection. `<type>` can be `country`, `city`, or `asn`.
 * `geoip_maxmind { ... }`: Block syntax for MaxMind DBs. Use `country_db`, `city_db`, and/or `asn_db` as keys inside the block to specify the database paths. Both syntaxes are supported and can be used interchangeably.
 * `geoip_custom`: Path to a YAML file mapping subnets to locations for GeoIP-based backend selection. Used for `geoip` mode (location-based routing). Subnets are pre-parsed on load and file reload to eliminate IP parsing overhead during DNS query resolution.
-* `use_edns_csubnet`: If set, the plugin will use the EDNS Client Subnet (ECS) option to determine the real client IP for GeoIP and logging, and will echo back the ECS option in DNS responses. See the [EDNS Client Subnet (ECS) Scope](#edns-client-subnet-ecs-scope) section below for details on RFC 7871 compliance.
+* `use_edns_csubnet`: If set, GSLB uses the EDNS Client Subnet (ECS) option to determine the client's IP and complies with RFC 7871 for caching scope. See the dedicated [ECS and Caching Guide](ecs.md) for details.
 * `api_enable`: Enable or disable the HTTP API server (default: true). Set to `false` to disable the API endpoint.
 * `api_tls_cert`: Path to the TLS certificate file for the API server (optional, enables HTTPS if set with `api_tls_key`).
 * `api_tls_key`: Path to the TLS private key file for the API server (optional, enables HTTPS if set with `api_tls_cert`).
@@ -308,13 +308,6 @@ Example backend with all GeoIP location fields and health options
 ~~~
 
 For `continent`, use the exact MaxMind continent code from `Continent.Code`: `AF`, `AN`, `AS`, `EU`, `NA`, `OC`, `SA`.
-
-### EDNS Client Subnet (ECS) Scope
-
-When `use_edns_csubnet` is enabled, CoreDNS-GSLB adheres to **RFC 7871** to ensure correct caching behavior and prevent cache poisoning on public resolvers (such as Google Public DNS or Cloudflare):
-
-- **Geo-routed responses** (`geoip`, `geoip_affinity`, `hash`, `ip-hash`, `client-ip-hash` modes): The DNS response echoes the ECS option with the client's subnet mask as the **Source Scope** (e.g., `/24` or `/48`). This tells the resolver that the IP returned is specific to the client's location and should only be cached for clients in the same subnet.
-- **Static or fallback responses** (such as MX, SOA, NS, or TXT records that fall through to downstream plugins): The DNS response echoes the ECS option with a **Source Scope of `/0` (global)**. This signals to resolvers that the response is identical for all clients regardless of location, enabling global caching, reducing query load on the GSLB, and preventing cache fragmentation.
 
 ### API Server Options
 
