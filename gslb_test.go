@@ -1606,3 +1606,154 @@ func TestCNAMEBackendResolution(t *testing.T) {
 	assert.Equal(t, uint32(60), cnameAAAA.Hdr.Ttl)
 	assert.Equal(t, "some-alb.aws.com.", cnameAAAA.Target)
 }
+
+type mockNextPlugin struct {
+	called bool
+}
+
+func (n *mockNextPlugin) Name() string { return "mocknext" }
+
+func (n *mockNextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+	n.called = true
+	response := new(dns.Msg)
+	response.SetReply(r)
+
+	q := r.Question[0]
+	switch {
+	case q.Qtype == dns.TypeMX:
+		mx := &dns.MX{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeMX,
+				Class:  dns.ClassINET,
+				Ttl:    60,
+			},
+			Preference: 10,
+			Mx:         "mail.example.org.",
+		}
+		response.Answer = append(response.Answer, mx)
+	case q.Name == "nope.example.org.":
+		response.Rcode = dns.RcodeNameError
+	default:
+		a := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    60,
+			},
+			A: net.ParseIP("1.1.1.1"),
+		}
+		response.Answer = append(response.Answer, a)
+	}
+
+	err := w.WriteMsg(response)
+	return response.Rcode, err
+}
+
+func TestServeDNS_FallbackECS(t *testing.T) {
+	n := &mockNextPlugin{}
+	g := &GSLB{
+		Zones:          map[string]string{"example.org.": "dummy.yml"},
+		UseEDNSCSubnet: true,
+		Next:           n,
+	}
+
+	getECS := func(msg *dns.Msg) *dns.EDNS0_SUBNET {
+		if msg == nil {
+			return nil
+		}
+		opt := msg.IsEdns0()
+		if opt == nil {
+			return nil
+		}
+		for _, o := range opt.Option {
+			if ecs, ok := o.(*dns.EDNS0_SUBNET); ok {
+				return ecs
+			}
+		}
+		return nil
+	}
+
+	// 1. MX Query to authoritative zone. Falls through to next plugin because GSLB doesn't handle MX.
+	msgMX := new(dns.Msg)
+	msgMX.SetQuestion("registry.example.org.", dns.TypeMX)
+	optMX := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecsMX := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("203.0.113.0"),
+		SourceNetmask: 24,
+		Family:        1,
+	}
+	optMX.Option = append(optMX.Option, ecsMX)
+	msgMX.Extra = append(msgMX.Extra, optMX)
+	wMX := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	_, err := g.ServeDNS(context.Background(), wMX, msgMX)
+	assert.NoError(t, err)
+	assert.True(t, n.called)
+
+	respEcsMX := getECS(wMX.msg)
+	assert.NotNil(t, respEcsMX, "Expected ECS option in MX response")
+	if respEcsMX != nil {
+		assert.Equal(t, "203.0.113.0", respEcsMX.Address.String())
+		assert.Equal(t, uint8(24), respEcsMX.SourceNetmask)
+	}
+
+	// Reset next plugin called status
+	n.called = false
+
+	// 2. A Query for a domain not in GSLB records but in authoritative zone (e.g. static.example.org.)
+	msgStatic := new(dns.Msg)
+	msgStatic.SetQuestion("static.example.org.", dns.TypeA)
+	optStatic := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecsStatic := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("203.0.113.0"),
+		SourceNetmask: 24,
+		Family:        1,
+	}
+	optStatic.Option = append(optStatic.Option, ecsStatic)
+	msgStatic.Extra = append(msgStatic.Extra, optStatic)
+	wStatic := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	_, err = g.ServeDNS(context.Background(), wStatic, msgStatic)
+	assert.NoError(t, err)
+	assert.True(t, n.called)
+
+	respEcsStatic := getECS(wStatic.msg)
+	assert.NotNil(t, respEcsStatic, "Expected ECS option in static A response")
+	if respEcsStatic != nil {
+		assert.Equal(t, "203.0.113.0", respEcsStatic.Address.String())
+		assert.Equal(t, uint8(24), respEcsStatic.SourceNetmask)
+	}
+
+	// Reset next plugin called status
+	n.called = false
+
+	// 3. A Query for a non-existent domain in authoritative zone (e.g. nope.example.org.) producing NXDOMAIN
+	msgNope := new(dns.Msg)
+	msgNope.SetQuestion("nope.example.org.", dns.TypeA)
+	optNope := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	ecsNope := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Address:       net.ParseIP("203.0.113.0"),
+		SourceNetmask: 24,
+		Family:        1,
+	}
+	optNope.Option = append(optNope.Option, ecsNope)
+	msgNope.Extra = append(msgNope.Extra, optNope)
+	wNope := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err := g.ServeDNS(context.Background(), wNope, msgNope)
+	assert.NoError(t, err)
+	assert.True(t, n.called)
+	assert.Equal(t, dns.RcodeNameError, code)
+
+	respEcsNope := getECS(wNope.msg)
+	assert.NotNil(t, respEcsNope, "Expected ECS option in NXDOMAIN response")
+	if respEcsNope != nil {
+		assert.Equal(t, "203.0.113.0", respEcsNope.Address.String())
+		assert.Equal(t, uint8(24), respEcsNope.SourceNetmask)
+	}
+}

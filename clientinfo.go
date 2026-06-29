@@ -3,6 +3,9 @@ package gslb
 import (
 	"context"
 	"net"
+	"strings"
+
+	"github.com/miekg/dns"
 )
 
 type clientCtxKey struct{}
@@ -22,4 +25,18 @@ func GetClientInfo(ctx context.Context) *ClientInfo {
 		return info
 	}
 	return nil
+}
+
+type ecsResponseWriter struct {
+	dns.ResponseWriter
+	g      *GSLB
+	reqMsg *dns.Msg
+}
+
+func (w *ecsResponseWriter) WriteMsg(res *dns.Msg) error {
+	if w.reqMsg != nil && len(w.reqMsg.Question) > 0 {
+		domain := strings.ToLower(dns.Fqdn(strings.TrimSuffix(w.reqMsg.Question[0].Name, ".")))
+		w.g.decorateWithECS(w.reqMsg, res, domain)
+	}
+	return w.ResponseWriter.WriteMsg(res)
 }
