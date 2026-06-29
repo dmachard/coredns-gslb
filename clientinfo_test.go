@@ -67,4 +67,6 @@ func TestEcsResponseWriter(t *testing.T) {
 	assert.NotNil(t, foundEcs)
 	assert.Equal(t, "198.51.100.0", foundEcs.Address.String())
 	assert.Equal(t, uint8(24), foundEcs.SourceNetmask)
+	assert.Equal(t, uint8(0), foundEcs.SourceScope,
+		"ecsResponseWriter is for fallthrough responses, scope must always be /0")
 }

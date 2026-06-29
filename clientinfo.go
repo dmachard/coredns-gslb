@@ -36,7 +36,7 @@ type ecsResponseWriter struct {
 func (w *ecsResponseWriter) WriteMsg(res *dns.Msg) error {
 	if w.reqMsg != nil && len(w.reqMsg.Question) > 0 {
 		domain := strings.ToLower(dns.Fqdn(strings.TrimSuffix(w.reqMsg.Question[0].Name, ".")))
-		w.g.decorateWithECS(w.reqMsg, res, domain)
+		w.g.decorateWithECS(w.reqMsg, res, domain, true)
 	}
 	return w.ResponseWriter.WriteMsg(res)
 }
