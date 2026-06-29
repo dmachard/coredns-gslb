@@ -1858,4 +1858,22 @@ func TestServeDNS_FallthroughECSScopeMustBeZero(t *testing.T) {
 		assert.Equal(t, uint8(0), respEcsSOA.SourceScope,
 			"SOA is static/global, scope must be /0")
 	}
+
+	// 4. AAAA query for the SAME domain (which only has IPv4/A backend configured).
+	//    GSLB handles it directly (no fallthrough) but returns NODATA (empty answer).
+	//    Since the type is not configured/supported, it is a static NODATA response
+	//    and scope MUST be /0.
+	n.called = false
+	msgAAAA := makeECSQuery("registry.example.org.", dns.TypeAAAA)
+	wAAAA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	_, err = g.ServeDNS(context.Background(), wAAAA, msgAAAA)
+	assert.NoError(t, err)
+	assert.False(t, n.called, "AAAA should be handled by GSLB directly (returning NODATA)")
+
+	respEcsAAAA := getECS(wAAAA.msg)
+	assert.NotNil(t, respEcsAAAA, "AAAA response must have ECS")
+	if respEcsAAAA != nil {
+		assert.Equal(t, uint8(0), respEcsAAAA.SourceScope,
+			"AAAA NODATA for A-only record must have scope /0")
+	}
 }

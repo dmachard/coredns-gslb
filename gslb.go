@@ -309,7 +309,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
 	if !g.hasRecordTypeConfigured(record, recordType) {
-		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess)
+		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess, true)
 	}
 	ci := GetClientInfo(ctx)
 	if ci == nil || ci.IP == nil {
@@ -342,7 +342,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 			case "SERVFAIL":
 				rcode = dns.RcodeServerFailure
 			}
-			return g.sendRcodeResponse(w, r, domain, rcode)
+			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
 			fallbackIPs, err := g.pickFallbackAddresses(record, recordType)
@@ -427,7 +427,7 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 		response.Answer = append(response.Answer, txt)
 	}
 
-	g.decorateWithECS(r, response, domain, false)
+	g.decorateWithECS(r, response, domain, true)
 
 	// Send the DNS response with the multiple TXT records
 	if err := w.WriteMsg(response); err != nil {
@@ -485,7 +485,7 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 			case "SERVFAIL":
 				rcode = dns.RcodeServerFailure
 			}
-			return g.sendRcodeResponse(w, r, domain, rcode)
+			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
 			fallbackA, _ := g.pickFallbackAddresses(record, dns.TypeA)
@@ -513,7 +513,7 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 	// If we still have no IPs at all, let's send a success response with no answers (NODATA)
 	if len(ips) == 0 && len(ipsV6) == 0 {
 		ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
-		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess)
+		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess, true)
 	}
 
 	// Construct the SVCB / HTTPS record response
@@ -732,11 +732,11 @@ func (g *GSLB) logFailSafeWarning(domain string, policyMode string) {
 	log.Warningf("[%s] no healthy backends available, applying failover policy: %s", domain, policyMode)
 }
 
-func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string, rcode int) (int, error) {
+func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string, rcode int, forceGlobalScope bool) (int, error) {
 	response := new(dns.Msg)
 	response.SetReply(r)
 	response.Rcode = rcode
-	g.decorateWithECS(r, response, domain, false)
+	g.decorateWithECS(r, response, domain, forceGlobalScope)
 
 	err := w.WriteMsg(response)
 	if err != nil {
