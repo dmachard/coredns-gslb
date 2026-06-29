@@ -1619,7 +1619,8 @@ func (n *mockNextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	response.SetReply(r)
 
 	q := r.Question[0]
-	if q.Qtype == dns.TypeMX {
+	switch {
+	case q.Qtype == dns.TypeMX:
 		mx := &dns.MX{
 			Hdr: dns.RR_Header{
 				Name:   q.Name,
@@ -1631,9 +1632,9 @@ func (n *mockNextPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 			Mx:         "mail.example.org.",
 		}
 		response.Answer = append(response.Answer, mx)
-	} else if q.Name == "nope.example.org." {
+	case q.Name == "nope.example.org.":
 		response.Rcode = dns.RcodeNameError
-	} else {
+	default:
 		a := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   q.Name,
@@ -1756,4 +1757,3 @@ func TestServeDNS_FallbackECS(t *testing.T) {
 		assert.Equal(t, uint8(24), respEcsNope.SourceNetmask)
 	}
 }
-
