@@ -199,6 +199,10 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	}
 	ctx = WithClientInfo(ctx, clientIP, clientPrefixLen)
 
+	if g.UseEDNSCSubnet {
+		w = &ecsResponseWriter{ResponseWriter: w, g: g, reqMsg: r}
+	}
+
 	// Update the last resolution time for the domain
 	// This is used to track when the last resolution was made for a domain
 	g.updateLastResolutionTime(domain)
