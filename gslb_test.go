@@ -1757,3 +1757,105 @@ func TestServeDNS_FallbackECS(t *testing.T) {
 		assert.Equal(t, uint8(24), respEcsNope.SourceNetmask)
 	}
 }
+
+// TestServeDNS_FallthroughECSScopeMustBeZero verifies that when a domain has a
+// geoip record in GSLB but the query type (MX, NS, SOA…) falls through to the
+// next plugin, the ECS scope in the response MUST be /0 (global), not the
+// client's prefix length. Static answers are identical for the whole world;
+// stamping them with a non-zero scope causes Google DNS to cache them per-subnet,
+// leading to overlapping-scope cache hazards (RFC 7871 §7.3.1).
+func TestServeDNS_FallthroughECSScopeMustBeZero(t *testing.T) {
+	// A geoip record exists for this domain — A queries are geo-routed
+	backend := &Backend{Address: "192.168.1.1", Enable: true, Alive: true, Priority: 1, Location: "eu-west"}
+	record := &Record{
+		Fqdn:      "registry.example.org.",
+		Mode:      "geoip",
+		Backends:  []BackendInterface{backend},
+		RecordTTL: 60,
+	}
+
+	n := &mockNextPlugin{}
+	g := &GSLB{
+		Zones:          map[string]string{"example.org.": "dummy.yml"},
+		Records:        map[string]map[string]*Record{"example.org.": {"registry.example.org.": record}},
+		UseEDNSCSubnet: true,
+		Next:           n,
+	}
+
+	getECS := func(msg *dns.Msg) *dns.EDNS0_SUBNET {
+		if msg == nil {
+			return nil
+		}
+		opt := msg.IsEdns0()
+		if opt == nil {
+			return nil
+		}
+		for _, o := range opt.Option {
+			if ecs, ok := o.(*dns.EDNS0_SUBNET); ok {
+				return ecs
+			}
+		}
+		return nil
+	}
+
+	makeECSQuery := func(name string, qtype uint16) *dns.Msg {
+		msg := new(dns.Msg)
+		msg.SetQuestion(name, qtype)
+		opt := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+		ecs := &dns.EDNS0_SUBNET{
+			Code:          dns.EDNS0SUBNET,
+			Address:       net.ParseIP("203.0.113.0"),
+			SourceNetmask: 24,
+			Family:        1,
+		}
+		opt.Option = append(opt.Option, ecs)
+		msg.Extra = append(msg.Extra, opt)
+		return msg
+	}
+
+	// 1. Sanity check: A query for the geoip domain — GSLB handles it directly,
+	//    scope SHOULD be /24 (geo-specific answer)
+	msgA := makeECSQuery("registry.example.org.", dns.TypeA)
+	wA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	_, err := g.ServeDNS(context.Background(), wA, msgA)
+	assert.NoError(t, err)
+
+	respEcsA := getECS(wA.msg)
+	assert.NotNil(t, respEcsA, "A response must have ECS")
+	if respEcsA != nil {
+		assert.Equal(t, uint8(24), respEcsA.SourceScope, "A response is geo-specific, scope must be /24")
+	}
+
+	// 2. MX query for the SAME geoip domain — falls through to next plugin.
+	//    The MX answer is static/global, scope MUST be /0.
+	n.called = false
+	msgMX := makeECSQuery("registry.example.org.", dns.TypeMX)
+	wMX := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	_, err = g.ServeDNS(context.Background(), wMX, msgMX)
+	assert.NoError(t, err)
+	assert.True(t, n.called, "MX must fall through to next plugin")
+
+	respEcsMX := getECS(wMX.msg)
+	assert.NotNil(t, respEcsMX, "MX response must have ECS")
+	if respEcsMX != nil {
+		assert.Equal(t, "203.0.113.0", respEcsMX.Address.String())
+		assert.Equal(t, uint8(24), respEcsMX.SourceNetmask, "SourceNetmask must echo the query")
+		assert.Equal(t, uint8(0), respEcsMX.SourceScope,
+			"MX is static/global, scope must be /0 — not the client prefix")
+	}
+
+	// 3. SOA query for the SAME geoip domain — also falls through, scope MUST be /0.
+	n.called = false
+	msgSOA := makeECSQuery("registry.example.org.", dns.TypeSOA)
+	wSOA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+	_, err = g.ServeDNS(context.Background(), wSOA, msgSOA)
+	assert.NoError(t, err)
+	assert.True(t, n.called, "SOA must fall through to next plugin")
+
+	respEcsSOA := getECS(wSOA.msg)
+	assert.NotNil(t, respEcsSOA, "SOA response must have ECS")
+	if respEcsSOA != nil {
+		assert.Equal(t, uint8(0), respEcsSOA.SourceScope,
+			"SOA is static/global, scope must be /0")
+	}
+}

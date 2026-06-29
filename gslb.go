@@ -427,7 +427,7 @@ func (g *GSLB) handleTXTRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 		response.Answer = append(response.Answer, txt)
 	}
 
-	g.decorateWithECS(r, response, domain)
+	g.decorateWithECS(r, response, domain, false)
 
 	// Send the DNS response with the multiple TXT records
 	if err := w.WriteMsg(response); err != nil {
@@ -600,7 +600,7 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 
 	response.Answer = append(response.Answer, rr)
 
-	g.decorateWithECS(r, response, domain)
+	g.decorateWithECS(r, response, domain, false)
 
 	err := w.WriteMsg(response)
 	if err != nil {
@@ -708,7 +708,7 @@ func (g *GSLB) sendAddressRecordResponse(w dns.ResponseWriter, r *dns.Msg, domai
 		}
 	}
 
-	g.decorateWithECS(r, response, domain)
+	g.decorateWithECS(r, response, domain, false)
 
 	err := w.WriteMsg(response)
 	if err != nil {
@@ -736,7 +736,7 @@ func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string
 	response := new(dns.Msg)
 	response.SetReply(r)
 	response.Rcode = rcode
-	g.decorateWithECS(r, response, domain)
+	g.decorateWithECS(r, response, domain, false)
 
 	err := w.WriteMsg(response)
 	if err != nil {
@@ -748,7 +748,7 @@ func (g *GSLB) sendRcodeResponse(w dns.ResponseWriter, r *dns.Msg, domain string
 	return dns.RcodeSuccess, nil
 }
 
-func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string) {
+func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string, forceGlobalScope bool) {
 	if !g.UseEDNSCSubnet {
 		return
 	}
@@ -767,20 +767,19 @@ func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string) {
 		return
 	}
 
-	// Determine if the response is geo-specific
-	isGeo := false
-	record, _ := g.findRecord(domain)
-	if record != nil {
-		if record.Mode == "geoip" || record.Mode == "geoip_affinity" || record.Mode == "hash" || record.Mode == "ip-hash" || record.Mode == "client-ip-hash" {
-			isGeo = true
-		} else if len(g.LocationMap) > 0 {
-			isGeo = true
-		}
-	}
-
+	// Determine if the response is geo-specific.
+	// When forceGlobalScope is true, the response came from a downstream plugin
+	// (fallthrough) and is static/global — scope must be /0 per RFC 7871 §7.3.1.
 	sourceScope := uint8(0)
-	if isGeo {
-		sourceScope = reqEcs.SourceNetmask
+	if !forceGlobalScope {
+		record, _ := g.findRecord(domain)
+		if record != nil {
+			if record.Mode == "geoip" || record.Mode == "geoip_affinity" || record.Mode == "hash" || record.Mode == "ip-hash" || record.Mode == "client-ip-hash" {
+				sourceScope = reqEcs.SourceNetmask
+			} else if len(g.LocationMap) > 0 {
+				sourceScope = reqEcs.SourceNetmask
+			}
+		}
 	}
 
 	respEcs := &dns.EDNS0_SUBNET{
