@@ -15,6 +15,7 @@ func TestDiscovery_Consul(t *testing.T) {
 	// Mock Consul catalog API response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/catalog/service/my-service", r.URL.Path)
+		assert.Equal(t, "", r.URL.Query().Get("tag"))
 		res := []map[string]interface{}{
 			{
 				"ServiceAddress": "192.168.1.10",
@@ -42,6 +43,35 @@ func TestDiscovery_Consul(t *testing.T) {
 	assert.Equal(t, 8080, endpoints[0].Port)
 	assert.Equal(t, "192.168.1.11", endpoints[1].Address)
 	assert.Equal(t, 8081, endpoints[1].Port)
+}
+
+func TestDiscovery_Consul_WithTag(t *testing.T) {
+	// Mock Consul catalog API response with tag
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/catalog/service/my-service", r.URL.Path)
+		assert.Equal(t, "prod", r.URL.Query().Get("tag"))
+		res := []map[string]interface{}{
+			{
+				"ServiceAddress": "192.168.1.10",
+				"ServicePort":    8080,
+			},
+		}
+		json.NewEncoder(w).Encode(res)
+	}))
+	defer server.Close()
+
+	d := &DiscoveryConfig{
+		Type:     "consul",
+		Endpoint: server.URL,
+		Service:  "my-service",
+		Tag:      "prod",
+	}
+
+	endpoints, err := d.FetchEndpoints()
+	assert.NoError(t, err)
+	assert.Len(t, endpoints, 1)
+	assert.Equal(t, "192.168.1.10", endpoints[0].Address)
+	assert.Equal(t, 8080, endpoints[0].Port)
 }
 
 func TestDiscovery_HTTP_Simple(t *testing.T) {

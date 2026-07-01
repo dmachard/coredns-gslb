@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ type DiscoveryConfig struct {
 	Endpoint string `yaml:"endpoint"`
 	Service  string `yaml:"service"`
 	Interval string `yaml:"interval"`
+	Tag      string `yaml:"tag"`
 }
 
 func (d *DiscoveryConfig) FetchEndpoints() ([]DiscoveredEndpoint, error) {
@@ -37,9 +39,12 @@ func (d *DiscoveryConfig) FetchEndpoints() ([]DiscoveredEndpoint, error) {
 }
 
 func (d *DiscoveryConfig) fetchConsulEndpoints() ([]DiscoveredEndpoint, error) {
-	url := fmt.Sprintf("%s/v1/catalog/service/%s", strings.TrimSuffix(d.Endpoint, "/"), d.Service)
+	apiURL := fmt.Sprintf("%s/v1/catalog/service/%s", strings.TrimSuffix(d.Endpoint, "/"), d.Service)
+	if d.Tag != "" {
+		apiURL = fmt.Sprintf("%s?tag=%s", apiURL, url.QueryEscape(d.Tag))
+	}
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(url)
+	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, err
 	}

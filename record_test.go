@@ -161,6 +161,7 @@ discovery:
   endpoint: "http://consul:8500"
   service: "my-service"
   interval: "10s"
+  tag: "prod"
 backends:
   - address: "192.168.1.1"
 `
@@ -173,6 +174,7 @@ backends:
 	assert.Equal(t, "http://consul:8500", record.Discovery.Endpoint)
 	assert.Equal(t, "my-service", record.Discovery.Service)
 	assert.Equal(t, "10s", record.Discovery.Interval)
+	assert.Equal(t, "prod", record.Discovery.Tag)
 }
 
 func TestRecord_UpdateRecord_Discovery(t *testing.T) {
