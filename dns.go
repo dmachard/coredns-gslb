@@ -106,6 +106,11 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 }
 
 func (g *GSLB) hasRecordTypeConfigured(record *Record, recordType uint16) bool {
+	if strings.ToLower(record.FailoverPolicy.Mode) == "fail-specific" && record.FailoverPolicy.FallbackCNAME != "" {
+		if recordType == dns.TypeA || recordType == dns.TypeAAAA || recordType == dns.TypeCNAME {
+			return true
+		}
+	}
 	for _, backend := range record.Backends {
 		if isAddressTypeCompatible(backend.GetAddress(), recordType) {
 			return true
@@ -161,6 +166,9 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
+			if record.FailoverPolicy.FallbackCNAME != "" {
+				return g.sendAddressRecordResponse(w, r, domain, []string{record.FailoverPolicy.FallbackCNAME}, record.RecordTTL, recordType)
+			}
 			fallbackIPs, err := g.pickFallbackAddresses(record, recordType)
 			if err != nil {
 				log.Debugf("Error retrieving fallback IPs for domain %s: %v", domain, err)
@@ -304,6 +312,9 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
+			if record.FailoverPolicy.FallbackCNAME != "" {
+				return g.sendAddressRecordResponse(w, r, domain, []string{record.FailoverPolicy.FallbackCNAME}, record.RecordTTL, dns.TypeCNAME)
+			}
 			fallbackA, _ := g.pickFallbackAddresses(record, dns.TypeA)
 			fallbackAAAA, _ := g.pickFallbackAddresses(record, dns.TypeAAAA)
 			ips = fallbackA
