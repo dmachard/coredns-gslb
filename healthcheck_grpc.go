@@ -6,15 +6,21 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type GRPCHealthCheck struct {
-	Host    string
-	Port    int
-	Service string
-	Timeout time.Duration
+	Host          string        `yaml:"host"`
+	Port          int           `yaml:"port"`
+	Service       string        `yaml:"service"`
+	Timeout       time.Duration `yaml:"timeout"`
+	EnableTLS     bool          `yaml:"enable_tls"`
+	Cert          string        `yaml:"cert_path"`
+	Key           string        `yaml:"key_path"`
+	CA            string        `yaml:"ca_path"`
+	SkipTLSVerify bool          `yaml:"skip_tls_verify"`
 }
 
 func (h *GRPCHealthCheck) Check() error {
@@ -22,10 +28,25 @@ func (h *GRPCHealthCheck) Check() error {
 	ctx, cancel := context.WithTimeout(context.Background(), h.Timeout)
 	defer cancel()
 
+	var creds credentials.TransportCredentials
+	if h.EnableTLS {
+		tlsConfig, err := NewTLSClientConfig(h.Cert, h.Key, h.CA)
+		if err != nil {
+			IncHealthcheckFailures("grpc", addr, "connection")
+			return fmt.Errorf("failed to create TLS config: %w", err)
+		}
+		tlsConfig.InsecureSkipVerify = h.SkipTLSVerify
+		if h.Host != "" {
+			tlsConfig.ServerName = h.Host
+		}
+		creds = credentials.NewTLS(tlsConfig)
+	} else {
+		creds = insecure.NewCredentials()
+	}
+
 	cc, err := grpc.NewClient(
 		addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		// grpc.WithBlock(), // Not supported by grpc.NewClient, connection is lazy
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		IncHealthcheckFailures("grpc", addr, "connection")
@@ -60,10 +81,15 @@ func (h *GRPCHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries
 		host = backend.Address
 	}
 	check := &GRPCHealthCheck{
-		Host:    host,
-		Port:    h.Port,
-		Service: h.Service,
-		Timeout: h.Timeout,
+		Host:          host,
+		Port:          h.Port,
+		Service:       h.Service,
+		Timeout:       h.Timeout,
+		EnableTLS:     h.EnableTLS,
+		Cert:          h.Cert,
+		Key:           h.Key,
+		CA:            h.CA,
+		SkipTLSVerify: h.SkipTLSVerify,
 	}
 	return check.Check() == nil
 }
@@ -77,5 +103,13 @@ func (h *GRPCHealthCheck) Equals(other GenericHealthCheck) bool {
 	if !ok {
 		return false
 	}
-	return h.Host == otherGrpc.Host && h.Port == otherGrpc.Port && h.Service == otherGrpc.Service && h.Timeout == otherGrpc.Timeout
+	return h.Host == otherGrpc.Host &&
+		h.Port == otherGrpc.Port &&
+		h.Service == otherGrpc.Service &&
+		h.Timeout == otherGrpc.Timeout &&
+		h.EnableTLS == otherGrpc.EnableTLS &&
+		h.Cert == otherGrpc.Cert &&
+		h.Key == otherGrpc.Key &&
+		h.CA == otherGrpc.CA &&
+		h.SkipTLSVerify == otherGrpc.SkipTLSVerify
 }
