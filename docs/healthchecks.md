@@ -178,7 +178,7 @@ Executes an embedded Lua script to determine the backend health. The script can 
 - `http_get(url, [timeout_sec], [user], [password], [tls_verify])`: Performs an HTTP(S) GET request. Optional timeout (seconds), HTTP Basic auth (user, password), and TLS verification (default true).
 - `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
 - `metric_get(url, metric_name, [timeout_sec], [tls_verify], [user], [password])`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found). Optional timeout (seconds), TLS verification (default true), and HTTP Basic auth (user, password).
-- `ssh_exec(host, user, password, command, [timeout_sec])`: Executes a command via SSH and returns the output as a string. Optional timeout (seconds).
+- `ssh_exec(host, user, password_or_key_path, command, [timeout_sec], [key_passphrase])`: Executes a command via SSH and returns the output as a string. If the third parameter points to a valid file path, it is treated as the path to an SSH private key file. Optional timeout (seconds) and key passphrase.
 - `backend`: A Lua table with fields:
     - `address`: the backend's address (string)
     - `priority`: the backend's priority (number)
@@ -255,6 +255,32 @@ healthchecks:
         end
         return false
 ```
+
+**Example: ssh_exec with SSH private key authentication**
+```yaml
+healthchecks:
+  - type: lua
+    params:
+      timeout: 5s
+      script: |
+        -- Pass the path to the private key file instead of a password.
+        -- Optional: pass the key's passphrase as the 6th argument.
+        local out = ssh_exec("10.0.0.5", "monitor", "/home/coredns/.ssh/id_rsa", "pgrep nginx", 3, "key-passphrase-if-any")
+        if out ~= "" then
+          return true
+        end
+        return false
+```
+
+> [!WARNING]
+> **Security Warning (Remote Code Execution Risk)**
+>
+> Storing plaintext passwords directly in the YAML configuration or passing them via the REST API represents a major credential exposure and remote code execution (RCE) risk.
+>
+> 1. Avoid hardcoding plaintext passwords inside `ssh_exec`.
+> 2. Prefer using SSH private key files and restrict the SSH user permissions on the target server (e.g., using a restricted shell or setting a `command="..."` prefix in the destination's `authorized_keys` file).
+> 3. Secure the configuration files and the API endpoints with strict file permissions and strong basic authentication.
+
 
 **Example: metric_get with HTTP Basic authentication**
 ```yaml

@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -245,6 +247,31 @@ func TestSSHInsecureIgnoreHostKey(t *testing.T) {
 	err := sshInsecureIgnoreHostKey("", nil, nil)
 	if err != nil {
 		t.Errorf("Expected sshInsecureIgnoreHostKey to return nil, got: %v", err)
+	}
+}
+
+func TestLuaHealthCheck_SSHExec_KeyFile(t *testing.T) {
+	f, err := os.CreateTemp("", "id_rsa_*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	_, _ = f.WriteString("invalid-key-data")
+	f.Close()
+
+	script := fmt.Sprintf(`
+		local body = ssh_exec("127.0.0.1", "user", "%s", "ls", 1, "passphrase")
+		return body == ""
+	`, strings.ReplaceAll(f.Name(), "\\", "\\\\"))
+
+	check := &LuaHealthCheck{
+		Script:  script,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	result := check.PerformCheck(backend, "fqdn.test.", 1)
+	if !result {
+		t.Errorf("Expected ssh_exec to fail safely and return empty string, resulting in true")
 	}
 }
 
