@@ -1,17 +1,18 @@
 package gslb
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
-	"encoding/base64"
 	"os"
 	"strings"
+	"sync"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestAPIOverviewEndpoint(t *testing.T) {
@@ -581,4 +582,76 @@ func TestAPI_RemainingEdgeCases(t *testing.T) {
 	modified, err := bulkSetBackendEnable(f2.Name(), "dc-eu", "", nil, true)
 	assert.NoError(t, err)
 	assert.Nil(t, modified)
+}
+
+func TestAPI_BulkSetBackendEnable_RaceCondition(t *testing.T) {
+	tempYaml := `records:
+  test.example.com.:
+    backends:
+      - address: "1.2.3.4"
+        enable: false
+        location: "dc-eu"
+      - address: "1.2.3.5"
+        enable: false
+        location: "dc-us"
+`
+	f, err := os.CreateTemp("", "gslb_race_*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(f.Name())
+	_, _ = f.Write([]byte(tempYaml))
+	f.Close()
+
+	g := &GSLB{
+		Zones: map[string]string{"test": f.Name()},
+	}
+	mux := http.NewServeMux()
+	g.RegisterAPIHandlers(mux)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	var wg sync.WaitGroup
+	startChan := make(chan struct{})
+	numReqs := 20
+	wg.Add(numReqs)
+	for i := 0; i < numReqs; i++ {
+		location := "dc-eu"
+		if i%2 == 0 {
+			location = "dc-us"
+		}
+		go func(loc string) {
+			defer wg.Done()
+			<-startChan
+			resp, err := http.Post(ts.URL+"/api/backends/enable", "application/json", strings.NewReader(`{"location":"`+loc+`"}`))
+			if err == nil {
+				resp.Body.Close()
+			}
+		}(location)
+	}
+	close(startChan)
+	wg.Wait()
+
+	data, err := os.ReadFile(f.Name())
+	assert.NoError(t, err)
+	var raw map[string]interface{}
+	err = yaml.Unmarshal(data, &raw)
+	assert.NoError(t, err)
+	records := raw["records"].(map[string]interface{})
+	rec := records["test.example.com."].(map[string]interface{})
+	backends := rec["backends"].([]interface{})
+
+	var euEnabled, usEnabled bool
+	for _, be := range backends {
+		beMap := be.(map[string]interface{})
+		addr := beMap["address"].(string)
+		enable := beMap["enable"].(bool)
+		if addr == "1.2.3.4" {
+			euEnabled = enable
+		}
+		if addr == "1.2.3.5" {
+			usEnabled = enable
+		}
+	}
+
+	assert.True(t, euEnabled, "dc-eu backend should be enabled")
+	assert.True(t, usEnabled, "dc-us backend should be enabled")
 }

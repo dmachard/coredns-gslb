@@ -17,8 +17,12 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	q := r.Question[0]
 	domain := strings.ToLower(dns.Fqdn(strings.TrimSuffix(q.Name, ".")))
 
+	g.Mutex.RLock()
+	isAuth := g.isAuthoritative(domain)
+	g.Mutex.RUnlock()
+
 	// If the domain doesn't match any authoritative domain, pass to the next plugin
-	if !g.isAuthoritative(domain) {
+	if !isAuth {
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
 
@@ -38,23 +42,44 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 	// This is used to track when the last resolution was made for a domain
 	g.updateLastResolutionTime(domain)
 
+	g.Mutex.RLock()
+	record, _ := g.findRecord(domain)
+	if record == nil {
+		g.Mutex.RUnlock()
+		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+	}
+
 	switch q.Qtype {
 	case dns.TypeA:
-		return g.handleIPRecord(ctx, w, r, domain, dns.TypeA)
+		res, err := g.handleIPRecord(ctx, w, r, domain, dns.TypeA)
+		g.Mutex.RUnlock()
+		return res, err
 	case dns.TypeAAAA:
-		return g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA)
+		res, err := g.handleIPRecord(ctx, w, r, domain, dns.TypeAAAA)
+		g.Mutex.RUnlock()
+		return res, err
 	case dns.TypeCNAME:
-		return g.handleIPRecord(ctx, w, r, domain, dns.TypeCNAME)
+		res, err := g.handleIPRecord(ctx, w, r, domain, dns.TypeCNAME)
+		g.Mutex.RUnlock()
+		return res, err
 	case dns.TypeTXT:
 		if g.DisableTXT {
+			g.Mutex.RUnlock()
 			return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 		}
-		return g.handleTXTRecord(ctx, w, r, domain)
+		res, err := g.handleTXTRecord(ctx, w, r, domain)
+		g.Mutex.RUnlock()
+		return res, err
 	case dns.TypeSVCB:
-		return g.handleSVCBRecord(ctx, w, r, domain, dns.TypeSVCB)
+		res, err := g.handleSVCBRecord(ctx, w, r, domain, dns.TypeSVCB)
+		g.Mutex.RUnlock()
+		return res, err
 	case dns.TypeHTTPS:
-		return g.handleSVCBRecord(ctx, w, r, domain, dns.TypeHTTPS)
+		res, err := g.handleSVCBRecord(ctx, w, r, domain, dns.TypeHTTPS)
+		g.Mutex.RUnlock()
+		return res, err
 	default:
+		g.Mutex.RUnlock()
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
 	}
 }

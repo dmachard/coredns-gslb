@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/oschwald/geoip2-golang"
@@ -1306,4 +1308,61 @@ func TestServeDNS_FallthroughECSScopeMustBeZero(t *testing.T) {
 		assert.Equal(t, uint8(0), respEcsAAAA.SourceScope,
 			"AAAA NODATA for A-only record must have scope /0")
 	}
+}
+
+func TestGSLB_ServeDNS_Concurrency(t *testing.T) {
+	backend1 := &Backend{Address: "192.168.1.1", Enable: true}
+	record := &Record{
+		Fqdn:      "race.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"example.org.": {"race.example.org.": record}},
+	}
+
+	stopCh := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Concurrently read via ServeDNS
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stopCh:
+					return
+				default:
+					msg := new(dns.Msg)
+					msg.SetQuestion("race.example.org.", dns.TypeA)
+					w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+					_, _ = g.ServeDNS(context.Background(), w, msg)
+				}
+			}
+		}()
+	}
+
+	// Concurrently write simulating reloadConfig writing under lock
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			g.Mutex.Lock()
+			newRecords := map[string]map[string]*Record{
+				"example.org.": {
+					"race.example.org.": record,
+				},
+			}
+			g.Records = newRecords
+			g.Mutex.Unlock()
+			time.Sleep(1 * time.Millisecond)
+		}
+		close(stopCh)
+	}()
+
+	wg.Wait()
 }

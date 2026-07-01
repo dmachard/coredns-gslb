@@ -35,6 +35,7 @@ type GSLB struct {
 	ResolutionIdleMultiplier  int // Multiplier for slow healthcheck interval
 	HealthcheckIdleMultiplier int // Multiplier for slow healthcheck interval
 	Mutex                     sync.RWMutex
+	LocationMapMutex          sync.Mutex
 	UseEDNSCSubnet            bool
 	LocationMap               map[string]string
 	LocationMapIPNet          []CustomSubnet
