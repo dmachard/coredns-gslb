@@ -38,6 +38,8 @@ func healthChecksEqual(h1, h2 []GenericHealthCheck) bool {
 type HealthCheck struct {
 	Type   string                 `yaml:"type"`
 	Params map[string]interface{} `yaml:"params"`
+	Rise   int                    `yaml:"rise"`
+	Fall   int                    `yaml:"fall"`
 }
 
 // ResolveProfile resolves a healthcheck profile to a concrete HealthCheck
@@ -47,6 +49,8 @@ func ResolveHealthcheckProfile(profileName string, localProfiles map[string]*Hea
 			return &HealthCheck{
 				Type:   profile.Type,
 				Params: profile.Params,
+				Rise:   profile.Rise,
+				Fall:   profile.Fall,
 			}, nil
 		}
 	}
@@ -57,6 +61,8 @@ func ResolveHealthcheckProfile(profileName string, localProfiles map[string]*Hea
 			return &HealthCheck{
 				Type:   profile.Type,
 				Params: profile.Params,
+				Rise:   profile.Rise,
+				Fall:   profile.Fall,
 			}, nil
 		}
 	}

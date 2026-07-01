@@ -573,3 +573,72 @@ records:
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match zone")
 }
+
+func TestGSLB_RiseFallConfigParsing(t *testing.T) {
+	content := `
+healthcheck_profiles:
+  profile1:
+    type: http
+    rise: 4
+    fall: 5
+    params:
+      port: 80
+  profile2:
+    type: http
+    params:
+      port: 80
+
+records:
+  test.example.com.:
+    backends:
+      - address: "1.1.1.1"
+        healthchecks: [ profile1 ] # Should inherit rise=4, fall=5
+      - address: "2.2.2.2"
+        healthchecks: [ profile1 ]
+        rise: 6                    # Should override rise=6, fall=5
+        fall: 7
+      - address: "3.3.3.3"
+        healthchecks: [ profile2 ] # Should use default rise=2, fall=3
+      - address: "4.4.4.4"
+        healthchecks:
+          - type: http
+            rise: 8                # Inline healthcheck with rise/fall
+            fall: 9
+            params:
+              port: 80
+`
+	tmpName := writeTempYAML(t, content)
+	defer os.Remove(tmpName)
+
+	g := &GSLB{}
+	err := loadConfigFile(g, tmpName, "example.com.")
+	assert.NoError(t, err)
+
+	record, ok := g.Records["example.com."]["test.example.com."]
+	assert.True(t, ok)
+	assert.Len(t, record.Backends, 4)
+
+	// Backend 1: address 1.1.1.1
+	b1 := record.Backends[0]
+	assert.Equal(t, "1.1.1.1", b1.GetAddress())
+	assert.Equal(t, 4, b1.GetRise())
+	assert.Equal(t, 5, b1.GetFall())
+
+	// Backend 2: address 2.2.2.2
+	b2 := record.Backends[1]
+	assert.Equal(t, "2.2.2.2", b2.GetAddress())
+	assert.Equal(t, 6, b2.GetRise())
+	assert.Equal(t, 7, b2.GetFall())
+
+	// Backend 3: address 3.3.3.3
+	b3 := record.Backends[2]
+	assert.Equal(t, "3.3.3.3", b3.GetAddress())
+	assert.Equal(t, 2, b3.GetRise())
+	assert.Equal(t, 3, b3.GetFall())
+
+	// Backend 4: address 4.4.4.4
+	b4 := record.Backends[3]
+	assert.Equal(t, "4.4.4.4", b4.GetAddress())
+	assert.Equal(t, 8, b4.GetRise())
+	assert.Equal(t, 9, b4.GetFall())
+}

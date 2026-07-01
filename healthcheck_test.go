@@ -194,6 +194,8 @@ func TestResolveHealthcheckProfile_Global(t *testing.T) {
 		"global_profile": {
 			Type:   "http",
 			Params: map[string]interface{}{"port": 80},
+			Rise:   4,
+			Fall:   5,
 		},
 	}
 	defer func() {
@@ -204,10 +206,30 @@ func TestResolveHealthcheckProfile_Global(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, profile)
 	assert.Equal(t, "http", profile.Type)
+	assert.Equal(t, 4, profile.Rise)
+	assert.Equal(t, 5, profile.Fall)
 
 	// Test profile not found
 	_, err = ResolveHealthcheckProfile("non_existent", nil)
 	assert.Error(t, err)
+}
+
+func TestResolveHealthcheckProfile_Local(t *testing.T) {
+	localProfiles := map[string]*HealthCheck{
+		"local_profile": {
+			Type:   "http",
+			Params: map[string]interface{}{"port": 8080},
+			Rise:   6,
+			Fall:   7,
+		},
+	}
+
+	profile, err := ResolveHealthcheckProfile("local_profile", localProfiles)
+	assert.NoError(t, err)
+	assert.NotNil(t, profile)
+	assert.Equal(t, "http", profile.Type)
+	assert.Equal(t, 6, profile.Rise)
+	assert.Equal(t, 7, profile.Fall)
 }
 
 func TestToSpecificHealthCheck_DecodeErrors(t *testing.T) {

@@ -296,6 +296,38 @@ healthchecks:
         return false
 ```
 
+## Rise and Fall Thresholds
+
+To prevent healthcheck flapping due to transient network issues, you can configure consecutive success/failure thresholds to transition a backend's status.
+
+- **`fall`** (default: `3`): The number of consecutive failed checks required to mark an active backend as offline (`DOWN`).
+- **`rise`** (default: `2`): The number of consecutive successful checks required to mark an offline backend as online (`UP`).
+
+These thresholds can be defined globally in a healthcheck profile, or overridden on a per-backend basis.
+
+### Example: Thresholds configured via profiles
+```yaml
+healthcheck_profiles:
+  http_flapping_prevented:
+    type: http
+    rise: 4
+    fall: 5
+    params:
+      port: 8080
+      uri: /health
+```
+
+### Example: Thresholds overridden per-backend
+```yaml
+records:
+  webapp.example.com.:
+    backends:
+      - address: "10.0.0.5"
+        healthchecks: [ http_flapping_prevented ]
+        rise: 2 # overrides the profile's rise value
+        fall: 3 # overrides the profile's fall value
+```
+
 ---
 
 ## Healthcheck Bypass
