@@ -11,63 +11,35 @@ In this model:
   - All GSLB nodes monitor the same backend pool, ensuring consistent health-based decisions regardless of location.
   - GeoDNS logic (via EDNS Client Subnet and GeoIP) allows each instance to respond optimally from its point of view.
 
-```
-              DNS Query for gslb.example.com
-                             │
-                             ▼
-                    ┌──────────────────┐
-                    │ Authoritative NS │
-                    │   ns1 / ns2      │
-                    └────────┬─────────┘
-                             │ Delegation to:
-         ┌───────────────────┴──────────────────┐
-         ▼                                      ▼
-┌───────────────────┐              ┌───────────────────┐
-│   Datacenter 1    │              │   Datacenter 2    │
-│                   │              │                   │
-│  ┌─────────────┐  │              │  ┌─────────────┐  │
-│  │  dnsdist    │  │              │  │  dnsdist    │  │
-│  │ with cache  │  │              │  │ with cache  │  │
-│  └─────┬───────┘  │              │  └─────┬───────┘  │
-│        │          │              │        │          │
-│    ┌───┴───┐      │              │    ┌───┴───┐      │
-│    │CoreDNS│      │              │    │CoreDNS│      │
-│    │GSLB   │      │              │    │GSLB   │      │
-│    └───┬───┘      │              │    └───┬───┘      │
-│        │          │              │        │          │
-└───────────────────┘              └───────────────────┘
-         │                                  │           
-         ▼                                  ▼           
- ┌────────────────────────────────────────────────────┐
- │                 Backends to check                  │
- │           web1.dc1.com   web1.dc2.com              │
- │           web2.dc1.com    web2.dc2.com             │
- │           api1.dc1.com    api1.dc2.com             │
- └────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    query[DNS Query for gslb.example.com] --> authns[Authoritative NS<br>ns1 / ns2]
+    authns -->|Delegation to DC1| dc1
+    authns -->|Delegation to DC2| dc2
+
+    subgraph dc1[Datacenter 1]
+        dnsdist1[dnsdist with cache] --> coredns1[CoreDNS GSLB]
+    end
+
+    subgraph dc2[Datacenter 2]
+        dnsdist2[dnsdist with cache] --> coredns2[CoreDNS GSLB]
+    end
+
+    coredns1 --> backends[Backends to check<br>- web1.dc1.com / web1.dc2.com<br>- web2.dc1.com / web2.dc2.com<br>- api1.dc1.com / api1.dc2.com]
+    coredns2 --> backends
 ```
 
 Per-Datacenter Scalability Model
 
-```
-                    ┌─────────────────┐
-                    │   dnsdist       │
-                    │ (Load Balancer) │
-                    └─────────┬───────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ CoreDNS-GSLB/1  │  │ CoreDNS-GSLB/2  │  │ CoreDNS-GSLB/3  │
-│ Zones: A, B     │  │ Zones: C, D     │  │ Zones: E, F     │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ Backend Pool 1  │  │ Backend Pool 2  │  │ Backend Pool 3  │
-│ web1.dc1.com    │  │ api1.dc1.com    │  │ db1.dc1.com     │
-│ web2.dc1.com    │  │ api2.dc1.com    │  │ db2.dc1.com     │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
+```mermaid
+flowchart TD
+    dnsdist[dnsdist<br>Load Balancer] --> coredns1[CoreDNS-GSLB/1<br>Zones: A, B]
+    dnsdist --> coredns2[CoreDNS-GSLB/2<br>Zones: C, D]
+    dnsdist --> coredns3[CoreDNS-GSLB/3<br>Zones: E, F]
+
+    coredns1 --> pool1[Backend Pool 1<br>- web1.dc1.com<br>- web2.dc1.com]
+    coredns2 --> pool2[Backend Pool 2<br>- api1.dc1.com<br>- api2.dc1.com]
+    coredns3 --> pool3[Backend Pool 3<br>- db1.dc1.com<br>- db2.dc1.com]
 ```
 
 **Benefits:**
