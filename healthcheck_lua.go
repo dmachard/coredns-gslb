@@ -13,15 +13,25 @@ import (
 	"time"
 
 	"crypto/tls"
+	"sync"
+	"sync/atomic"
 
 	"github.com/melbahja/goph"
 	gopherlua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/parse"
 	ssh "golang.org/x/crypto/ssh"
 )
 
+var luaStatePool = sync.Pool{
+	New: func() interface{} {
+		return gopherlua.NewState()
+	},
+}
+
 type LuaHealthCheck struct {
-	Script  string        `yaml:"script"`
-	Timeout time.Duration `yaml:"timeout"`
+	Script  string                                  `yaml:"script"`
+	Timeout time.Duration                           `yaml:"timeout"`
+	Proto   atomic.Pointer[gopherlua.FunctionProto] `yaml:"-"`
 }
 
 func (l *LuaHealthCheck) SetDefault() {
@@ -53,8 +63,27 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 		ObserveHealthcheck(fqdn, typeStr, address, start, result)
 	}()
 
-	L := gopherlua.NewState()
-	defer L.Close()
+	// Load or compile script to prototype
+	proto := l.Proto.Load()
+	if proto == nil {
+		reader := strings.NewReader(l.Script)
+		chunk, err := parse.Parse(reader, l.Script)
+		if err != nil {
+			return false
+		}
+		compiled, err := gopherlua.Compile(chunk, l.Script)
+		if err != nil {
+			return false
+		}
+		l.Proto.CompareAndSwap(nil, compiled)
+		proto = l.Proto.Load()
+	}
+
+	L := luaStatePool.Get().(*gopherlua.LState)
+	defer func() {
+		L.SetTop(0)
+		luaStatePool.Put(L)
+	}()
 
 	// Inject helpers
 	L.SetGlobal("http_get", L.NewFunction(luaHTTPGet))
@@ -68,7 +97,10 @@ func (l *LuaHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries 
 	L.SetField(backendTable, "priority", gopherlua.LNumber(backend.Priority))
 	L.SetGlobal("backend", backendTable)
 
-	err := L.DoString(l.Script)
+	// Execute precompiled function
+	fn := L.NewFunctionFromProto(proto)
+	L.Push(fn)
+	err := L.PCall(0, 1, nil)
 	if err != nil {
 		return false
 	}
