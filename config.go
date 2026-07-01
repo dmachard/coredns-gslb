@@ -92,6 +92,43 @@ func (g *GSLB) processRecordHealthchecks(recordData interface{}) (interface{}, e
 			continue
 		}
 
+		// Also check if any profile or inline healthcheck has rise/fall
+		var profileRise, profileFall int
+		if hc, ok := healthchecks.([]interface{}); ok {
+			for _, item := range hc {
+				switch v := item.(type) {
+				case string:
+					profile, err := ResolveHealthcheckProfile(v, g.HealthcheckProfiles)
+					if err == nil {
+						if profile.Rise > 0 {
+							profileRise = profile.Rise
+						}
+						if profile.Fall > 0 {
+							profileFall = profile.Fall
+						}
+					}
+				case map[string]interface{}:
+					if r, ok := v["rise"].(int); ok && r > 0 {
+						profileRise = r
+					} else if rVal, ok := v["rise"].(int64); ok && rVal > 0 {
+						profileRise = int(rVal)
+					}
+					if f, ok := v["fall"].(int); ok && f > 0 {
+						profileFall = f
+					} else if fVal, ok := v["fall"].(int64); ok && fVal > 0 {
+						profileFall = int(fVal)
+					}
+				}
+			}
+		}
+
+		if _, hasRise := backendMap["rise"]; !hasRise && profileRise > 0 {
+			backendMap["rise"] = profileRise
+		}
+		if _, hasFall := backendMap["fall"]; !hasFall && profileFall > 0 {
+			backendMap["fall"] = profileFall
+		}
+
 		processedHealthchecks, err := g.processHealthchecks(healthchecks)
 		if err != nil {
 			return nil, err

@@ -383,3 +383,53 @@ func TestBackend_RecomputeCoordinateRadians(t *testing.T) {
 	assert.Equal(t, 0.0, b2.LongitudeRad)
 	assert.Equal(t, 0.0, b2.LatitudeRad)
 }
+
+func TestBackend_RiseFallThresholds(t *testing.T) {
+	// 1. Test Rise threshold: needs 3 successes to go from DOWN to UP
+	b := &Backend{
+		Address: "127.0.0.1",
+		Rise:    3,
+		Fall:    2,
+		Alive:   false, // starts DOWN
+		HealthChecks: []GenericHealthCheck{
+			&MockHealthCheck{}, // always returns true
+		},
+	}
+
+	// Run 1: success, but consecutiveSuccesses is 1 < 3. Should remain DOWN.
+	b.runHealthChecks(1, 1*time.Second)
+	assert.False(t, b.Alive)
+
+	// Run 2: success, consecutiveSuccesses is 2 < 3. Should remain DOWN.
+	b.runHealthChecks(1, 1*time.Second)
+	assert.False(t, b.Alive)
+
+	// Run 3: success, consecutiveSuccesses is 3 >= 3. Should transition to UP.
+	b.runHealthChecks(1, 1*time.Second)
+	assert.True(t, b.Alive)
+
+	// 2. Test Fall threshold: needs 2 failures to go from UP to DOWN
+	failingCheck := &MockFailingHealthCheck{}
+	b.HealthChecks = []GenericHealthCheck{failingCheck}
+
+	// Run 1: failure, consecutiveFailures is 1 < 2. Should remain UP.
+	b.runHealthChecks(1, 1*time.Second)
+	assert.True(t, b.Alive)
+
+	// Run 2: failure, consecutiveFailures is 2 >= 2. Should transition to DOWN.
+	b.runHealthChecks(1, 1*time.Second)
+	assert.False(t, b.Alive)
+}
+
+type MockFailingHealthCheck struct{}
+
+func (hc *MockFailingHealthCheck) PerformCheck(backend *Backend, fqdn string, maxRetries int) bool {
+	return false
+}
+func (hc *MockFailingHealthCheck) GetType() string {
+	return "mock_fail"
+}
+func (hc *MockFailingHealthCheck) Equals(other GenericHealthCheck) bool {
+	_, ok := other.(*MockFailingHealthCheck)
+	return ok
+}

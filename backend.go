@@ -12,31 +12,35 @@ import (
 
 // Backend represents an individual backend with health check settings.
 type Backend struct {
-	Fqdn            string               // Fully qualified domain name
-	Description     string               // Description of the backend
-	Address         string               // IP address or hostname
-	Port            int                  // Port number of the backend
-	Priority        int                  // Priority for load balancing
-	Weight          int                  // Weight for weighted load balancing
-	Enable          bool                 // Enable or disable the backend
-	Tags            []string             // List of tags for filtering or grouping
-	HealthChecks    []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
-	Timeout         string               // Timeout for requests
-	Alive           bool                 // Indicates if the backend is alive
-	Continent       string               // Continent code for GeoIP (e.g. EU)
-	Country         string               // Country code for GeoIP
-	Subdivision     string               // Subdivision/state code for GeoIP (e.g. CA, NY)
-	City            string               // City name for GeoIP
-	ASN             string               // ASN for GeoIP
-	Location        string               // location
-	Longitude       float64              // Longitude for distance-based GeoIP routing
-	Latitude        float64              // Latitude for distance-based GeoIP routing
-	LongitudeRad    float64              // Precomputed longitude in radians for distance calculations
-	LatitudeRad     float64              // Precomputed latitude in radians for distance calculations
-	HasCoordinates  bool                 // Indicates whether both coordinates were explicitly configured
-	LastHealthcheck time.Time            // Last time a healthcheck was launched
-	AssumeHealthy   bool                 `yaml:"assume_healthy"` // Bypass healthchecks and assume UP
-	mutex           sync.RWMutex
+	Fqdn                 string               // Fully qualified domain name
+	Description          string               // Description of the backend
+	Address              string               // IP address or hostname
+	Port                 int                  // Port number of the backend
+	Priority             int                  // Priority for load balancing
+	Weight               int                  // Weight for weighted load balancing
+	Enable               bool                 // Enable or disable the backend
+	Tags                 []string             // List of tags for filtering or grouping
+	HealthChecks         []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
+	Timeout              string               // Timeout for requests
+	Alive                bool                 // Indicates if the backend is alive
+	Continent            string               // Continent code for GeoIP (e.g. EU)
+	Country              string               // Country code for GeoIP
+	Subdivision          string               // Subdivision/state code for GeoIP (e.g. CA, NY)
+	City                 string               // City name for GeoIP
+	ASN                  string               // ASN for GeoIP
+	Location             string               // location
+	Longitude            float64              // Longitude for distance-based GeoIP routing
+	Latitude             float64              // Latitude for distance-based GeoIP routing
+	LongitudeRad         float64              // Precomputed longitude in radians for distance calculations
+	LatitudeRad          float64              // Precomputed latitude in radians for distance calculations
+	HasCoordinates       bool                 // Indicates whether both coordinates were explicitly configured
+	LastHealthcheck      time.Time            // Last time a healthcheck was launched
+	AssumeHealthy        bool                 `yaml:"assume_healthy"` // Bypass healthchecks and assume UP
+	Rise                 int                  `yaml:"rise" default:"2"`
+	Fall                 int                  `yaml:"fall" default:"3"`
+	consecutiveSuccesses int
+	consecutiveFailures  int
+	mutex                sync.RWMutex
 }
 
 func (b *Backend) Lock() {
@@ -84,6 +88,14 @@ func (b *Backend) IsEnabled() bool {
 
 func (b *Backend) GetAssumeHealthy() bool {
 	return b.AssumeHealthy
+}
+
+func (b *Backend) GetRise() int {
+	return b.Rise
+}
+
+func (b *Backend) GetFall() int {
+	return b.Fall
 }
 
 func (b *Backend) GetTags() []string {
@@ -162,6 +174,8 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Longitude     *float64      `yaml:"longitude"`
 		Latitude      *float64      `yaml:"latitude"`
 		AssumeHealthy bool          `yaml:"assume_healthy" default:"false"`
+		Rise          int           `yaml:"rise" default:"2"`
+		Fall          int           `yaml:"fall" default:"3"`
 	}
 	defaults.Set(&raw)
 	if err := unmarshal(&raw); err != nil {
@@ -182,6 +196,8 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.ASN = raw.ASN
 	b.Location = raw.Location
 	b.AssumeHealthy = raw.AssumeHealthy
+	b.Rise = raw.Rise
+	b.Fall = raw.Fall
 	longitudeSet := false
 	latitudeSet := false
 	if raw.Longitude != nil {
@@ -239,6 +255,16 @@ func (b *Backend) updateBackend(newBackend BackendInterface) {
 	if b.AssumeHealthy != newBackend.GetAssumeHealthy() {
 		log.Infof("[%s] backend %s updated, assume_healthy changed from %v to %v", b.Fqdn, b.Address, b.AssumeHealthy, newBackend.GetAssumeHealthy())
 		b.AssumeHealthy = newBackend.GetAssumeHealthy()
+	}
+
+	if b.Rise != newBackend.GetRise() {
+		log.Infof("[%s] backend %s updated, rise changed from %d to %d", b.Fqdn, b.Address, b.Rise, newBackend.GetRise())
+		b.Rise = newBackend.GetRise()
+	}
+
+	if b.Fall != newBackend.GetFall() {
+		log.Infof("[%s] backend %s updated, fall changed from %d to %d", b.Fqdn, b.Address, b.Fall, newBackend.GetFall())
+		b.Fall = newBackend.GetFall()
 	}
 
 	if b.Description != newBackend.GetDescription() {
@@ -369,9 +395,6 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 	// Wait for all health check goroutines to complete before returning the results.
 	wg.Wait()
 
-	// Store old alive state for comparision
-	oldAlive := b.Alive
-
 	// Update the backend's Alive status
 	alive := true
 	for _, result := range results {
@@ -380,14 +403,37 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 			break
 		}
 	}
+
 	b.mutex.Lock()
-	b.Alive = alive
-	b.mutex.Unlock()
+	oldAlive := b.Alive
+	rise := b.Rise
+	if rise <= 0 {
+		rise = 1
+	}
+	fallThreshold := b.Fall
+	if fallThreshold <= 0 {
+		fallThreshold = 1
+	}
+
+	if alive {
+		b.consecutiveSuccesses++
+		b.consecutiveFailures = 0
+		if !b.Alive && b.consecutiveSuccesses >= rise {
+			b.Alive = true
+		}
+	} else {
+		b.consecutiveFailures++
+		b.consecutiveSuccesses = 0
+		if b.Alive && b.consecutiveFailures >= fallThreshold {
+			b.Alive = false
+		}
+	}
 
 	// Log backend health changes with higher log level
 	if b.Alive != oldAlive {
 		log.Infof("[%s] backend status change [address=%s]: alive changed from %v to %v", b.Fqdn, b.Address, oldAlive, b.Alive)
 	}
+	b.mutex.Unlock()
 
 	// Keep old log format for log parsing
 	log.Debugf("[%s] backend status [address=%s]: healthchecks=%s alive=%v", b.Fqdn, b.Address, healthChecksList, b.Alive)
@@ -433,6 +479,8 @@ type BackendInterface interface {
 	GetWeight() int
 	IsEnabled() bool
 	GetAssumeHealthy() bool
+	GetRise() int
+	GetFall() int
 	GetTags() []string
 	GetHealthChecks() []GenericHealthCheck
 	GetTimeout() string
