@@ -55,6 +55,9 @@ func (g *GSLB) handleBulkSetBackendEnable(enable bool) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"error": "location, address_prefix, or tags required"})
 			return
 		}
+		g.Mutex.Lock()
+		defer g.Mutex.Unlock()
+
 		var allModified []map[string]string
 		for _, yamlFile := range g.Zones {
 			modified, err := bulkSetBackendEnable(yamlFile, req.Location, req.AddressPrefix, req.Tags, enable)

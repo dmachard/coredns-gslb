@@ -52,8 +52,8 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 
 // pickBackendWithRoundRobin returns one healthy backend in round-robin order.
 func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordType uint16) ([]string, error) {
-	g.Mutex.Lock()
-	defer g.Mutex.Unlock()
+	g.Mutex.RLock()
+	defer g.Mutex.RUnlock()
 
 	var index int
 	value, exists := g.RoundRobinIndex.Load(domain)
@@ -84,8 +84,8 @@ func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordTy
 
 // pickBackendWithRandom returns all healthy backends in random order.
 func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]string, error) {
-	g.Mutex.Lock()
-	defer g.Mutex.Unlock()
+	g.Mutex.RLock()
+	defer g.Mutex.RUnlock()
 
 	healthyBackends := []BackendInterface{}
 	for _, backend := range record.Backends {
@@ -376,21 +376,12 @@ func (g *GSLB) pickBackendWithGeoIP(record *Record, recordType uint16, clientIP 
 	}
 
 	// 4. Custom location map (subnet to location string)
-	g.Mutex.RLock()
-	needsRebuild := len(g.LocationMap) != len(g.LocationMapIPNet)
-	g.Mutex.RUnlock()
-
-	if needsRebuild {
-		g.Mutex.Lock()
-		if len(g.LocationMap) != len(g.LocationMapIPNet) {
-			g.rebuildLocationMapIPNet()
-		}
-		g.Mutex.Unlock()
+	g.LocationMapMutex.Lock()
+	if len(g.LocationMap) != len(g.LocationMapIPNet) {
+		g.rebuildLocationMapIPNet()
 	}
-
-	g.Mutex.RLock()
 	locationMapIPNet := g.LocationMapIPNet
-	g.Mutex.RUnlock()
+	g.LocationMapMutex.Unlock()
 
 	if len(locationMapIPNet) > 0 {
 		var matchedIPs []string
@@ -567,21 +558,12 @@ func (g *GSLB) pickBackendWithGeoIPAffinity(record *Record, recordType uint16, c
 	var candidates []BackendInterface
 
 	// Step 1: Subnet Pinning
-	g.Mutex.RLock()
-	needsRebuildAffinity := len(g.LocationMap) != len(g.LocationMapIPNet)
-	g.Mutex.RUnlock()
-
-	if needsRebuildAffinity {
-		g.Mutex.Lock()
-		if len(g.LocationMap) != len(g.LocationMapIPNet) {
-			g.rebuildLocationMapIPNet()
-		}
-		g.Mutex.Unlock()
+	g.LocationMapMutex.Lock()
+	if len(g.LocationMap) != len(g.LocationMapIPNet) {
+		g.rebuildLocationMapIPNet()
 	}
-
-	g.Mutex.RLock()
 	locationMapIPNet := g.LocationMapIPNet
-	g.Mutex.RUnlock()
+	g.LocationMapMutex.Unlock()
 
 	var matchedLocation string
 	if len(locationMapIPNet) > 0 {
