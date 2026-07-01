@@ -55,6 +55,7 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Corefile Reference](docs/configuration.md) | Complete Corefile parameter reference |
 | [Supported Records](docs/records.md) | Supported record types (A, AAAA, SVCB/HTTPS, TXT, wildcards) |
 | [Selection & Failover](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, weighted, and failover policies |
+| [GeoIP Setup](docs/geoip.md) | MaxMind databases and custom location mapping |
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
 | [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
 | [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |
