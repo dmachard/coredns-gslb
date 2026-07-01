@@ -46,7 +46,20 @@ records:
 
 ---
 
-## 3. TXT Records (Debugging & Monitoring)
+## 3. Service Records (SRV)
+
+For non-HTTP services (like SIP, LDAP, or directory services), CoreDNS-GSLB supports dynamic `SRV` (Type 33) records (RFC 2782) to route clients to healthy backends.
+
+* **Priority**: Mapped directly from the backend's `priority` property.
+* **Weight**: Mapped directly from the backend's `weight` property (defaulting to `1` if weight is 0 or less).
+* **Port**: Mapped directly from the backend's `port` property.
+* **Target**: Set to the backend's address (FQDN or IP).
+
+If multiple backends are selected by the active routing policy, CoreDNS-GSLB returns an SRV record for each selected backend with its corresponding port, priority, and weight.
+
+---
+
+## 4. TXT Records (Debugging & Monitoring)
 
 By default, CoreDNS-GSLB serves TXT records summarizing the state of all configured backends. This is useful for real-time monitoring and debugging using standard tools.
 
@@ -78,7 +91,7 @@ With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to
 
 ---
 
-## 4. Wildcard Records Support
+## 5. Wildcard Records Support
 
 CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
 If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.

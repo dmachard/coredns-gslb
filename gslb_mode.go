@@ -418,7 +418,10 @@ func isAddressTypeCompatible(ip string, recordType uint16) bool {
 		if !fqdnRegex.MatchString(ip) {
 			return false
 		}
-		return recordType == dns.TypeA || recordType == dns.TypeAAAA || recordType == dns.TypeCNAME
+		return recordType == dns.TypeA || recordType == dns.TypeAAAA || recordType == dns.TypeCNAME || recordType == dns.TypeSRV
+	}
+	if recordType == dns.TypeSRV {
+		return true
 	}
 	if recordType == dns.TypeA {
 		return parsedIP.To4() != nil

@@ -78,6 +78,10 @@ func (g *GSLB) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 		res, err := g.handleSVCBRecord(ctx, w, r, domain, dns.TypeHTTPS)
 		g.Mutex.RUnlock()
 		return res, err
+	case dns.TypeSRV:
+		res, err := g.handleSRVRecord(ctx, w, r, domain)
+		g.Mutex.RUnlock()
+		return res, err
 	default:
 		g.Mutex.RUnlock()
 		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
@@ -723,4 +727,120 @@ func (g *GSLB) findRecord(domain string) (*Record, string) {
 	}
 
 	return nil, ""
+}
+
+func (g *GSLB) handleSRVRecord(ctx context.Context, w dns.ResponseWriter, r *dns.Msg, domain string) (int, error) {
+	record, _ := g.findRecord(domain)
+	if record == nil {
+		return plugin.NextOrFailure(g.Name(), g.Next, ctx, w, r)
+	}
+	if !g.hasRecordTypeConfigured(record, dns.TypeSRV) {
+		return g.sendRcodeResponse(w, r, domain, dns.RcodeSuccess, true)
+	}
+	ci := GetClientInfo(ctx)
+	if ci == nil || ci.IP == nil {
+		log.Error("No client info in context")
+		return dns.RcodeServerFailure, nil
+	}
+	start := time.Now()
+
+	selectedAddresses, err := g.pickResponse(domain, dns.TypeSRV, ci.IP)
+	if err != nil {
+		log.Debugf("[%s] no backend available for SRV: %v", domain, err)
+		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
+
+		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		if policyMode == "" {
+			policyMode = "fail-open"
+		}
+
+		g.logFailSafeWarning(domain, policyMode)
+
+		switch policyMode {
+		case "fail-closed":
+			rcode := dns.RcodeServerFailure
+			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			case "NXDOMAIN":
+				rcode = dns.RcodeNameError
+			case "REFUSED":
+				rcode = dns.RcodeRefused
+			case "NOERROR":
+				rcode = dns.RcodeSuccess
+			case "SERVFAIL":
+				rcode = dns.RcodeServerFailure
+			}
+			return g.sendRcodeResponse(w, r, domain, rcode, true)
+
+		case "fail-specific":
+			fallbackIPs, err := g.pickFallbackAddresses(record, dns.TypeSRV)
+			if err != nil {
+				log.Debugf("Error retrieving fallback addresses for domain %s: %v", domain, err)
+				return dns.RcodeServerFailure, nil
+			}
+			selectedAddresses = fallbackIPs
+
+		case "fail-open":
+			fallthrough
+		default:
+			allAddresses, err := g.pickAllAddresses(domain, dns.TypeSRV)
+			if err != nil {
+				log.Debugf("Error retrieving backends for domain %s: %v", domain, err)
+				return dns.RcodeServerFailure, nil
+			}
+			selectedAddresses = allAddresses
+		}
+	}
+
+	response := new(dns.Msg)
+	response.SetReply(r)
+
+	for _, addr := range selectedAddresses {
+		var port, priority, weight int
+		var target string = addr
+
+		var found BackendInterface
+		for _, b := range record.Backends {
+			if b.GetAddress() == addr {
+				found = b
+				break
+			}
+		}
+
+		if found != nil {
+			port = found.GetPort()
+			priority = found.GetPriority()
+			weight = found.GetWeight()
+		} else {
+			port = 0
+			priority = 0
+			weight = 1
+		}
+
+		srv := &dns.SRV{
+			Hdr: dns.RR_Header{
+				Name:   domain,
+				Rrtype: dns.TypeSRV,
+				Class:  dns.ClassINET,
+				Ttl:    uint32(record.RecordTTL),
+			},
+			Priority: uint16(priority),
+			Weight:   uint16(weight),
+			Port:     uint16(port),
+			Target:   dns.Fqdn(target),
+		}
+		response.Answer = append(response.Answer, srv)
+	}
+
+	g.decorateWithECS(r, response, domain, false)
+
+	err = w.WriteMsg(response)
+	if err != nil {
+		log.Error("Failed to write DNS SRV response: ", err)
+		IncRecordResolutions(domain, "fail")
+		return dns.RcodeServerFailure, err
+	}
+
+	ObserveRecordResolutionDuration(domain, "success", time.Since(start).Seconds())
+	IncRecordResolutions(domain, "success")
+	return dns.RcodeSuccess, nil
 }
