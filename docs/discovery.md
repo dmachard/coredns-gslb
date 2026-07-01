@@ -68,18 +68,18 @@ flowchart TD
     classDef store fill:#bbf,stroke:#333,stroke-width:2px;
     classDef external fill:#dfd,stroke:#333,stroke-width:2px;
 
-    subgraph discovery [1. Background Discovery Loop (Every Interval)]
+    subgraph discovery ["1. Background Discovery Loop (Every Interval)"]
         scraper[GSLB Scraper] -->|1. Poll API / DNS| registry[External Registry<br>Consul / HTTP / DNS SVCB]
         registry -->|2. Return Raw Endpoints| scraper
         scraper -->|3. Populate / Merge| memPool[(InMemory Backend Pool)]
     end
 
-    subgraph health [2. Background Health Checking]
+    subgraph health ["2. Background Health Checking"]
         hc[Health Checker] -->|4. Active Probes<br>HTTP / gRPC / TCP / ICMP| memPool
         memPool -->|5. Update Status<br>Healthy / Unhealthy| memPool
     end
 
-    subgraph query [3. DNS Query Resolution]
+    subgraph query ["3. DNS Query Resolution"]
         client[DNS Client / Resolver] -->|6. DNS Query A/AAAA| coredns[CoreDNS-GSLB Engine]
         coredns -->|7. Lookup Healthy Backends| memPool
         memPool -->|8. Filtered List| coredns
