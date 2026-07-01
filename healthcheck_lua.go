@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"crypto/tls"
+	"os"
 
 	"github.com/melbahja/goph"
 	gopherlua "github.com/yuin/gopher-lua"
@@ -223,22 +224,39 @@ func luaHTTPGet(l *gopherlua.LState) int {
 	return 1
 }
 
-// Helper: ssh_exec(host, user, password, command, [timeout_sec])
+// Helper: ssh_exec(host, user, password_or_key_path, command, [timeout_sec], [key_passphrase])
 func luaSSHExec(l *gopherlua.LState) int {
 	host := l.ToString(1)
 	user := l.ToString(2)
-	password := l.ToString(3)
+	passwordOrKeyPath := l.ToString(3)
 	cmd := l.ToString(4)
 	var timeout = 5 * time.Second
+	var passphrase string
 	argc := l.GetTop()
 	if argc >= 5 {
 		timeout = time.Duration(l.ToInt(5)) * time.Second
 	}
+	if argc >= 6 {
+		passphrase = l.ToString(6)
+	}
+
+	var auth goph.Auth
+	var err error
+	if info, statErr := os.Stat(passwordOrKeyPath); statErr == nil && !info.IsDir() {
+		auth, err = goph.Key(passwordOrKeyPath, passphrase)
+		if err != nil {
+			l.Push(gopherlua.LString(""))
+			return 1
+		}
+	} else {
+		auth = goph.Password(passwordOrKeyPath)
+	}
+
 	client, err := goph.NewConn(&goph.Config{
 		User:     user,
 		Addr:     host,
 		Port:     22,
-		Auth:     goph.Password(password),
+		Auth:     auth,
 		Timeout:  timeout,
 		Callback: sshInsecureIgnoreHostKey,
 	})
