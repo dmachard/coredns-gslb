@@ -62,30 +62,11 @@ CoreDNS-GSLB can query external registries at a regular interval to dynamically 
 ### How it Works (Flow Diagram)
 
 ```mermaid
-flowchart TD
-    %% Styling
-    classDef process fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef store fill:#bbf,stroke:#333,stroke-width:2px;
-    classDef external fill:#dfd,stroke:#333,stroke-width:2px;
-
-    subgraph discovery ["1. Background Discovery Loop (Every Interval)"]
-        scraper[GSLB Scraper] -->|1. Poll API / DNS| registry[External Registry<br>Consul / HTTP / DNS SVCB]
-        registry -->|2. Return Raw Endpoints| scraper
-        scraper -->|3. Populate / Merge| memPool[(InMemory Backend Pool)]
-    end
-
-    subgraph health ["2. Background Health Checking"]
-        hc[Health Checker] -->|4. Active Probes<br>HTTP / gRPC / TCP / ICMP| memPool
-        memPool -->|5. Update Status<br>Healthy / Unhealthy| memPool
-    end
-
-    subgraph query ["3. DNS Query Resolution"]
-        client[DNS Client / Resolver] -->|6. DNS Query A/AAAA| coredns[CoreDNS-GSLB Engine]
-        coredns -->|7. Lookup Healthy Backends| memPool
-        memPool -->|8. Filtered List| coredns
-        coredns -->|9. Apply Load Balancing & GeoDNS| coredns
-        coredns -->|10. DNS Response| client
-    end
+flowchart LR
+    Registry[External Registry<br>Consul / HTTP / DNS] -->|1. Fetch endpoints| Scraper[GSLB Scraper]
+    Scraper -->|2. Update| Pool[(InMemory Pool)]
+    Pool <-->|3. Monitor health| HC[Health Checker]
+    Client[DNS Client] -->|4. Resolve Query| Pool
 ```
 
 
