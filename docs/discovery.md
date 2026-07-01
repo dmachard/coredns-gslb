@@ -170,4 +170,59 @@ records:
         port: 443
       - address: "192.168.1.11"
         port: 8443
+
+---
+
+## 6. YAML Configuration Features
+
+### Reusable Record Defaults (`defaults` block)
+
+You can define a `defaults` block at the top of your zone YAML file to avoid repeating common fields in every record. Any field defined in `defaults` will be automatically applied to all records, unless a record explicitly overrides that field.
+
+#### Example:
+
+```yaml
+defaults:
+  owner: admin
+  record_ttl: 30
+  scrape_interval: 10s
+  scrape_retries: 1
+  scrape_timeout: 5s
+  alpn:
+    - "h3"
+    - "h2"
+
+records:
+  web1.example.org.:
+    mode: failover
+    # Inherits all defaults above
+  web2.example.org.:
+    mode: failover
+    owner: alice  # Overrides the default owner
+    record_ttl: 60  # Overrides the default TTL
+```
+
+In this example:
+- `web1.example.org.` will have `owner=admin`, `record_ttl=30`, etc.
+- `web2.example.org.` will have `owner=alice` and `record_ttl=60`, but will inherit the remaining defaults.
+
+### Backend Tags
+
+You can add a `tags` list to any backend in your YAML configuration. These tags are strings that you can use to group, filter, or target backends for bulk API operations.
+
+#### Example:
+
+```yaml
+records:
+  webapp.example.org.:
+    backends:
+      - address: "172.16.0.10"
+        tags: ["prod", "ssd", "eu"]
+      - address: "172.16.0.11"
+        tags: ["test", "hdd", "us"]
+```
+
+- You can assign any number of tags to a backend.
+- The API uses tags to enable/disable backends in bulk.
+
 ```

@@ -1,5 +1,7 @@
+GO ?= $(shell which go 2>/dev/null || { [ -x /usr/local/go/bin/go ] && echo /usr/local/go/bin/go; } || echo go)
+
 ifndef $(GOPATH)
-	GOPATH=$(shell go env GOPATH)
+	GOPATH=$(shell $(GO) env GOPATH)
 	export GOPATH
 endif
 
@@ -22,12 +24,12 @@ tests: test-unit test-integration
 # Runs unit tests.
 test-unit:
 	@echo "Running unit tests..."
-	@go test -v -race -coverprofile=coverage.out -json ./... | tee test_output.json | \
+	@$(GO) test -v -race -coverprofile=coverage.out -json ./... | tee test_output.json | \
 	jq -r 'select(.Output != null) | .Output' | sed '/^\s*$$/d' | sed 's/^[ \t]*//'
-	go tool cover -func=coverage.out
+	$(GO) tool cover -func=coverage.out
 
 	@TEST_COUNT=$$(jq -r 'select(.Action == "pass" or .Action == "fail") | .Test' test_output.json | sort -u | wc -l); \
-	COVERAGE=$$(go tool cover -func=coverage.out | grep total: | awk '{print $$3}'); \
+	COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total: | awk '{print $$3}'); \
 	echo "Total executed tests: $$TEST_COUNT"; \
 	echo "Code coverage: $$COVERAGE"
 

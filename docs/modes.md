@@ -254,3 +254,48 @@ For all selection modes, if **no healthy backends** are available (including dur
 - It returns **all enabled backends** for the requested record type, regardless of their health status.
 - This ensures that a DNS response is always provided if possible, rather than returning an error (SERVFAIL) or an empty response.
 - Once at least one backend is detected as healthy, the plugin resumes its normal selection logic.
+
+---
+
+## Failover Policies (Custom Fail-safe Behavior)
+
+While the default behavior is `fail-open` (returning all enabled backends if all are unhealthy), you can customize the fail-safe behavior for each record using a `failover_policy` block.
+
+### Supported Policies:
+- **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
+- **`fail-closed`**: Returns a custom DNS response code with an empty answer section.
+- **`fail-specific`**: Returns a specific, stable list of fallback IP addresses (regardless of their health state).
+
+### Configuration Parameters:
+- **`mode`**: The policy mode (`fail-open`, `fail-closed`, or `fail-specific`).
+- **`rcode`**: The DNS response code to return when `mode` is `fail-closed` (Options: `NXDOMAIN`, `SERVFAIL`, `REFUSED`, `NOERROR`). Defaults to `SERVFAIL`.
+- **`fallback_ips`**: A list of fallback IP addresses (IPv4/IPv6) to return when `mode` is `fail-specific`.
+
+### Example Configurations:
+
+**1. Fail-closed with NXDOMAIN**
+```yaml
+records:
+  webapp.example.org.:
+    mode: "roundrobin"
+    failover_policy:
+      mode: "fail-closed"
+      rcode: "NXDOMAIN"
+    backends:
+      - address: "172.16.0.10"
+      - address: "172.16.0.11"
+```
+
+**2. Fail-specific with Fallback IPs**
+```yaml
+records:
+  api.example.org.:
+    mode: "failover"
+    failover_policy:
+      mode: "fail-specific"
+      fallback_ips: ["1.2.3.4", "2001:db8::1"]
+    backends:
+      - address: "172.16.0.20"
+      - address: "172.16.0.21"
+```
+

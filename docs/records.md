@@ -75,3 +75,32 @@ gslb {
 ```
 
 With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to the next plugin or return empty if none.
+
+---
+
+## 4. Wildcard Records Support
+
+CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
+If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.
+
+### Example Configuration:
+
+```yaml
+records:
+  "*.example.org.":
+    mode: "geoip"
+    backends:
+      - address: "172.16.0.10"
+        priority: 1
+        location: "eu-west-1"
+      - address: "172.16.0.20"
+        priority: 1
+        location: "us-east-1"
+```
+
+With this configuration:
+- A query for `anything.example.org.` will match `*.example.org.` (if there is no exact record `anything.example.org.`).
+- A query for `sub.anything.example.org.` will also match `*.example.org.`.
+- An exact match always takes precedence over a wildcard match.
+- In case of multiple overlapping authoritative zones configured in GSLB (e.g., `sub.example.org.` and `example.org.`), wildcard lookup is strictly bounded by the most specific zone (the zone with the longest matching suffix).
+
