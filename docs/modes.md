@@ -264,12 +264,13 @@ While the default behavior is `fail-open` (returning all enabled backends if all
 ### Supported Policies:
 - **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
 - **`fail-closed`**: Returns a custom DNS response code with an empty answer section.
-- **`fail-specific`**: Returns a specific, stable list of fallback IP addresses (regardless of their health state).
+- **`fail-specific`**: Returns a specific, stable list of fallback IP addresses (via `fallback_ips`) or redirects traffic to a fallback CNAME (via `fallback_cname`).
 
 ### Configuration Parameters:
 - **`mode`**: The policy mode (`fail-open`, `fail-closed`, or `fail-specific`).
 - **`rcode`**: The DNS response code to return when `mode` is `fail-closed` (Options: `NXDOMAIN`, `SERVFAIL`, `REFUSED`, `NOERROR`). Defaults to `SERVFAIL`.
 - **`fallback_ips`**: A list of fallback IP addresses (IPv4/IPv6) to return when `mode` is `fail-specific`.
+- **`fallback_cname`**: A fallback CNAME hostname (e.g., `backup.cdn.cloudflare.net`) to redirect queries to when `mode` is `fail-specific`.
 
 ### Example Configurations:
 
@@ -294,6 +295,19 @@ records:
     failover_policy:
       mode: "fail-specific"
       fallback_ips: ["1.2.3.4", "2001:db8::1"]
+    backends:
+      - address: "172.16.0.20"
+      - address: "172.16.0.21"
+```
+
+**3. Fail-specific with Fallback CNAME**
+```yaml
+records:
+  api.example.org.:
+    mode: "failover"
+    failover_policy:
+      mode: "fail-specific"
+      fallback_cname: "backup.cdn.cloudflare.net"
     backends:
       - address: "172.16.0.20"
       - address: "172.16.0.21"

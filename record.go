@@ -12,9 +12,10 @@ import (
 
 // FailoverPolicy represents the behavior of the record when all backends are unhealthy/disabled.
 type FailoverPolicy struct {
-	Mode        string   `yaml:"mode"`
-	FallbackIPs []string `yaml:"fallback_ips"`
-	Rcode       string   `yaml:"rcode"`
+	Mode          string   `yaml:"mode"`
+	FallbackIPs   []string `yaml:"fallback_ips"`
+	FallbackCNAME string   `yaml:"fallback_cname"`
+	Rcode         string   `yaml:"rcode"`
 }
 
 // Record represents a GSLB record in the YAML config.
@@ -128,6 +129,7 @@ func (r *Record) updateRecord(newRecord *Record) {
 
 	if r.FailoverPolicy.Mode != newRecord.FailoverPolicy.Mode ||
 		r.FailoverPolicy.Rcode != newRecord.FailoverPolicy.Rcode ||
+		r.FailoverPolicy.FallbackCNAME != newRecord.FailoverPolicy.FallbackCNAME ||
 		len(r.FailoverPolicy.FallbackIPs) != len(newRecord.FailoverPolicy.FallbackIPs) {
 		log.Debugf("[%s] failover policy changed", r.Fqdn)
 		r.FailoverPolicy = newRecord.FailoverPolicy

@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-283-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-284-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-85.8%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-5230-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-5258-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-21-blue" alt="Integration tests"/>
 </p>
 
@@ -55,6 +55,7 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Corefile Reference](docs/configuration.md) | Complete Corefile parameter reference |
 | [Supported Records](docs/records.md) | Supported record types (A, AAAA, SVCB/HTTPS, TXT, wildcards) |
 | [Selection & Failover](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, weighted, and failover policies |
+| [GeoIP Setup](docs/geoip.md) | MaxMind databases and custom location mapping |
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
 | [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
 | [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |

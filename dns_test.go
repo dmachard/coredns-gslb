@@ -559,6 +559,18 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		},
 	}
 
+	// E: Record with fail-specific and fallback CNAME
+	g.Records["example.org."]["fail-specific-cname.example.org."] = &Record{
+		Fqdn:      "fail-specific-cname.example.org.",
+		Mode:      "failover",
+		Backends:  []BackendInterface{backend1},
+		RecordTTL: 60,
+		FailoverPolicy: FailoverPolicy{
+			Mode:          "fail-specific",
+			FallbackCNAME: "backup.cdn.cloudflare.net",
+		},
+	}
+
 	// Run Test cases
 	t.Run("fail-open (default) returns all enabled backends", func(t *testing.T) {
 		msg := new(dns.Msg)
@@ -603,6 +615,41 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		assert.Len(t, w.msg.Answer, 2)
 		assert.Equal(t, "1.2.3.4", w.msg.Answer[0].(*dns.A).A.String())
 		assert.Equal(t, "5.6.7.8", w.msg.Answer[1].(*dns.A).A.String())
+	})
+
+	t.Run("fail-specific returns fallback CNAME for A/AAAA/SVCB/HTTPS queries", func(t *testing.T) {
+		// A query
+		msgA := new(dns.Msg)
+		msgA.SetQuestion("fail-specific-cname.example.org.", dns.TypeA)
+		wA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		codeA, errA := g.ServeDNS(context.Background(), wA, msgA)
+		assert.NoError(t, errA)
+		assert.Equal(t, dns.RcodeSuccess, codeA)
+		assert.Len(t, wA.msg.Answer, 1)
+		assert.Equal(t, dns.TypeCNAME, wA.msg.Answer[0].Header().Rrtype)
+		assert.Equal(t, "backup.cdn.cloudflare.net.", wA.msg.Answer[0].(*dns.CNAME).Target)
+
+		// AAAA query
+		msgAAAA := new(dns.Msg)
+		msgAAAA.SetQuestion("fail-specific-cname.example.org.", dns.TypeAAAA)
+		wAAAA := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		codeAAAA, errAAAA := g.ServeDNS(context.Background(), wAAAA, msgAAAA)
+		assert.NoError(t, errAAAA)
+		assert.Equal(t, dns.RcodeSuccess, codeAAAA)
+		assert.Len(t, wAAAA.msg.Answer, 1)
+		assert.Equal(t, dns.TypeCNAME, wAAAA.msg.Answer[0].Header().Rrtype)
+		assert.Equal(t, "backup.cdn.cloudflare.net.", wAAAA.msg.Answer[0].(*dns.CNAME).Target)
+
+		// SVCB query
+		msgSVCB := new(dns.Msg)
+		msgSVCB.SetQuestion("fail-specific-cname.example.org.", dns.TypeSVCB)
+		wSVCB := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+		codeSVCB, errSVCB := g.ServeDNS(context.Background(), wSVCB, msgSVCB)
+		assert.NoError(t, errSVCB)
+		assert.Equal(t, dns.RcodeSuccess, codeSVCB)
+		assert.Len(t, wSVCB.msg.Answer, 1)
+		assert.Equal(t, dns.TypeCNAME, wSVCB.msg.Answer[0].Header().Rrtype)
+		assert.Equal(t, "backup.cdn.cloudflare.net.", wSVCB.msg.Answer[0].(*dns.CNAME).Target)
 	})
 }
 

@@ -29,6 +29,7 @@ failover_policy:
   rcode: "NXDOMAIN"
   fallback_ips:
     - "1.2.3.4"
+  fallback_cname: "backup.cdn.cloudflare.net"
 backends:
   - address: "192.168.1.1"
     enable: true
@@ -48,6 +49,7 @@ backends:
 	assert.Equal(t, "NXDOMAIN", record.FailoverPolicy.Rcode)
 	assert.Len(t, record.FailoverPolicy.FallbackIPs, 1)
 	assert.Equal(t, "1.2.3.4", record.FailoverPolicy.FallbackIPs[0])
+	assert.Equal(t, "backup.cdn.cloudflare.net", record.FailoverPolicy.FallbackCNAME)
 	assert.Len(t, record.Backends, 1)
 	assert.Equal(t, "192.168.1.1", record.Backends[0].GetAddress())
 	assert.Equal(t, []string{"h3", "h2"}, record.ALPN)
