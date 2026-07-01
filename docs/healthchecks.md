@@ -156,7 +156,7 @@ healthchecks:
 
 ### gRPC
 
-Checks the health of a gRPC service using the standard gRPC health checking protocol (`grpc.health.v1.Health/Check`).
+Checks the health of a gRPC service using the standard gRPC health checking protocol (`grpc.health.v1.Health/Check`). It supports secure connections via TLS and mutual TLS (mTLS) client verification.
 
 ```yaml
 healthchecks:
@@ -165,9 +165,18 @@ healthchecks:
       port: 9090                # gRPC port to connect to
       service: "grpc.health.v1.Health" # Service name (default: "")
       timeout: 5s               # Timeout for the gRPC request
+      enable_tls: true          # Enable TLS/mTLS (default: false)
+      cert_path: "cert.pem"     # Path to client certificate for mTLS (optional)
+      key_path: "key.pem"       # Path to client private key for mTLS (optional)
+      ca_path: "cacert.pem"     # Path to trusted CA Root certificate (optional)
+      skip_tls_verify: false    # Skip TLS certificate validation (default: false)
 ```
 
-- `service` can be left empty to check the overall server health, or set to a specific service name.
+* `service` can be left empty to check the overall server health, or set to a specific service name.
+* `enable_tls` must be set to `true` to enable encrypted TLS transport.
+* `cert_path` and `key_path` are required when client certificate verification (mTLS) is enforced by the gRPC server.
+* `ca_path` allows specifying a private or custom CA root chain rather than the system's default trust store.
+
 
 
 ### Lua Scripting

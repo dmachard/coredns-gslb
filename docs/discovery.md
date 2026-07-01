@@ -62,24 +62,13 @@ CoreDNS-GSLB can query external registries at a regular interval to dynamically 
 ### How it Works (Flow Diagram)
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Scraper as GSLB Scraper (Background Thread)
-    participant Registry as External Registry (Consul / HTTP / DNS)
-    participant Pool as GSLB Backend Pool (Memory)
-    participant HC as Health Checker
-    participant Client as DNS Client / Browser
-
-    loop Every Interval
-        Scraper->>Registry: Fetch Endpoints (HTTP GET / DNS Query)
-        Registry-->>Scraper: Return Endpoints (IPs, Ports, Metadata)
-        Scraper->>Pool: Update Backends (Thread-Safe Copy-on-Write)
-        Scraper->>HC: Trigger Health Checks on endpoints
-    end
-
-    Client->>Pool: DNS Query (A / AAAA)
-    Pool-->>Client: Return healthy/active IP address
+flowchart LR
+    Registry[External Registry<br>Consul / HTTP / DNS] -->|1. Fetch endpoints| Scraper[GSLB Scraper]
+    Scraper -->|2. Update| Pool[(InMemory Pool)]
+    Pool <-->|3. Monitor health| HC[Health Checker]
+    Client[DNS Client] -->|4. Resolve Query| Pool
 ```
+
 
 
 ### A. Consul Catalog Discovery
