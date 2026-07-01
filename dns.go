@@ -796,7 +796,7 @@ func (g *GSLB) handleSRVRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 
 	for _, addr := range selectedAddresses {
 		var port, priority, weight int
-		var target string = addr
+		target := addr
 
 		var found BackendInterface
 		for _, b := range record.Backends {
