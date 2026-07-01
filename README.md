@@ -42,101 +42,10 @@ Unlike many existing solutions, this plugin is designed for non-Kubernetes infra
 - **Resource efficient**: Adaptive healthchecks reduce load on unused backends
 - **Production ready**: Prometheus metrics and comprehensive observability
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-1. **Create docker-compose.yml:**
+To get up and running quickly using Docker Compose or to compile the plugin locally, check out the **[Getting Started Guide](docs/getting_started.md)**.
 
-Prepare folder
-
-```
-mkdir coredns
-```
-
-Expected folder structure
-
-```
-coredns-gslb/
-├── docker-compose.yml
-└── coredns/
-    ├── Corefile
-    ├── db.gslb.example.com
-    └── db.gslb.example.com.yml
-```
-
-Create the `docker-compose.yml`, update binding ports according to your system
-
-```yaml
-services:
-  coredns-gslb:
-    image: dmachard/coredns_gslb:latest
-    ports:
-      - "53:53/udp"
-      - "53:53/tcp"
-      - "9153:9153"  # Metrics
-    volumes:
-      - ./coredns:/coredns
-    command: ["-conf", "/coredns/Corefile"]
-    restart: unless-stopped
-```
-    
-2. **Create coredns/Corefile:**
-
-Create the `Corefile`
-
-```
-.:53 {
-    file /coredns/db.gslb.example.com gslb.example.com
-    gslb {
-        zone  gslb.example.com. /coredns/db.gslb.example.com.yml
-    }
-    prometheus
-}
-```
-
-3. **Create coredns/db.gslb.example.com:**
-
-```
-$ORIGIN gslb.example.com.
-@       3600    IN      SOA     ns1.example.com. admin.example.com. (
-                                2024010101 7200 3600 1209600 3600 )
-        3600    IN      NS      ns1.gslb.example.com.
-        3600    IN      NS      ns2.gslb.example.com.
-```
-
-4. **Create coredns/gslb_config.yml:**
-
-```yaml
-healthcheck_profiles:
-  https_default:
-    type: http
-    params:
-      enable_tls: true
-      port: 443
-      uri: "/"
-      expected_code: 200
-      timeout: 5s
-
-records:
-  webapp.gslb.example.com.:
-    mode: "failover"
-    record_ttl: 30
-    scrape_interval: 10s
-    backends:
-    - address: "172.16.0.10"
-      priority: 1
-      healthchecks: [ https_default ]
-    - address: "172.16.0.11"
-      priority: 2
-      healthchecks: [ https_default ]
-```
-
-5. **Run and test:**
-
-```bash
-docker-compose up -d
-dig @localhost webapp.gslb.example.com
-dig @localhost TXT webapp.gslb.example.com  # Debug info
-```
 
 ## 📚 Documentation
 
@@ -155,7 +64,7 @@ dig @localhost TXT webapp.gslb.example.com  # Debug info
 | [Observability](docs/observability.md) | Prometheus metrics |
 | [Benchmarking](docs/benchmark.md) | Performance testing and metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
-
+| [Developer Guide](docs/developer_guide.md) | Build, testing, and development setup |
 
 ## 👥 Contributions
 

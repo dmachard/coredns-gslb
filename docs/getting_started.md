@@ -9,52 +9,94 @@ This guide walk you through setting up CoreDNS-GSLB for the first time, configur
 The fastest way to test CoreDNS-GSLB is by running it inside a Docker container.
 
 ### Step A: Create `docker-compose.yml`
-Create a directory and write the following `docker-compose.yml`:
+
+Prepare folder
+
+```
+mkdir coredns
+```
+
+Expected folder structure
+
+```
+coredns-gslb/
+├── docker-compose.yml
+└── coredns/
+    ├── Corefile
+    ├── db.gslb.example.com
+    └── db.gslb.example.com.yml
+```
+
+Create the `docker-compose.yml`, update binding ports according to your system
 
 ```yaml
-version: '3.8'
-
 services:
-  coredns:
-    image: dmachard/coredns-gslb:latest
+  coredns-gslb:
+    image: dmachard/coredns_gslb:latest
     ports:
       - "53:53/udp"
       - "53:53/tcp"
-      - "8080:8080" # REST API
+      - "9153:9153"  # Metrics+
+      - "8080:8080"  # API
     volumes:
-      - ./Corefile:/etc/coredns/Corefile
-      - ./gslb_zone.yml:/etc/coredns/gslb_zone.yml
+      - ./coredns:/coredns
+    command: ["-conf", "/coredns/Corefile"]
+    restart: unless-stopped
 ```
 
 ### Step B: Create the `Corefile`
 In the same directory, create a `Corefile` specifying your DNS zones and directing GSLB to load configurations:
 
 ```corefile
-. {
-    log
-    errors
+.:53 {
+    file /coredns/db.gslb.example.com gslb.example.com
     gslb {
-        zone example.org. /etc/coredns/gslb_zone.yml
+        zone  gslb.example.com. /coredns/db.gslb.example.com.yml
     }
+    prometheus
 }
 ```
 
-### Step C: Create the YAML Zone File (`gslb_zone.yml`)
-Define your record and its backend endpoints in `gslb_zone.yml`:
+### Step C: Create coredns/db.gslb.example.com:**
 
-```yaml
-records:
-  webapp.example.org.:
-    mode: "failover"
-    record_ttl: 30
-    backends:
-      - address: "192.168.1.10"
-        priority: 1
-      - address: "192.168.1.11"
-        priority: 2
+```
+$ORIGIN gslb.example.com.
+@       3600    IN      SOA     ns1.example.com. admin.example.com. (
+                                2024010101 7200 3600 1209600 3600 )
+        3600    IN      NS      ns1.gslb.example.com.
+        3600    IN      NS      ns2.gslb.example.com.
 ```
 
-### Step D: Start and Test
+
+### Step D: Create the YAML Zone File (`db.gslb.example.com.yml`)
+Define your record and its backend endpoints in `db.gslb.example.com.yml`:
+
+```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: "/"
+      expected_code: 200
+      timeout: 5s
+
+records:
+  webapp.gslb.example.com.:
+    mode: "failover"
+    record_ttl: 30
+    scrape_interval: 10s
+    backends:
+    - address: "172.16.0.10"
+      priority: 1
+      healthchecks: [ https_default ]
+    - address: "172.16.0.11"
+      priority: 2
+      healthchecks: [ https_default ]
+```
+
+### Step E: Start and Test
 1. Start the container:
    ```bash
    docker-compose up -d
@@ -62,35 +104,15 @@ records:
 
 2. Query your GSLB record:
    ```bash
-   dig @localhost webapp.example.org
+   dig @localhost webapp.gslb.example.com
    ```
 
 3. Query the TXT debug record (by default, GSLB exposes status info here):
    ```bash
-   dig @localhost TXT webapp.example.org
+   dig @localhost TXT webapp.gslb.example.com
    ```
 
----
-
-## 2. Compiling and Running Locally
-
-If you prefer to run CoreDNS-GSLB directly on your host machine:
-
-1. Clone and compile the binary:
-   ```bash
-   git clone https://github.com/dmachard/CoreDNS-GSLB.git
-   cd CoreDNS-GSLB
-   make build
-   ```
-
-2. Run CoreDNS with your Corefile:
-   ```bash
-   ./coredns -conf /path/to/Corefile
-   ```
-
----
-
-## 3. Next Steps
+## 2. Next Steps
 
 Now that you have a running environment:
 - Explore the different [Selection Modes](modes.md) (GeoIP, IP-Hash, Weighted, etc.).
