@@ -59,7 +59,7 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
 | [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
 | [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |
-| [High Availability](docs/architecture.md) | High availability and deployment patterns |
+| [Architecture Reference](docs/architecture.md) | High availability and deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [CLI Guide](docs/cli.md) | Command-line client tool |
 | [Observability](docs/observability.md) | Prometheus metrics |
