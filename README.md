@@ -138,22 +138,24 @@ dig @localhost webapp.gslb.example.com
 dig @localhost TXT webapp.gslb.example.com  # Debug info
 ```
 
-## 📚 Documentations
+## 📚 Documentation
 
 | Topic | Description |
 |-------|-------------|
-| [Supported Records](docs/records.md) | Supported DNS record types |
-| [Selection Modes](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, GeoIP affinity, weighted |
-| [Health Checks](docs/healthchecks.md) | HTTP(S), TCP, ICMP, MySQL, gRPC, Lua scripting |
-| [Backend Discovery](docs/discovery.md) | Static, API-driven, and dynamic backend pool management |
-| [GeoIP Setup](docs/configuration.md#geoip) | MaxMind databases and custom location mapping |
-| [Configuration](docs/configuration.md) | Complete parameter reference |
-| [High Availability](docs/architecture.md) | Production deployment patterns |
+| [Getting Started](docs/getting_started.md) | Quickstart guide and Docker setup |
+| [Corefile Reference](docs/configuration.md) | Complete Corefile parameter reference |
+| [Supported Records](docs/records.md) | Supported record types (A, AAAA, SVCB/HTTPS, TXT, wildcards) |
+| [Selection & Failover](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, weighted, and failover policies |
+| [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
+| [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
+| [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |
+| [High Availability](docs/architecture.md) | High availability and deployment patterns |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
-| [CLI Guide](docs/cli.md) | Command-line tool for operations |
+| [CLI Guide](docs/cli.md) | Command-line client tool |
 | [Observability](docs/observability.md) | Prometheus metrics |
-| [Benchmarking](docs/benchmark.md) | Performance |
+| [Benchmarking](docs/benchmark.md) | Performance testing and metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
+
 
 ## 👥 Contributions
 
