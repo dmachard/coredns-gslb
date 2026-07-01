@@ -247,3 +247,15 @@ func TestSSHInsecureIgnoreHostKey(t *testing.T) {
 		t.Errorf("Expected sshInsecureIgnoreHostKey to return nil, got: %v", err)
 	}
 }
+
+func BenchmarkLuaHealthCheck_PerformCheck(b *testing.B) {
+	check := &LuaHealthCheck{
+		Script:  `return true`,
+		Timeout: 2 * time.Second,
+	}
+	backend := &Backend{Address: "127.0.0.1", Priority: 1, Enable: true}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = check.PerformCheck(backend, "test.local.", 1)
+	}
+}

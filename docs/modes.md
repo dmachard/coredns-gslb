@@ -229,7 +229,7 @@ The GSLB plugin supports several backend selection modes, configurable per recor
 
 If no healthy backend matches the client's country or location, the plugin falls back to failover mode.
 
-### Hash (or IP Hash)
+### IP-Hash
 
 - **Description:** Consistently maps a client to the same healthy backend by computing a hash (using FNV-1a) of the client's IP address (or the EDNS Client Subnet, if present and enabled).
 - **Use case:** Stateful applications requiring session affinity/persistence at the DNS layer (such as database connections, VPN endpoints, or custom TCP/UDP services).
