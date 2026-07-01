@@ -1366,3 +1366,51 @@ func TestGSLB_ServeDNS_Concurrency(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestServeDNS_SRV(t *testing.T) {
+	backend1 := &Backend{
+		Address:  "srv1.example.org",
+		Port:     5060,
+		Priority: 10,
+		Weight:   50,
+		Enable:   true,
+		Alive:    true,
+	}
+	backend2 := &Backend{
+		Address:  "srv2.example.org",
+		Port:     5061,
+		Priority: 20,
+		Weight:   100,
+		Enable:   true,
+		Alive:    true,
+	}
+	record := &Record{
+		Fqdn:      "sip.example.org.",
+		Mode:      "failover", // will pick backend1 first since priority 10 < 20
+		Backends:  []BackendInterface{backend1, backend2},
+		RecordTTL: 60,
+	}
+
+	g := &GSLB{
+		Zones:   map[string]string{"example.org.": "dummy.yml"},
+		Records: map[string]map[string]*Record{"example.org.": {"sip.example.org.": record}},
+	}
+
+	msg := new(dns.Msg)
+	msg.SetQuestion("sip.example.org.", dns.TypeSRV)
+	w := &mockResponseWriter{msg: new(dns.Msg), ip: net.ParseIP("127.0.0.1")}
+
+	code, err := g.ServeDNS(context.Background(), w, msg)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, code)
+	assert.NotNil(t, w.msg)
+	assert.Len(t, w.msg.Answer, 1)
+
+	srvRecord, ok := w.msg.Answer[0].(*dns.SRV)
+	assert.True(t, ok)
+	assert.Equal(t, "sip.example.org.", srvRecord.Hdr.Name)
+	assert.Equal(t, uint16(10), srvRecord.Priority)
+	assert.Equal(t, uint16(50), srvRecord.Weight)
+	assert.Equal(t, uint16(5060), srvRecord.Port)
+	assert.Equal(t, "srv1.example.org.", srvRecord.Target)
+}

@@ -1,9 +1,9 @@
 <p align="center">
   <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-296-green" alt="Go tests"/>
-  <img src="https://img.shields.io/badge/go%20coverage-86%25-green" alt="Go coverage"/>
-  <img src="https://img.shields.io/badge/lines%20of%20code-5443-blue" alt="Lines of code"/>
+  <img src="https://img.shields.io/badge/go%20tests-298-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20coverage-85%25-green" alt="Go coverage"/>
+  <img src="https://img.shields.io/badge/lines%20of%20code-5571-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-21-blue" alt="Integration tests"/>
 </p>
 
@@ -27,7 +27,7 @@ What it does:
 - **Adaptive monitoring** that reduces healthcheck frequency for idle records
 - **Live configuration reload** without restarting CoreDNS
 - **Bulk backends management via API**: Instantly enable or disable multiple backends by location or IP prefix
-- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, `CNAME`, `TXT`, `SVCB`, and `HTTPS` queries based on backend status
+- **Supported record types**: Serving dynamic responses for standard `A`, `AAAA`, `CNAME`, `SRV`, `TXT`, `SVCB`, and `HTTPS` queries based on backend status
 - **CNAME Redirection for FQDN Backends**: Support hostname/FQDN targets in backend pools, running healthchecks normally and automatically responding with CNAME records if selected
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
@@ -53,7 +53,7 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 |-------|-------------|
 | [Getting Started](docs/getting_started.md) | Quickstart guide and Docker setup |
 | [Corefile Reference](docs/configuration.md) | Complete Corefile parameter reference |
-| [Supported Records](docs/records.md) | Supported record types (A, AAAA, SVCB/HTTPS, TXT, wildcards) |
+| [Supported Records](docs/records.md) | Supported record types (A, AAAA, SRV, SVCB/HTTPS, TXT, wildcards) |
 | [Selection & Failover](docs/modes.md) | Failover, round-robin, random, IP-hash, GeoIP, weighted, and failover policies |
 | [GeoIP Setup](docs/geoip.md) | MaxMind databases and custom location mapping |
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
