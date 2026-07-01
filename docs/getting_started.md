@@ -75,6 +75,8 @@ Define your record and its backend endpoints in `db.gslb.example.com.yml`:
 healthcheck_profiles:
   https_default:
     type: http
+    rise: 2
+    fall: 3
     params:
       enable_tls: true
       port: 443
