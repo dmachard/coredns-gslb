@@ -251,4 +251,3 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 	}
 	return nil
 }
-
