@@ -252,7 +252,3 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 	return nil
 }
 
-// ReloadZonesAndRecordsReload is a helper for reloading dynamic changes (if needed elsewhere).
-func (gslb *GSLB) loadConfigFileForZone(fileName string, zone string) error {
-	return loadConfigFile(gslb, fileName, zone)
-}
