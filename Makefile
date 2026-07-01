@@ -1,9 +1,12 @@
-GO ?= $(shell which go 2>/dev/null || { [ -x /usr/local/go/bin/go ] && echo /usr/local/go/bin/go; } || echo go)
+ifeq ($(GO),)
+	GO := $(shell which go 2>/dev/null || { [ -x /usr/local/go/bin/go ] && echo /usr/local/go/bin/go; } || echo go)
+endif
 
-ifndef $(GOPATH)
-	GOPATH=$(shell $(GO) env GOPATH)
+ifndef GOPATH
+	GOPATH := $(shell $(GO) env GOPATH 2>/dev/null || echo ~/go)
 	export GOPATH
 endif
+
 
 SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
