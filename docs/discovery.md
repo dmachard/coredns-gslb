@@ -84,11 +84,13 @@ records:
       type: "consul"
       endpoint: "http://localhost:8500"
       service: "web-service"
+      tag: "prod"  # Optional tag filter
       interval: "10s"
 ```
 
 #### Consul JSON Response Mapping:
 CoreDNS-GSLB maps the `"ServiceAddress"` (or `"Address"` if empty) and `"ServicePort"` parameters returned from `/v1/catalog/service/{service}`.
+If `tag` is specified, it will append the tag as a query parameter (e.g. `/v1/catalog/service/{service}?tag=prod`) to filter endpoints at the source.
 
 ---
 
