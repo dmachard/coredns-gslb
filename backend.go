@@ -12,29 +12,29 @@ import (
 
 // Backend represents an individual backend with health check settings.
 type Backend struct {
-	Fqdn            string               // Fully qualified domain name
-	Description     string               // Description of the backend
-	Address         string               // IP address or hostname
-	Port            int                  // Port number of the backend
-	Priority        int                  // Priority for load balancing
-	Weight          int                  // Weight for weighted load balancing
-	Enable          bool                 // Enable or disable the backend
-	Tags            []string             // List of tags for filtering or grouping
-	HealthChecks    []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
-	Timeout         string               // Timeout for requests
-	Alive           bool                 // Indicates if the backend is alive
-	Continent       string               // Continent code for GeoIP (e.g. EU)
-	Country         string               // Country code for GeoIP
-	Subdivision     string               // Subdivision/state code for GeoIP (e.g. CA, NY)
-	City            string               // City name for GeoIP
-	ASN             string               // ASN for GeoIP
-	Location        string               // location
-	Longitude       float64              // Longitude for distance-based GeoIP routing
-	Latitude        float64              // Latitude for distance-based GeoIP routing
-	LongitudeRad    float64              // Precomputed longitude in radians for distance calculations
-	LatitudeRad     float64              // Precomputed latitude in radians for distance calculations
-	HasCoordinates  bool                 // Indicates whether both coordinates were explicitly configured
-	LastHealthcheck time.Time            // Last time a healthcheck was launched
+	Fqdn                 string               // Fully qualified domain name
+	Description          string               // Description of the backend
+	Address              string               // IP address or hostname
+	Port                 int                  // Port number of the backend
+	Priority             int                  // Priority for load balancing
+	Weight               int                  // Weight for weighted load balancing
+	Enable               bool                 // Enable or disable the backend
+	Tags                 []string             // List of tags for filtering or grouping
+	HealthChecks         []GenericHealthCheck `yaml:"healthchecks"` // Health check configurations
+	Timeout              string               // Timeout for requests
+	Alive                bool                 // Indicates if the backend is alive
+	Continent            string               // Continent code for GeoIP (e.g. EU)
+	Country              string               // Country code for GeoIP
+	Subdivision          string               // Subdivision/state code for GeoIP (e.g. CA, NY)
+	City                 string               // City name for GeoIP
+	ASN                  string               // ASN for GeoIP
+	Location             string               // location
+	Longitude            float64              // Longitude for distance-based GeoIP routing
+	Latitude             float64              // Latitude for distance-based GeoIP routing
+	LongitudeRad         float64              // Precomputed longitude in radians for distance calculations
+	LatitudeRad          float64              // Precomputed latitude in radians for distance calculations
+	HasCoordinates       bool                 // Indicates whether both coordinates were explicitly configured
+	LastHealthcheck      time.Time            // Last time a healthcheck was launched
 	AssumeHealthy        bool                 `yaml:"assume_healthy"` // Bypass healthchecks and assume UP
 	Rise                 int                  `yaml:"rise" default:"2"`
 	Fall                 int                  `yaml:"fall" default:"3"`

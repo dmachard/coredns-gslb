@@ -94,8 +94,7 @@ func (g *GSLB) processRecordHealthchecks(recordData interface{}) (interface{}, e
 
 		// Also check if any profile or inline healthcheck has rise/fall
 		var profileRise, profileFall int
-		switch hc := healthchecks.(type) {
-		case []interface{}:
+		if hc, ok := healthchecks.([]interface{}); ok {
 			for _, item := range hc {
 				switch v := item.(type) {
 				case string:
