@@ -53,3 +53,9 @@ build:
 
 clean:
 	docker rmi -f coredns-gslb:latest || true
+
+.PHONY: docs-serve
+docs-serve:
+	@echo "Starting documentation server locally via Docker..."
+	@echo "Open http://localhost:8000 in your browser."
+	docker run --rm -it -p 8000:8000 -v $$(pwd):/docs squidfunk/mkdocs-material serve --dev-addr 0.0.0.0:8000 --livereload

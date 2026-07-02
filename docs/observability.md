@@ -1,7 +1,6 @@
+# CoreDNS-GSLB: Observability
 
-## CoreDNS-GSLB: Observability
-
-### Prometheus Metrics
+## 1. Prometheus Metrics
 
 If you enable the `prometheus` block in your Corefile, the plugin exposes the following metrics on `/metrics` (default port 9153):
 
@@ -36,18 +35,18 @@ Available metrics:
 
 You can then scrape metrics at http://localhost:9153/metrics
 
-### Grafana dashboard
+## 2. Grafana Dashboard
 
 The dashboard is available in `dashboards/gslb-observability.json`
 
 <img src="dashboard.png" alt="CoreDNS-GSLB"/>
 
-### Using the simplified health status metrics
+## 3. Using the Simplified Health Status Metrics
 
 - `gslb_record_health_status{name="..."}`: 1 if at least one backend is healthy, 0 if all are unhealthy or disabled.
 - `gslb_backend_health_status{name="...", address="..."}`: 2 if backend is disabled, 1 if healthy, 0 if unhealthy.
 
-#### Example Prometheus queries
+### Example Prometheus Queries
 
 - **Count unhealthy backends:**
   ```prometheus

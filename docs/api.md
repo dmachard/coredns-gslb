@@ -1,10 +1,10 @@
 # GSLB REST API
 
-## Authentication
+## 1. Authentication
 
 If HTTP Basic Auth is configured (see Corefile options `api_basic_user` and `api_basic_pass`), all endpoints require authentication.
 
-## TLS/HTTPS Support
+## 2. TLS/HTTPS Support
 
 You can enable HTTPS for the REST API by specifying the following options in your Corefile:
 
@@ -27,7 +27,7 @@ curl -k https://localhost:8080/api/overview
 ```
 - The `-k` flag allows curl to connect to self-signed certificates (remove it if using a trusted CA).
 
-## Endpoints
+## 3. Endpoints
 
 For all request/response schemas and detailed documentation, see [swagger.yaml](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
 
@@ -95,14 +95,14 @@ If the zone does not exist:
 {"error": "Zone not found"}
 ```
 
-### Example: Bulk disable backends
+### Example: Bulk Disable Backends
 ```bash
 curl -X POST http://localhost:8080/api/backends/disable \
   -H "Content-Type: application/json" \
   -d '{"location":"eu-west-1"}'
 ```
 
-#### Disable by tags
+#### Disable by Tags
 ```bash
 curl -X POST http://localhost:8080/api/backends/disable \
   -H "Content-Type: application/json" \
@@ -110,14 +110,14 @@ curl -X POST http://localhost:8080/api/backends/disable \
 ```
 This will disable all backends that have at least one of the specified tags.
 
-### Example: Bulk to enable all backends
+### Example: Bulk Enable Backends
 ```bash
 curl -X POST http://localhost:8080/api/backends/enable \
   -H "Content-Type: application/json" \
   -d '{"location":"eu-west-1"}'
 ```
 
-#### Enable by tags
+#### Enable by Tags
 ```bash
 curl -X POST http://localhost:8080/api/backends/enable \
   -H "Content-Type: application/json" \

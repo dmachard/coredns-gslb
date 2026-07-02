@@ -39,7 +39,7 @@ records:
 
 You can enable the REST API server to dynamically register, update, or remove backends. This is useful for automated pipelines or external monitoring tools.
 
-### Corefile Configuration:
+### Corefile Configuration
 
 ```
 gslb {
@@ -49,7 +49,7 @@ gslb {
 }
 ```
 
-### Endpoints:
+### Endpoints
 - `PUT /api/v1/zones/{zone}/records/{fqdn}/backends`: Overwrite the backend pool for a specific record.
 - `GET /api/v1/status`: View all configured records, backends, and their health statuses.
 
@@ -71,7 +71,7 @@ flowchart LR
 
 
 
-### A. Consul Catalog Discovery
+### Consul Catalog Discovery
 
 Fetches services from the Consul Catalog API.
 
@@ -94,7 +94,7 @@ If `tag` is specified, it will append the tag as a query parameter (e.g. `/v1/ca
 
 ---
 
-### B. HTTP Discovery
+### HTTP Discovery
 
 Queries a custom HTTP JSON endpoint returning either a list of IP address strings or a list of structured backend objects.
 
@@ -123,7 +123,7 @@ records:
 
 ---
 
-### C. Upstream DNS Discovery (SVCB & HTTPS Records)
+### Upstream DNS Discovery (SVCB & HTTPS Records)
 
 Queries upstream DNS servers for `SVCB` or `HTTPS` records (RFC 9460). It parses target hosts, port numbers, ALPN support lists, and IP address hints (`ipv4hint` / `ipv6hint`) to build the backend pool. If no hints are returned but a target is set, it issues fallback `A` / `AAAA` queries to resolve the target domain's IP addresses.
 

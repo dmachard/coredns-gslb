@@ -1,0 +1,79 @@
+site_name: CoreDNS-GSLB
+site_description: Global Server Load Balancing plugin for CoreDNS
+site_author: dmachard
+repo_name: dmachard/CoreDNS-GSLB
+repo_url: https://github.com/dmachard/CoreDNS-GSLB
+
+theme:
+  name: material
+  logo: coredns_gslb_logo.svg
+  font:
+    text: Outfit
+    code: JetBrains Mono
+  palette:
+    # Light mode (default)
+    - scheme: default
+      primary: slate
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Dark mode
+    - scheme: slate
+      primary: slate
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+watch:
+  - docs
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Get Started:
+      - Quick Start: getting_started.md
+      - Corefile Reference: configuration.md
+      - Supported Records: records.md
+  - Features:
+      - GSLB Modes: modes.md
+      - GeoIP Routing: geoip.md
+      - EDNS Client Subnet (ECS): ecs.md
+      - Service Discovery: discovery.md
+      - Health Checks: healthchecks.md
+  - Operations:
+      - REST API: api.md
+      - CLI Tool: cli.md
+      - Observability: observability.md
+      - Troubleshooting: troubleshooting.md
+  - Contributing:
+      - Architecture Reference: architecture.md
+      - Benchmarking: benchmark.md
+      - Guidelines: developer_guide.md
