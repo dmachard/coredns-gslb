@@ -9,8 +9,8 @@ hide:
 
 <div class="hero-card">
   <div class="hero-title">CoreDNS-GSLB</div>
-  <p style="font-size: 1.15rem; max-width: 600px; margin: 0.5rem auto 1.5rem auto; line-height: 1.6;">
-    A Global Server Load Balancing (GSLB) plugin for CoreDNS. Efficient traffic routing designed for VMs, bare-metal servers, and hybrid environments.
+  <p style="font-size: 1.15rem; max-width: 650px; margin: 0.5rem auto 1.5rem auto; line-height: 1.6;">
+    An open-source Global Server Load Balancing (GSLB) plugin for CoreDNS. Efficient traffic routing designed for VMs, bare-metal servers, and hybrid environments.
   </p>
   <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
     <a href="getting_started/" class="btn-primary">Get Started</a>
@@ -26,16 +26,24 @@ hide:
   </div>
   <div class="feature-box">
     <h3>Not Everything Runs in Kubernetes</h3>
-    <p>CoreDNS-GSLB brings advanced global server load balancing to VMs, bare-metal servers, and hybrid cloud environments without the overhead of container orchestration.</p>
+    <p>CoreDNS-GSLB brings advanced global server load balancing to VMs, bare-metal servers, and hybrid cloud environments.</p>
   </div>
-  <div class="feature-box">
+  <a href="healthchecks/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
     <h3>Modern Health Checks</h3>
     <p>Supports HTTP/S, TCP, ICMP, MySQL, gRPC, and custom Lua scripting to instantly reroute traffic when a backend fails.</p>
-  </div>
-  <div class="feature-box">
-    <h3>GeoDNS</h3>
-    <p>Uses MaxMind databases and EDNS Client Subnet (ECS) to route users to the closest geographical backend with sub-millisecond overhead.</p>
-  </div>
+  </a>
+  <a href="geoip/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>GeoIP Routing</h3>
+    <p>Uses MaxMind databases and EDNS Client Subnet (ECS) to route users to the closest geographical backend.</p>
+  </a>
+  <a href="records/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Supported Records</h3>
+    <p>Natively resolves and dynamically routes not only standard A/AAAA but also SRV, SVCB, HTTPS, TXT, and wildcard records for modern application delivery.</p>
+  </a>
+  <a href="discovery/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Backend Discovery</h3>
+    <p>Automatically discovers backend endpoints from external registries like Consul, custom HTTP JSON APIs, or upstream DNS records with zero-touch configuration.</p>
+  </a>
 </div>
 
 ## Where to Start?
