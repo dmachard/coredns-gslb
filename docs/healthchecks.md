@@ -1,36 +1,23 @@
+# CoreDNS-GSLB: Health Checks
 
-## Global Healthcheck Profiles
+The GSLB plugin supports several types of health checks for backends. Each type can be configured per backend in the YAML configuration file.
 
-You can define healthcheck profiles globally for all zones using the Corefile directive:
+Additionally, the GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
 
-```
-gslb {
-    ...
-    healthcheck_profiles healthcheck_profiles.yml
-}
-```
+- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by `healthcheck_idle_multiplier` (default: 10, configurable in the Corefile).
+- As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
+- This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
 
-The file `healthcheck_profiles.yml` should contain:
+**Example:**
+- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`, `healthcheck_idle_multiplier: 10`
+- If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
+- When a query is received, healthchecks resume every 10s.
 
-```yaml
-healthcheck_profiles:
-  https_default:
-    type: http
-    params:
-      enable_tls: true
-      port: 443
-      uri: /
-      expected_code: 200
-      timeout: 5s
-```
-
-- **Global profiles are available to all YAML zone files.**
-- If a profile with the same name exists locally in a zone YAML, the local one takes precedence.
-- You can reference a profile by name in any backend's `healthchecks` list.
+This feature helps optimize resource usage and backend load in large or dynamic environments.
 
 ---
 
-## Healthcheck Profiles
+## 1. Healthcheck Profiles
 
 You can define reusable health check profiles at the top level of your YAML configuration using the `healthcheck_profiles` key. Each profile defines a health check type and its parameters. Backends can then reference these profiles by name in their `healthchecks` list, instead of repeating the same configuration.
 
@@ -56,36 +43,46 @@ records:
 
 You can still use inline healthcheck definitions as before, or mix both approaches. If a backend's `healthchecks` list contains a string, it is interpreted as a profile name.
 
+### Global Healthcheck Profiles
+
+You can define healthcheck profiles globally for all zones using the Corefile directive:
+
+```corefile
+gslb {
+    ...
+    healthcheck_profiles healthcheck_profiles.yml
+}
+```
+
+The file `healthcheck_profiles.yml` should contain:
+
+```yaml
+healthcheck_profiles:
+  https_default:
+    type: http
+    params:
+      enable_tls: true
+      port: 443
+      uri: /
+      expected_code: 200
+      timeout: 5s
+```
+
+* **Global profiles are available to all YAML zone files.**
+* If a profile with the same name exists locally in a zone YAML, the local one takes precedence.
+* You can reference a profile by name in any backend's `healthchecks` list.
+
 ---
 
-## CoreDNS-GSLB: Health Checks
-
-
-The GSLB plugin supports several types of health checks for backends. Each type can be configured per backend in the YAML configuration file.
-
-Additionally, the GSLB plugin automatically adapts the healthcheck interval for each DNS record based on recent resolution activity.
-
-- If a record is not resolved (queried) for a duration longer than `resolution_idle_timeout`, the healthcheck interval for its backends is multiplied by `healthcheck_idle_multiplier` (default: 10, configurable in the Corefile).
-- As soon as a DNS query is received for the record, the interval returns to its normal value (`scrape_interval`).
-- This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
-
-**Example:**
-- `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`, `healthcheck_idle_multiplier: 10`
-- If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
-- When a query is received, healthchecks resume every 10s.
-
-This feature helps optimize resource usage and backend load in large or dynamic environments.
+## 2. Healthcheck Types
 
 ### HTTP(S)
 
 Checks the health of an HTTP or HTTPS endpoint by making a request and validating the response code and/or body.
 
-The HTTP health check connects to `backend.address` on given `params.port`. The `Host` header is set based on
-`params.host`, which does not overwrite the target address. HTTP forwards are not followed.
+The HTTP health check connects to `backend.address` on given `params.port`. The `Host` header is set based on `params.host`, which does not overwrite the target address. HTTP forwards are not followed.
 
-mTLS is enabled by setting `params.enable_tls` to `true` and then supplying both of `params.cert_path` and `params.key_path`
-there is the optional `params.ca_path` as well for using private PKI, this can be the Root CA or the chain depending on
-your server implementation of certificate checking strictness. If the CA path is omitted, the trusted root store is used.
+mTLS is enabled by setting `params.enable_tls` to `true` and then supplying both of `params.cert_path` and `params.key_path` there is the optional `params.ca_path` as well for using private PKI, this can be the Root CA or the chain depending on your server implementation of certificate checking strictness. If the CA path is omitted, the trusted root store is used.
 
 If `params.enable_tls` is not enabled, mTLS will not be attempted, be explicit in your configuration intention!
 Also, if `params.ca_path` is set but `params.skip_tls_verify` is set to true, it will have a net-zero effect.
@@ -177,8 +174,6 @@ healthchecks:
 * `cert_path` and `key_path` are required when client certificate verification (mTLS) is enforced by the gRPC server.
 * `ca_path` allows specifying a private or custom CA root chain rather than the system's default trust store.
 
-
-
 ### Lua Scripting
 
 Executes an embedded Lua script to determine the backend health. The script can use the helper functions http_get(url) and json_decode(str) to perform HTTP requests and parse JSON. The global variable 'backend' provides the backend's address and priority.
@@ -191,7 +186,6 @@ Executes an embedded Lua script to determine the backend health. The script can 
 - `backend`: A Lua table with fields:
     - `address`: the backend's address (string)
     - `priority`: the backend's priority (number)
-
 
 **Example: Use http_get and json_decode**
 ```yaml
@@ -290,7 +284,6 @@ healthchecks:
 > 2. Prefer using SSH private key files and restrict the SSH user permissions on the target server (e.g., using a restricted shell or setting a `command="..."` prefix in the destination's `authorized_keys` file).
 > 3. Secure the configuration files and the API endpoints with strict file permissions and strong basic authentication.
 
-
 **Example: metric_get with HTTP Basic authentication**
 ```yaml
 healthchecks:
@@ -305,7 +298,9 @@ healthchecks:
         return false
 ```
 
-## Rise and Fall Thresholds
+---
+
+## 3. Rise and Fall Thresholds
 
 To prevent healthcheck flapping due to transient network issues, you can configure consecutive success/failure thresholds to transition a backend's status.
 
@@ -314,7 +309,7 @@ To prevent healthcheck flapping due to transient network issues, you can configu
 
 These thresholds can be defined globally in a healthcheck profile, or overridden on a per-backend basis.
 
-### Example: Thresholds configured via profiles
+### Example: Thresholds Configured via Profiles
 ```yaml
 healthcheck_profiles:
   http_flapping_prevented:
@@ -326,7 +321,7 @@ healthcheck_profiles:
       uri: /health
 ```
 
-### Example: Thresholds overridden per-backend
+### Example: Thresholds Overridden Per-Backend
 ```yaml
 records:
   webapp.example.com.:
@@ -339,7 +334,7 @@ records:
 
 ---
 
-## Healthcheck Bypass
+## 4. Healthcheck Bypass
 
 In multi-region setups, you might want to bypass health checking for remote backends (e.g. to prevent WAN/cross-region network blips from marking them as down in a local resolver). You can specify `assume_healthy: true` on any backend:
 
@@ -353,5 +348,3 @@ backends:
 
 - **If `assume_healthy: true` is set**, no health checks are performed for this backend, and `IsHealthy()` always returns `true` (as long as `enable` is also `true`).
 - It defaults to `false`.
-
----

@@ -57,7 +57,7 @@ In the same directory, create a `Corefile` specifying your DNS zones and directi
 }
 ```
 
-### Step C: Create coredns/db.gslb.example.com:**
+### Step C: Create `coredns/db.gslb.example.com`
 
 ```
 $ORIGIN gslb.example.com.

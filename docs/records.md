@@ -96,7 +96,7 @@ With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to
 CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
 If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.
 
-### Example Configuration:
+### Example Configuration
 
 ```yaml
 records:

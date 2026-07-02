@@ -65,13 +65,16 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Observability](docs/observability.md) | Prometheus metrics |
 | [Benchmarking](docs/benchmark.md) | Performance testing and metrics |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
-| [Developer Guide](docs/developer_guide.md) | Build, testing, and development setup |
+| [Contributing Guide](docs/developer_guide.md) | Build, testing, and development setup |
 
 ## 👥 Contributions
 
-Contributions are welcome! Please read the [Developer Guide](CONTRIBUTING.md) for local setup and testing instructions.
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for local setup and testing instructions.
 
-## 🧰 Related Projects:
+## 🧰 Related Projects
 
-- [DNS-tester](https://github.com/dmachard/DNS-tester) - DNS testing toolkit
-- [DNS-collector](https://github.com/dmachard/DNS-collector) - Grab your DNS logs, detect anomalies, and finally understand what's happening on your network.
+> [!TIP]
+> Check out these other open-source DNS utilities to enhance your DNS infrastructure monitoring and testing:
+>
+> - **[DNS-collector](https://github.com/dmachard/DNS-collector)**: A high-performance DNS traffic analyzer and collector. Grab your DNS logs, detect anomalies, and finally understand what's happening on your network in real-time.
+> - **[DNS-tester](https://github.com/dmachard/DNS-tester)**: A comprehensive DNS testing and verification toolkit designed to validate DNS response behavior under various network conditions.

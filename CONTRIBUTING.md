@@ -4,7 +4,7 @@ Contributions are welcome and appreciated! Whether it's fixing a bug, improving 
 
 Before opening a pull request, please read the following guidelines to ensure smooth collaboration.
 
-## Contribution Guidelines
+## 1. Contribution Guidelines
 
 - Keep the project backward compatible and follow existing code conventions.
 - Add unit tests for any new features, bug fixes, or important logic changes.
@@ -12,7 +12,7 @@ Before opening a pull request, please read the following guidelines to ensure sm
 - Document any relevant changes
 - Use descriptive commit messages and clean up the history before submitting your PR.
 
-## Running the Dev Environment with Docker compose
+## 2. Running the Dev Environment with Docker Compose
 
 Certificates are generated on-demand for TLS and mTLS validation
 see the cert_gen folder and the webapp init.sh for details
@@ -99,7 +99,7 @@ Cleanup docker compose artifacts, the `-v` flag ensures the devcert volume is cl
 sudo docker compose -f docker-compose.dev.yml down -v
 ~~~
 
-## Binary compilation with the plugin
+## 3. Binary Compilation with the Plugin
 
 The `GSLB` plugin must be integrated into CoreDNS during compilation.
 
@@ -116,7 +116,7 @@ go generate
 make
 ~~~
 
-## Running Unit Tests
+## 4. Running Unit Tests
 
 Run all unit tests
 
@@ -130,7 +130,7 @@ Run a specific test
 go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 ~~~
 
-## Running Integration Tests
+## 5. Running Integration Tests
 
 You can run the entire integration test suite (failover, GeoIP, and API checks) locally using:
 
@@ -152,7 +152,7 @@ Supported variables:
 - `COREDNS_PORT_UDP` (default: `8053`)
 - `COREDNS_PORT_METRICS` (default: `9153`)
 
-## Run linters
+## 6. Running Linters
 
 **Install make:**
 
@@ -177,7 +177,7 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 make lint
 ```
 
-# Update CoreDNS
+## 7. Updating CoreDNS
 
 ```bash
 go mod edit -go=1.25

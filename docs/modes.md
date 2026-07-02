@@ -1,6 +1,8 @@
-## CoreDNS-GSLB: Selection Modes
+# CoreDNS-GSLB: Selection Modes
 
 The GSLB plugin supports several backend selection modes, configurable per record via the `mode` parameter in your YAML config. Each mode determines how the plugin chooses which backend(s) to return for a DNS query.
+
+## 1. Selection Modes
 
 ### Failover
 
@@ -16,7 +18,7 @@ The GSLB plugin supports several backend selection modes, configurable per recor
       priority: 2
   ```
 
-### Round Robin  
+### Round Robin
 
 - **Description:** Cycles through all healthy backends in order, returning a different one for each query.
 - **Use case:** Simple load balancing across all available backends.
@@ -257,22 +259,22 @@ For all selection modes, if **no healthy backends** are available (including dur
 
 ---
 
-## Failover Policies (Custom Fail-safe Behavior)
+## 2. Failover Policies (Custom Fail-safe Behavior)
 
 While the default behavior is `fail-open` (returning all enabled backends if all are unhealthy), you can customize the fail-safe behavior for each record using a `failover_policy` block.
 
-### Supported Policies:
+### Supported Policies
 - **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
 - **`fail-closed`**: Returns a custom DNS response code with an empty answer section.
 - **`fail-specific`**: Returns a specific, stable list of fallback IP addresses (via `fallback_ips`) or redirects traffic to a fallback CNAME (via `fallback_cname`).
 
-### Configuration Parameters:
+### Configuration Parameters
 - **`mode`**: The policy mode (`fail-open`, `fail-closed`, or `fail-specific`).
 - **`rcode`**: The DNS response code to return when `mode` is `fail-closed` (Options: `NXDOMAIN`, `SERVFAIL`, `REFUSED`, `NOERROR`). Defaults to `SERVFAIL`.
 - **`fallback_ips`**: A list of fallback IP addresses (IPv4/IPv6) to return when `mode` is `fail-specific`.
 - **`fallback_cname`**: A fallback CNAME hostname (e.g., `backup.cdn.cloudflare.net`) to redirect queries to when `mode` is `fail-specific`.
 
-### Example Configurations:
+### Example Configurations
 
 **1. Fail-closed with NXDOMAIN**
 ```yaml
