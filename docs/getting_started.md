@@ -1,6 +1,6 @@
 # Getting Started with CoreDNS-GSLB
 
-This guide walk you through setting up CoreDNS-GSLB for the first time, configuring a basic zone, and verifying traffic routing.
+This guide walks you through setting up CoreDNS-GSLB for the first time, configuring a basic zone, and verifying traffic routing.
 
 ---
 
@@ -10,13 +10,14 @@ The fastest way to test CoreDNS-GSLB is by running it inside a Docker container.
 
 ### Step A: Create `docker-compose.yml`
 
-Prepare folder
+Create a workspace directory and the `coredns` subdirectory:
 
-```
-mkdir coredns
+```bash
+mkdir -p coredns-gslb/coredns
+cd coredns-gslb
 ```
 
-Expected folder structure
+Expected folder structure:
 
 ```
 coredns-gslb/
@@ -27,7 +28,7 @@ coredns-gslb/
     └── db.gslb.example.com.yml
 ```
 
-Create the `docker-compose.yml`, update binding ports according to your system
+Create `docker-compose.yml` in the root of the `coredns-gslb/` directory:
 
 ```yaml
 services:
@@ -45,7 +46,7 @@ services:
 ```
 
 ### Step B: Create the `Corefile`
-In the same directory, create a `Corefile` specifying your DNS zones and directing GSLB to load configurations:
+Inside the `coredns/` subdirectory, create a `Corefile` specifying your DNS zones and directing GSLB to load configurations:
 
 ```corefile
 .:53 {
@@ -68,8 +69,8 @@ $ORIGIN gslb.example.com.
 ```
 
 
-### Step D: Create the YAML Zone File (`db.gslb.example.com.yml`)
-Define your record and its backend endpoints in `db.gslb.example.com.yml`:
+### Step D: Create the YAML Zone File (`coredns/db.gslb.example.com.yml`)
+Define your record and its backend endpoints in `coredns/db.gslb.example.com.yml`:
 
 ```yaml
 healthcheck_profiles:

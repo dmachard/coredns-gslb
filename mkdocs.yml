@@ -1,6 +1,7 @@
 site_name: CoreDNS-GSLB
 site_description: Global Server Load Balancing plugin for CoreDNS
 site_author: dmachard
+site_url: https://dmachard.github.io/CoreDNS-GSLB/
 repo_name: dmachard/CoreDNS-GSLB
 repo_url: https://github.com/dmachard/CoreDNS-GSLB
 

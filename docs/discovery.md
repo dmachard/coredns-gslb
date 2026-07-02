@@ -119,6 +119,7 @@ records:
    [
      {"address": "10.0.0.1", "port": 8080},
      {"address": "10.0.0.2", "port": 8081}
+   ]
    ```
 
 ---
@@ -145,7 +146,7 @@ records:
 
 When client browsers query CoreDNS-GSLB for `SVCB` or `HTTPS` records directly, it constructs RFC 9460-compliant DNS messages containing:
 - **Port**: The backend's specific port.
-- **ALPN**: Configurable protocols (e.g. `h3`, `h2`) announced using `svcb_alpn`.
+- **ALPN**: Configurable protocols (e.g. `h3`, `h2`) announced using `alpn`.
 - **IP Hints**: Live IPv4 and IPv6 addresses of healthy backends.
 
 This allows modern browsers to negotiate TLS, ALPN protocols, and resolve IP addresses in a single round-trip query.
@@ -155,7 +156,7 @@ This allows modern browsers to negotiate TLS, ALPN protocols, and resolve IP add
 records:
   web.example.org.:
     mode: "roundrobin"
-    svcb_alpn: ["h3", "h2"]
+    alpn: ["h3", "h2"]
     backends:
       - address: "192.168.1.10"
         port: 443
