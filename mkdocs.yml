@@ -1,6 +1,7 @@
 site_name: CoreDNS-GSLB
 site_description: Global Server Load Balancing plugin for CoreDNS
 site_author: dmachard
+site_url: https://dmachard.github.io/CoreDNS-GSLB/
 repo_name: dmachard/CoreDNS-GSLB
 repo_url: https://github.com/dmachard/CoreDNS-GSLB
 
@@ -61,13 +62,13 @@ nav:
   - Get Started:
       - Quick Start: getting_started.md
       - Corefile Reference: configuration.md
-      - Supported Records: records.md
   - Features:
       - GSLB Modes: modes.md
       - GeoIP Routing: geoip.md
       - EDNS Client Subnet (ECS): ecs.md
-      - Service Discovery: discovery.md
+      - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
+      - Supported Records: records.md
   - Operations:
       - REST API: api.md
       - CLI Tool: cli.md

@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome and appreciated! Whether it's fixing a bug, improving documentation, adding a feature, or enhancing tests
+Contributions are welcome and appreciated! Whether it's fixing a bug, improving documentation, adding a feature, or enhancing tests.
 
 Before opening a pull request, please read the following guidelines to ensure smooth collaboration.
 
@@ -14,10 +14,9 @@ Before opening a pull request, please read the following guidelines to ensure sm
 
 ## 2. Running the Dev Environment with Docker Compose
 
-Certificates are generated on-demand for TLS and mTLS validation
-see the cert_gen folder and the webapp init.sh for details
+Certificates are generated on-demand for TLS and mTLS validation. See the `cert_gen` folder and the `webapp` `init.sh` for details.
 
-Build CoreDNS with the plugin
+Build CoreDNS with the plugin:
 
 ~~~ bash
 sudo docker compose -f docker-compose.dev.yml --progress=plain build
@@ -78,7 +77,7 @@ $ dig -p 8053 @127.0.0.1 webapp-geoip-loc.app-y.gslb.example.com +short +subnet=
 ~~~
 
 
-Testing GeoIP with country selection, based EDNS Client Subnet
+Testing GeoIP with country selection, based on EDNS Client Subnet
 Simulate a query coming from an US IP
 
 ~~~ bash
@@ -103,7 +102,7 @@ sudo docker compose -f docker-compose.dev.yml down -v
 
 The `GSLB` plugin must be integrated into CoreDNS during compilation.
 
-1. Add the following line to plugin.cfg before the file plugin. It is recommended to put this plugin right before **file:file**
+1. Add the following line to `plugin.cfg` before the `file` plugin. It is recommended to put this plugin right before **file:file**.
 
 ~~~ text
 gslb:github.com/dmachard/coredns-gslb
@@ -168,7 +167,7 @@ sudo dnf group install c-development
 **Install linter:**
 
 ```bash
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 ```
 
 **Execute linter before commit:**

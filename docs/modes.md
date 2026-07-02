@@ -115,9 +115,9 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      location: [ "eu-west-1" ]
+      location: "eu-west-1"
     - address: "192.168.1.1"
-      location: [ "eu-west-2" ]
+      location: "eu-west-2"
   ```
   And in your Corefile:
   ```
@@ -129,18 +129,18 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   ```yaml
   subnets:
     - subnet: "10.0.0.0/24"
-      location: [ "eu-west" ]
+      location: "eu-west"
     - subnet: "192.168.1.0/24"
-      location: [ "us-east" ]
+      location: "us-east"
   ```
 - **Example (country-based):**
   ```yaml
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      country: [ "FR" ]
+      country: "FR"
     - address: "20.0.0.1"
-      country: [ "US" ]
+      country: "US"
   ```
   And in your Corefile:
   ```
@@ -153,9 +153,9 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      city: [ "Paris" ]
+      city: "Paris"
     - address: "20.0.0.1"
-      city: [ "New York" ]
+      city: "New York"
   ```
   And in your Corefile:
   ```
@@ -168,9 +168,9 @@ The GSLB plugin supports several backend selection modes, configurable per recor
   mode: "geoip"
   backends:
     - address: "10.0.0.1"
-      asn: [ "AS12345" ]
+      asn: "12345"
     - address: "20.0.0.1"
-      asn: [ "AS67890" ]
+      asn: "67890"
   ```
   And in your Corefile:
   ```
