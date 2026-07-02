@@ -42,7 +42,7 @@ hide:
   </a>
   <a href="discovery/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
     <h3>Backend Discovery</h3>
-    <p>Automatically discovers backend endpoints from external registries like Consul, custom HTTP JSON APIs, or upstream DNS records with zero-touch configuration.</p>
+    <p>Automatically discovers backend endpoints from external registries like Consul, custom HTTP JSON APIs, or upstream DNS records.</p>
   </a>
 </div>
 
