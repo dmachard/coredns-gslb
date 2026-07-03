@@ -24,7 +24,7 @@ Integration tests validate end-to-end failover behavior, GeoIP features, and API
 make test-integration
 ```
 
-### Troubleshooting Port Conflicts
+## 3. Troubleshooting Port Conflicts
 
 If some ports (like `8080` for the REST API or `8053` for DNS) are already in use on your host, the Docker integration stack will throw binding errors.
 
@@ -34,6 +34,7 @@ COREDNS_PORT_API=8082 COREDNS_PORT_TCP=8055 make test-integration
 ```
 
 Supported port environment variables:
+
 - `COREDNS_PORT_API` (default: `8080`)
 - `COREDNS_PORT_TCP` (default: `8053`)
 - `COREDNS_PORT_UDP` (default: `8053`)

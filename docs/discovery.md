@@ -10,7 +10,7 @@ CoreDNS-GSLB allows you to build and manage backend pools using three distinct a
 |---|---|---|
 | **Static Configuration** | File-based | Configured directly in the zone YAML files. Best for stable, fixed backend pools. |
 | **REST API** | Dynamic | Managed via HTTP REST endpoints (bulk PUT/POST operations). Best for CI/CD integrations. |
-| **Service Discovery** | Dynamic / External | Dynamically fetched from external service registries (Consul, HTTP endpoints, or DNS SVCB/HTTPS records). |
+| **Backend Discovery** | Dynamic / External | Dynamically fetched from external service registries (Consul, HTTP endpoints, or DNS SVCB/HTTPS records). |
 
 ---
 
@@ -54,7 +54,6 @@ records:
 
 You can enable the REST API server to dynamically register, update, or remove backends. This is useful for automated pipelines or external monitoring tools.
 
-
 Corefile Configuration
 
 ```
@@ -71,20 +70,19 @@ Endpoints
 
 ---
 
-## 5. Dynamic Service Discovery
+## 4. Backend Discovery
 
 CoreDNS-GSLB can query external registries at a regular interval to dynamically refresh its backend pool, enabling zero-touch configuration.
 
 > [!NOTE]
-> CoreDNS-GSLB delegates health checking to the discovery source. Discovered endpoints are assumed to be healthy. The external registry (e.g. Consul) is responsible for performing health checks and removing unhealthy nodes, which CoreDNS-GSLB picks up on the next scrape interval.
-
-
+> CoreDNS-GSLB delegates health checking to the discovery source. Discovered endpoints are assumed to be healthy. The discovery source (e.g. Consul catalog, custom HTTP endpoint, or upstream DNS server) is responsible for performing health checks and/or only returning active nodes, which CoreDNS-GSLB picks up on the next scrape interval.
 
 ### Consul Catalog Discovery
 
 Fetches services from the Consul Catalog API.
 
-#### Configuration Example:
+Configuration Example:
+
 ```yaml
 records:
   api.example.org.:
@@ -97,7 +95,8 @@ records:
       interval: "10s"
 ```
 
-#### Consul JSON Response Mapping:
+Consul JSON Response Mapping:
+
 CoreDNS-GSLB maps the `"ServiceAddress"` (or `"Address"` if empty) and `"ServicePort"` parameters returned from `/v1/catalog/service/{service}`.
 If `tag` is specified, it will append the tag as a query parameter (e.g. `/v1/catalog/service/{service}?tag=prod`) to filter endpoints at the source.
 
@@ -107,7 +106,8 @@ If `tag` is specified, it will append the tag as a query parameter (e.g. `/v1/ca
 
 Queries a custom HTTP JSON endpoint returning either a list of IP address strings or a list of structured backend objects.
 
-#### Configuration Example:
+Configuration Example
+
 ```yaml
 records:
   api.example.org.:
@@ -118,7 +118,8 @@ records:
       interval: "15s"
 ```
 
-#### Supported JSON Structures:
+Supported JSON Structures:
+
 1. **Simple List of IP Strings:**
    ```json
    ["10.0.0.1", "10.0.0.2"]
@@ -133,11 +134,12 @@ records:
 
 ---
 
-### Upstream DNS Discovery (SVCB & HTTPS Records)
+### Upstream DNS Discovery
 
 Queries upstream DNS servers for `SVCB` or `HTTPS` records (RFC 9460). It parses target hosts, port numbers, ALPN support lists, and IP address hints (`ipv4hint` / `ipv6hint`) to build the backend pool. If no hints are returned but a target is set, it issues fallback `A` / `AAAA` queries to resolve the target domain's IP addresses.
 
-#### Configuration Example:
+Configuration Example:
+
 ```yaml
 records:
   secure.example.org.:
@@ -149,60 +151,3 @@ records:
       interval: "30s"
 ```
 
----
-
-## 5. SVCB and HTTPS Record Responses (RFC 9460)
-
-When client browsers query CoreDNS-GSLB for `SVCB` or `HTTPS` records directly, it constructs RFC 9460-compliant DNS messages containing:
-- **Port**: The backend's specific port.
-- **ALPN**: Configurable protocols (e.g. `h3`, `h2`) announced using `alpn`.
-- **IP Hints**: Live IPv4 and IPv6 addresses of healthy backends.
-
-This allows modern browsers to negotiate TLS, ALPN protocols, and resolve IP addresses in a single round-trip query.
-
-#### Record Configuration Example:
-```yaml
-records:
-  web.example.org.:
-    mode: "roundrobin"
-    alpn: ["h3", "h2"]
-    backends:
-      - address: "192.168.1.10"
-        port: 443
-      - address: "192.168.1.11"
-        port: 8443
-
----
-
-## 6. YAML Configuration Features
-
-### Reusable Record Defaults (`defaults` block)
-
-You can define a `defaults` block at the top of your zone YAML file to avoid repeating common fields in every record. Any field defined in `defaults` will be automatically applied to all records, unless a record explicitly overrides that field.
-
-#### Example:
-
-```yaml
-defaults:
-  owner: admin
-  record_ttl: 30
-  scrape_interval: 10s
-  scrape_retries: 1
-  scrape_timeout: 5s
-  alpn:
-    - "h3"
-    - "h2"
-
-records:
-  web1.example.org.:
-    mode: failover
-    # Inherits all defaults above
-  web2.example.org.:
-    mode: failover
-    owner: alice  # Overrides the default owner
-    record_ttl: 60  # Overrides the default TTL
-```
-
-In this example:
-- `web1.example.org.` will have `owner=admin`, `record_ttl=30`, etc.
-- `web2.example.org.` will have `owner=alice` and `record_ttl=60`, but will inherit the remaining defaults.

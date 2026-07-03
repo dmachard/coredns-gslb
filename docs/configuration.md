@@ -1,4 +1,4 @@
-# CoreDNS-GSLB: Corefile Reference
+# Corefile Reference
 
 This document provides a comprehensive reference of all Corefile configuration parameters available inside the `gslb` block.
 
@@ -86,3 +86,76 @@ gslb {
 
 ### Reusable Profiles File
 * **`healthcheck_profiles <path>`**: Path to a YAML file containing global health check profiles shared across all zone files. See the [Health Checks Guide](healthchecks.md) for structure.
+
+---
+
+## 3. Zone YAML Configuration
+
+While the Corefile configures CoreDNS startup flags, api settings, and databases, the actual GSLB DNS records and their corresponding backends are defined inside YAML files configured per-zone.
+
+### File Structure Overview
+
+A GSLB zone YAML file is composed of three main root sections:
+
+1. **`defaults`** (Optional): A block containing default parameter values inherited by all records in this zone.
+2. **`healthcheck_profiles`** (Optional): A dictionary of named health check templates that can be referenced in record backends.
+3. **`records`** (Required): A dictionary containing the actual GSLB domain names (must end with a trailing dot) and their routing policies.
+
+```yaml
+# 1. Defaults
+defaults:
+  owner: admin
+  record_ttl: 30
+  scrape_interval: 10s
+
+# 2. Healthcheck Profiles
+healthcheck_profiles:
+  http_check:
+    type: http
+    params:
+      port: 80
+      uri: "/healthz"
+
+# 3. Records
+records:
+  api.example.org.:
+    mode: failover
+    backends:
+      - address: "192.168.1.10"
+        priority: 1
+        healthchecks: [ http_check ]
+      - address: "192.168.1.11"
+        priority: 2
+        healthchecks: [ http_check ]
+```
+
+### Reusable Record Defaults
+
+Any parameter defined in the `defaults` block is automatically applied to all records under the `records` block, unless a record explicitly overrides it.
+
+Supported default fields:
+
+* **`owner`** (string): Metadata to document the owner/maintainer.
+* **`record_ttl`** (int): The DNS TTL (in seconds) returned to clients (default: `30`).
+* **`scrape_interval`** (duration): How often health check scrapers run (default: `"10s"`).
+* **`scrape_retries`** (int): Number of failures required to mark a backend down (default: `1`).
+* **`scrape_timeout`** (duration): Max time to wait for a health check probe (default: `"5s"`).
+* **`alpn`** (list of strings): List of ALPN protocols advertised in SVCB/HTTPS queries.
+
+Overriding Example:
+
+```yaml
+defaults:
+  owner: admin
+  record_ttl: 30
+
+records:
+  web1.example.org.:
+    mode: failover
+    # Inherits: owner="admin", record_ttl=30
+  web2.example.org.:
+    mode: failover
+    owner: alice    # Overrides default owner
+    record_ttl: 60  # Overrides default TTL
+```
+

@@ -26,6 +26,7 @@ Ensure the Prometheus `metrics` plugin is active in your CoreDNS `Corefile` (usu
 ```
 
 This exposes GSLB metrics at `http://localhost:9153/metrics`. The key metric to watch is:
+
 *   **`coredns_gslb_record_health_status`**: Exposes `1` if at least one backend is healthy (so the node should receive traffic), and `0` if all backends are down (so the node should withdraw itself).
 
 ## Step 2: Route Health Injection (RHI) Script
@@ -42,6 +43,7 @@ chmod +x rhi/gslb-health.sh
 A sample FRRouting configuration is provided in the repository at [rhi/frr.conf](https://github.com/dmachard/CoreDNS-GSLB/blob/main/rhi/frr.conf).
 
 In this setup:
+
 1. You create a dummy network interface on the host (e.g., `dummy0`).
 2. FRRouting is configured to peer with upstream BGP neighbors and advertise the Anycast IP address prefix (`192.168.100.10/32`) whenever it is present on the dummy interface.
 3. The Route Health Injection script [rhi/gslb-health.sh](https://github.com/dmachard/CoreDNS-GSLB/blob/main/rhi/gslb-health.sh) is run periodically (e.g., via a systemd timer or cron job).

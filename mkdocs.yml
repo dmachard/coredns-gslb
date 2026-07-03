@@ -60,12 +60,13 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Get Started:
+      - Installation & Download: installation.md
       - Quick Start: getting_started.md
       - Corefile Reference: configuration.md
   - Features:
       - GSLB Modes: modes.md
       - GeoIP Routing: geoip.md
-      - EDNS Client Subnet (ECS): ecs.md
+      - EDNS Client Subnet: ecs.md
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
       - Supported Records: records.md

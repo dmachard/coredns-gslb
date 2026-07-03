@@ -24,6 +24,7 @@ Therefore, the legacy workaround using the `template` plugin (e.g., `template IN
 If you observe that a DNS query returns all configured backend IPs instead of a single one (or based on your selection mode), it is likely due to the **fail-safe mechanism**.
 
 This happens when the GSLB plugin detects that **no backends are healthy**. This is common in two scenarios:
+
 1. **Initial Startup**: Immediately after CoreDNS starts, backends are marked as unhealthy until their first health check completes successfully.
 2. **Total Outage**: If all health checks for a specific record are failing simultaneously.
 
