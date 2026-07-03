@@ -33,13 +33,29 @@ records:
         priority: 1
 ```
 
+You can add a `tags` list to any backend in your YAML configuration. These tags are strings that you can use to group, filter, or target backends for bulk API operations.
+
+```yaml
+records:
+  webapp.example.org.:
+    backends:
+      - address: "172.16.0.10"
+        tags: ["prod", "ssd", "eu"]
+      - address: "172.16.0.11"
+        tags: ["test", "hdd", "us"]
+```
+
+> - You can assign any number of tags to a backend.
+> - The API uses tags to enable/disable backends in bulk.
+
 ---
 
-## 3. Dynamic Management via REST API
+## 3. Management via REST API
 
 You can enable the REST API server to dynamically register, update, or remove backends. This is useful for automated pipelines or external monitoring tools.
 
-### Corefile Configuration
+
+Corefile Configuration
 
 ```
 gslb {
@@ -49,25 +65,18 @@ gslb {
 }
 ```
 
-### Endpoints
+Endpoints
 - `PUT /api/v1/zones/{zone}/records/{fqdn}/backends`: Overwrite the backend pool for a specific record.
 - `GET /api/v1/status`: View all configured records, backends, and their health statuses.
 
 ---
 
-## 4. Dynamic Service Discovery
+## 5. Dynamic Service Discovery
 
 CoreDNS-GSLB can query external registries at a regular interval to dynamically refresh its backend pool, enabling zero-touch configuration.
 
-### How it Works (Flow Diagram)
-
-```mermaid
-flowchart LR
-    Registry[External Registry<br>Consul / HTTP / DNS] -->|1. Fetch endpoints| Scraper[GSLB Scraper]
-    Scraper -->|2. Update| Pool[(InMemory Pool)]
-    Pool <-->|3. Monitor health| HC[Health Checker]
-    Client[DNS Client] -->|4. Resolve Query| Pool
-```
+> [!NOTE]
+> CoreDNS-GSLB delegates health checking to the discovery source. Discovered endpoints are assumed to be healthy. The external registry (e.g. Consul) is responsible for performing health checks and removing unhealthy nodes, which CoreDNS-GSLB picks up on the next scrape interval.
 
 
 
@@ -197,24 +206,3 @@ records:
 In this example:
 - `web1.example.org.` will have `owner=admin`, `record_ttl=30`, etc.
 - `web2.example.org.` will have `owner=alice` and `record_ttl=60`, but will inherit the remaining defaults.
-
-### Backend Tags
-
-You can add a `tags` list to any backend in your YAML configuration. These tags are strings that you can use to group, filter, or target backends for bulk API operations.
-
-#### Example:
-
-```yaml
-records:
-  webapp.example.org.:
-    backends:
-      - address: "172.16.0.10"
-        tags: ["prod", "ssd", "eu"]
-      - address: "172.16.0.11"
-        tags: ["test", "hdd", "us"]
-```
-
-- You can assign any number of tags to a backend.
-- The API uses tags to enable/disable backends in bulk.
-
-```

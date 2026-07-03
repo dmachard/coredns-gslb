@@ -1,56 +1,4 @@
-# CoreDNS-GSLB: Architecture
-
-## 1. High Availability and Scalability
-
-For production environments requiring high availability and scalability, 
-the CoreDNS-GSLB can be deployed as below to ensure resilience and performance
-
-In this model:
-  - Each CoreDNS-GSLB instance is deployed with the same configuration across datacenters.
-  - All GSLB nodes monitor the same backend pool, ensuring consistent health-based decisions regardless of location.
-  - GeoDNS logic (via EDNS Client Subnet and GeoIP) allows each instance to respond optimally from its point of view.
-
-```mermaid
-flowchart TD
-    query[DNS Query for gslb.example.com] --> authns[Authoritative NS<br>ns1 / ns2]
-    authns -->|Delegation to DC1| dc1
-    authns -->|Delegation to DC2| dc2
-
-    subgraph dc1[Datacenter 1]
-        dnsdist1[dnsdist with cache] --> coredns1[CoreDNS GSLB]
-    end
-
-    subgraph dc2[Datacenter 2]
-        dnsdist2[dnsdist with cache] --> coredns2[CoreDNS GSLB]
-    end
-
-    coredns1 --> backends[Backends to check<br>- web1.dc1.com / web1.dc2.com<br>- web2.dc1.com / web2.dc2.com<br>- api1.dc1.com / api1.dc2.com]
-    coredns2 --> backends
-```
-
-Per-Datacenter Scalability Model
-
-```mermaid
-flowchart TD
-    dnsdist[dnsdist<br>Load Balancer] --> coredns1[CoreDNS-GSLB/1<br>Zones: A, B]
-    dnsdist --> coredns2[CoreDNS-GSLB/2<br>Zones: C, D]
-    dnsdist --> coredns3[CoreDNS-GSLB/3<br>Zones: E, F]
-
-    coredns1 --> pool1[Backend Pool 1<br>- web1.dc1.com<br>- web2.dc1.com]
-    coredns2 --> pool2[Backend Pool 2<br>- api1.dc1.com<br>- api2.dc1.com]
-    coredns3 --> pool3[Backend Pool 3<br>- db1.dc1.com<br>- db2.dc1.com]
-```
-
-**Benefits:**
-- **Horizontal scalability**: Add more CoreDNS instances as needed
-- **Zone isolation**: Each CoreDNS instance handles specific zones
-- **Load balancing**: dnsdist distributes queries intelligently
-- **Fault tolerance**: If one CoreDNS fails, others continue serving their zones
-- **Resource optimization**: Each instance optimized for its zone workload
-
----
-
-## 2. Anycast Deployment & BGP Route Health Injection (RHI)
+# Anycast Deployment & BGP Route Health Injection (RHI)
 
 For maximum availability and sub-second failover of the CoreDNS-GSLB nodes themselves, you can deploy them using an **Anycast** IP address shared across multiple server nodes.
 
@@ -66,7 +14,7 @@ flowchart TD
     coredns -->|Active probes| backends[Backend Pool]
 ```
 
-### Step 1: CoreDNS Prometheus Metrics Configuration
+## Step 1: CoreDNS Prometheus Metrics Configuration
 
 Ensure the Prometheus `metrics` plugin is active in your CoreDNS `Corefile` (usually listening on port `9153`):
 
@@ -80,7 +28,7 @@ Ensure the Prometheus `metrics` plugin is active in your CoreDNS `Corefile` (usu
 This exposes GSLB metrics at `http://localhost:9153/metrics`. The key metric to watch is:
 *   **`coredns_gslb_record_health_status`**: Exposes `1` if at least one backend is healthy (so the node should receive traffic), and `0` if all backends are down (so the node should withdraw itself).
 
-### Step 2: Route Health Injection (RHI) Script
+## Step 2: Route Health Injection (RHI) Script
 
 A sample script is provided in the repository at [rhi/gslb-health.sh](https://github.com/dmachard/CoreDNS-GSLB/blob/main/rhi/gslb-health.sh). This script queries the Prometheus metrics endpoint for CoreDNS-GSLB and returns `0` (success) if at least one backend is healthy, and `1` if all backends are down.
 
@@ -89,7 +37,7 @@ You can download and make this script executable on your host:
 chmod +x rhi/gslb-health.sh
 ```
 
-### Step 3: Configure FRRouting (FRR)
+## Step 3: Configure FRRouting (FRR)
 
 A sample FRRouting configuration is provided in the repository at [rhi/frr.conf](https://github.com/dmachard/CoreDNS-GSLB/blob/main/rhi/frr.conf).
 
@@ -101,6 +49,3 @@ In this setup:
    - If the GSLB is unhealthy, the script removes the IP from the interface, causing FRRouting to immediately withdraw the prefix.
 
 By keeping routing logic separate from DNS logic, CoreDNS remains highly secure and lightweight while guaranteeing sub-second Anycast path convergence.
-
-
-
