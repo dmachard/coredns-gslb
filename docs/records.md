@@ -18,7 +18,7 @@ If no healthy backends of the requested type are available, the plugin applies t
 
 ---
 
-## 2. Service Binding Records (SVCB & HTTPS)
+## 2. Service Binding Records (SVCB & HTTPS - RFC 9460)
 
 Modern web browsers (like Safari and Chrome) and public resolvers (like Cloudflare `1.1.1.1` or Google `8.8.8.8`) frequently send `HTTPS` (Type 65) and `SVCB` (Type 64) queries to negotiate connection parameters (e.g., HTTP/3 ALPN, ports) before initiating a connection.
 
@@ -112,6 +112,7 @@ records:
 ```
 
 With this configuration:
+
 - A query for `anything.example.org.` will match `*.example.org.` (if there is no exact record `anything.example.org.`).
 - A query for `sub.anything.example.org.` will also match `*.example.org.`.
 - An exact match always takes precedence over a wildcard match.

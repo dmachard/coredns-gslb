@@ -60,12 +60,13 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Get Started:
+      - Installation & Download: installation.md
       - Quick Start: getting_started.md
       - Corefile Reference: configuration.md
   - Features:
       - GSLB Modes: modes.md
       - GeoIP Routing: geoip.md
-      - EDNS Client Subnet (ECS): ecs.md
+      - EDNS Client Subnet: ecs.md
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
       - Supported Records: records.md
@@ -74,7 +75,15 @@ nav:
       - CLI Tool: cli.md
       - Observability: observability.md
       - Troubleshooting: troubleshooting.md
-  - Contributing:
-      - Architecture Reference: architecture.md
-      - Benchmarking: benchmark.md
-      - Guidelines: developer_guide.md
+  - Deployments:
+      - High Availability (HA): deployments/ha.md
+      - Anycast & BGP (RHI): deployments/rhi.md
+      - Consul Integration: deployments/consul.md
+  - Performance:
+      - Resource Benchmarks: performance/benchmarks.md
+      - Run Benchmarks: performance/run_benchmarks.md
+  - For Developers:
+      - Guidelines: developer/contributing.md
+      - Dev Environment: developer/dev_environment.md
+      - Binary Compilation: developer/compilation.md
+      - Running Tests: developer/testing.md

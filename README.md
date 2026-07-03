@@ -59,13 +59,13 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
 | [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
 | [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |
-| [Architecture Reference](docs/architecture.md) | High availability and deployment patterns |
+| [Architecture & Deployments](docs/deployments/ha.md) | HA redundancy, Anycast/BGP (RHI), and Consul integration |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [CLI Guide](docs/cli.md) | Command-line client tool |
 | [Observability](docs/observability.md) | Prometheus metrics |
-| [Benchmarking](docs/benchmark.md) | Performance testing and metrics |
+| [Performance Benchmarks](docs/performance/benchmarks.md) | Resource usage and local benchmarking guides |
 | [Troubleshooting](docs/troubleshooting.md) | Troubleshooting and debugging |
-| [Contributing Guide](docs/developer_guide.md) | Build, testing, and development setup |
+| [Developer Guide](docs/developer/contributing.md) | Development rules, docker environment, compilation, and testing |
 
 ## 👥 Contributions
 

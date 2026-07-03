@@ -14,6 +14,7 @@ hide:
   </p>
   <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
     <a href="getting_started/" class="btn-primary">Get Started</a>
+    <a href="installation/" class="btn-secondary">Download</a>
   </div>
 </div>
 
