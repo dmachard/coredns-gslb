@@ -38,8 +38,34 @@ gslbctl <command> [options]
   Disable backends by tags, address prefix, or location.
 - `status`  
   Show the current GSLB status (all records and backends).
+- `validate <config.yml> [--strict]`  
+  Offline validation of a zone configuration file. If `--strict` is enabled, any warnings will cause validation to fail (returning exit code 1).
 
 ## Examples
+
+Validate a configuration file:
+```bash
+gslbctl validate db.app-x.gslb.example.com.yml
+```
+Example output on success:
+```
+Validating db.app-x.gslb.example.com.yml...
+✓ 7 records parsed
+✓ 5 healthcheck profiles loaded
+
+0 errors, 0 warnings — validation succeeded
+```
+
+Example output on validation error (non-zero exit code):
+```
+Validating db.app-x.gslb.example.com.yml...
+✓ 7 records parsed
+✓ 5 healthcheck profiles loaded
+
+✗ ERROR  duplicate backend address '1.2.3.4' in record 'test.example.com.'
+
+1 error, 3 warnings — validation failed
+```
 
 Enable all backends with tag `prod`:
 ```

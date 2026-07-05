@@ -108,13 +108,13 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 	g.updateMetrics()
 }
 
-func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[string]string) {
+func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[string]string) error {
 	g.Records = make(map[string]map[string]*Record)
 	for zone, file := range zoneFiles {
 		log.Infof("Loading records for zone %s from %s", zone, file)
 		if err := loadConfigFile(g, file, zone); err != nil {
 			log.Errorf("Failed to load records for zone %s from %s: %v", zone, file, err)
-			continue
+			return err
 		}
 		log.Infof("Loaded %d records for zone %s", len(g.Records[zone]), zone)
 	}
@@ -136,6 +136,7 @@ func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[str
 
 	// Update metrics
 	g.updateMetrics()
+	return nil
 }
 
 func (g *GSLB) updateMetrics() {

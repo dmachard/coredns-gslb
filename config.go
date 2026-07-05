@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/dmachard/coredns-gslb/pkg/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -198,19 +199,12 @@ func (g *GSLB) loadCustomLocationsMap(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read location map: %w", err)
 	}
-	var parsed struct {
-		Subnets []struct {
-			Subnet   string `yaml:"subnet"`
-			Location string `yaml:"location"`
-		} `yaml:"subnets"`
+
+	m, errs := config.ParseAndValidateLocationMap(data)
+	if len(errs) > 0 {
+		return fmt.Errorf("invalid custom location map: %s", strings.Join(errs, "; "))
 	}
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("failed to parse location map: %w", err)
-	}
-	m := make(map[string]string)
-	for _, s := range parsed.Subnets {
-		m[s.Subnet] = s.Location
-	}
+
 	g.LocationMap = m
 	g.rebuildLocationMapIPNet()
 	return nil
@@ -227,6 +221,60 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 	if len(data) == 0 {
 		return fmt.Errorf("failed to read YAML configuration: file empty")
 	}
+
+	// 1. Parse YAML into config DTO model
+	zoneCfg, err := config.LoadZoneConfig(data)
+	if err != nil {
+		return fmt.Errorf("failed to load zone config: %w", err)
+	}
+
+	// 2. Perform semantic validation
+	validLocations := make(map[string]bool)
+	if gslb.LocationMap != nil {
+		for _, loc := range gslb.LocationMap {
+			validLocations[loc] = true
+		}
+	}
+
+	globalProfiles := make(map[string]config.HealthcheckProfile)
+	ProfilesMutex.RLock()
+	for name, hc := range GlobalHealthcheckProfiles {
+		globalProfiles[name] = config.HealthcheckProfile{
+			Type:   hc.Type,
+			Params: hc.Params,
+			Rise:   hc.Rise,
+			Fall:   hc.Fall,
+		}
+	}
+	ProfilesMutex.RUnlock()
+
+	valErrs, valWarns := zoneCfg.Validate(validLocations, globalProfiles)
+
+	// Log warnings
+	for _, w := range valWarns {
+		log.Warningf("[gslb config warning] %s", w)
+	}
+
+	// Check for duplicate record names across other zones
+	for fqdn := range zoneCfg.Records {
+		if zone != "" && !strings.HasSuffix(fqdn, zone) {
+			valErrs = append(valErrs, fmt.Sprintf("record %s does not match zone %s", fqdn, zone))
+		}
+		for zName, recs := range gslb.Records {
+			if zName != zone {
+				if _, exists := recs[fqdn]; exists {
+					valErrs = append(valErrs, fmt.Sprintf("duplicate record name '%s' defined in zone '%s' and zone '%s'", fqdn, zone, zName))
+				}
+			}
+		}
+	}
+
+	// If there are errors, return them to block startup/reload
+	if len(valErrs) > 0 {
+		return fmt.Errorf("configuration validation failed: %s", strings.Join(valErrs, "; "))
+	}
+
+	// 3. Since config is fully validated and parsed, instantiate active runtime objects
 	var raw struct {
 		Defaults            map[string]interface{}  `yaml:"defaults"`
 		Records             map[string]interface{}  `yaml:"records"`
@@ -244,9 +292,6 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 	}
 
 	for fqdn, recordData := range raw.Records {
-		if zone != "" && !strings.HasSuffix(fqdn, zone) {
-			return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
-		}
 		var merged map[string]interface{}
 
 		// handle defaults
