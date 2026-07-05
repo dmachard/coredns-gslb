@@ -54,7 +54,10 @@ gslb {
 
 ### GeoIP Settings
 * **`geoip_maxmind <type> <path>`**: Loads a MaxMind GeoIP2 database. 
-  * `<type>` can be `country_db`, `city_db`, or `asn_db`.
+  * `<type>` can be:
+    * `country_db`: Used for matching by `country` (two-letter ISO code) and `continent`.
+    * `city_db`: Used for matching by coordinates (`latitude` and `longitude`), `city`, `subdivision`, `country`, and `continent`.
+    * `asn_db`: Used for matching by Autonomous System Number (`asn`).
   * **Block Syntax Support**: You can also use a block format:
     ```corefile
     geoip_maxmind {

@@ -9,8 +9,8 @@ hide:
 
 <div class="hero-card">
   <div class="hero-title">CoreDNS-GSLB</div>
-  <p style="font-size: 1.15rem; max-width: 650px; margin: 0.5rem auto 1.5rem auto; line-height: 1.6;">
-    An open-source Global Server Load Balancing (GSLB) plugin for CoreDNS. Efficient traffic routing designed for VMs, bare-metal servers, and hybrid environments.
+  <p style="font-size: 1.1rem; max-width: 820px; margin: 0.5rem auto 1.5rem auto; line-height: 1.6;">
+    An open-source Global Server Load Balancing (GSLB) plugin for CoreDNS. Efficient routing for VMs, bare-metal, and hybrid clouds.
   </p>
   <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
     <a href="getting_started/" class="btn-primary">Get Started</a>
@@ -50,20 +50,20 @@ hide:
 ## Where to Start?
 
 <div class="grid-container" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-  <a href="getting_started/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>1. Getting Started</h3>
+  <a href="getting_started/" class="feature-box step-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Getting Started</h3>
     <p>Run your first failover setup with Docker Compose.</p>
   </a>
-  <a href="configuration/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>2. Configuration</h3>
+  <a href="configuration/" class="feature-box step-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Configuration</h3>
     <p>Configure DNS zones, load balancing algorithms, and metrics.</p>
   </a>
-  <a href="healthchecks/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>3. Health Checks</h3>
+  <a href="healthchecks/" class="feature-box step-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Health Checks</h3>
     <p>Build robust healthcheck profiles for your endpoints.</p>
   </a>
-  <a href="api/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>4. REST API</h3>
+  <a href="api/" class="feature-box step-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>REST API</h3>
     <p>Dynamically enable/disable backends via REST endpoints.</p>
   </a>
 </div>
@@ -71,11 +71,11 @@ hide:
 <h2 style="margin-top: 4rem; margin-bottom: 1.5rem;">More DNS tools?</h2>
 
 <div class="grid-2-cols" style="margin-top: 1rem;">
-  <a href="https://github.com/dmachard/DNS-collector" target="_blank" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+  <a href="https://github.com/dmachard/DNS-collector" target="_blank" class="feature-box dns-collector-box" style="text-decoration: none; color: inherit; display: block;">
     <h3 style="margin-top: 0;">DNS-collector</h3>
     <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.5;">Grab your DNS logs, detect anomalies, analyze traffic patterns, and finally understand exactly what's happening on your network in real-time.</p>
   </a>
-  <a href="https://github.com/dmachard/DNS-tester" target="_blank" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+  <a href="https://github.com/dmachard/DNS-tester" target="_blank" class="feature-box dns-tester-box" style="text-decoration: none; color: inherit; display: block;">
     <h3 style="margin-top: 0;">DNS-tester</h3>
     <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.5;">A comprehensive DNS testing and verification toolkit designed to validate DNS response behavior and performance under various network conditions.</p>
   </a>

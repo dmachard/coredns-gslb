@@ -4,14 +4,7 @@ The GSLB plugin supports the EDNS Client Subnet (ECS) option defined in **RFC 78
 
 ## Enabling ECS
 
-To enable ECS support, add the `use_edns_csubnet` option to the `gslb` block in your Corefile:
-
-```corefile
-gslb {
-    zone example.org. db.example.org.yml
-    use_edns_csubnet
-}
-```
+To enable ECS support in your Corefile, please refer to the **[DNS & Protocol Flags in the Corefile Reference](configuration.md#dns-protocol-flags)**.
 
 ## Client IP Determination
 
