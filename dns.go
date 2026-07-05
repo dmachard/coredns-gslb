@@ -135,7 +135,7 @@ func (g *GSLB) isAuthoritative(domain string) bool {
 }
 
 func (g *GSLB) hasRecordTypeConfigured(record *Record, recordType uint16) bool {
-	if strings.ToLower(record.FailoverPolicy.Mode) == "fail-specific" && record.FailoverPolicy.FallbackCNAME != "" {
+	if strings.ToLower(record.FallbackPolicy.Mode) == "fail-specific" && record.FallbackPolicy.FallbackCNAME != "" {
 		if recordType == dns.TypeA || recordType == dns.TypeAAAA || recordType == dns.TypeCNAME {
 			return true
 		}
@@ -145,7 +145,7 @@ func (g *GSLB) hasRecordTypeConfigured(record *Record, recordType uint16) bool {
 			return true
 		}
 	}
-	for _, ip := range record.FailoverPolicy.FallbackIPs {
+	for _, ip := range record.FallbackPolicy.FallbackIPs {
 		if isAddressTypeCompatible(ip, recordType) {
 			return true
 		}
@@ -172,7 +172,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		log.Debugf("[%s] no backend available for type %d: %v", domain, recordType, err)
 		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 
-		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		policyMode := strings.ToLower(record.FallbackPolicy.Mode)
 		if policyMode == "" {
 			policyMode = "fail-open"
 		}
@@ -182,7 +182,7 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 		switch policyMode {
 		case "fail-closed":
 			rcode := dns.RcodeServerFailure
-			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			switch strings.ToUpper(record.FallbackPolicy.Rcode) {
 			case "NXDOMAIN":
 				rcode = dns.RcodeNameError
 			case "REFUSED":
@@ -195,8 +195,8 @@ func (g *GSLB) handleIPRecord(ctx context.Context, w dns.ResponseWriter, r *dns.
 			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
-			if record.FailoverPolicy.FallbackCNAME != "" {
-				return g.sendAddressRecordResponse(w, r, domain, []string{record.FailoverPolicy.FallbackCNAME}, record.RecordTTL, recordType)
+			if record.FallbackPolicy.FallbackCNAME != "" {
+				return g.sendAddressRecordResponse(w, r, domain, []string{record.FallbackPolicy.FallbackCNAME}, record.RecordTTL, recordType)
 			}
 			fallbackIPs, err := g.pickFallbackAddresses(record, recordType)
 			if err != nil {
@@ -318,7 +318,7 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 		log.Debugf("[%s] no backend available for SVCB/HTTPS: %v, %v", domain, errA, errAAAA)
 		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 
-		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		policyMode := strings.ToLower(record.FallbackPolicy.Mode)
 		if policyMode == "" {
 			policyMode = "fail-open"
 		}
@@ -328,7 +328,7 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 		switch policyMode {
 		case "fail-closed":
 			rcode := dns.RcodeServerFailure
-			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			switch strings.ToUpper(record.FallbackPolicy.Rcode) {
 			case "NXDOMAIN":
 				rcode = dns.RcodeNameError
 			case "REFUSED":
@@ -341,8 +341,8 @@ func (g *GSLB) handleSVCBRecord(ctx context.Context, w dns.ResponseWriter, r *dn
 			return g.sendRcodeResponse(w, r, domain, rcode, true)
 
 		case "fail-specific":
-			if record.FailoverPolicy.FallbackCNAME != "" {
-				return g.sendAddressRecordResponse(w, r, domain, []string{record.FailoverPolicy.FallbackCNAME}, record.RecordTTL, dns.TypeCNAME)
+			if record.FallbackPolicy.FallbackCNAME != "" {
+				return g.sendAddressRecordResponse(w, r, domain, []string{record.FallbackPolicy.FallbackCNAME}, record.RecordTTL, dns.TypeCNAME)
 			}
 			fallbackA, _ := g.pickFallbackAddresses(record, dns.TypeA)
 			fallbackAAAA, _ := g.pickFallbackAddresses(record, dns.TypeAAAA)
@@ -681,7 +681,7 @@ func (g *GSLB) decorateWithECS(r *dns.Msg, response *dns.Msg, domain string, for
 
 func (g *GSLB) pickFallbackAddresses(record *Record, recordType uint16) ([]string, error) {
 	var ipAddresses []string
-	for _, ip := range record.FailoverPolicy.FallbackIPs {
+	for _, ip := range record.FallbackPolicy.FallbackIPs {
 		if isAddressTypeCompatible(ip, recordType) {
 			ipAddresses = append(ipAddresses, ip)
 		}
@@ -749,7 +749,7 @@ func (g *GSLB) handleSRVRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 		log.Debugf("[%s] no backend available for SRV: %v", domain, err)
 		ObserveRecordResolutionDuration(domain, "fail", time.Since(start).Seconds())
 
-		policyMode := strings.ToLower(record.FailoverPolicy.Mode)
+		policyMode := strings.ToLower(record.FallbackPolicy.Mode)
 		if policyMode == "" {
 			policyMode = "fail-open"
 		}
@@ -759,7 +759,7 @@ func (g *GSLB) handleSRVRecord(ctx context.Context, w dns.ResponseWriter, r *dns
 		switch policyMode {
 		case "fail-closed":
 			rcode := dns.RcodeServerFailure
-			switch strings.ToUpper(record.FailoverPolicy.Rcode) {
+			switch strings.ToUpper(record.FallbackPolicy.Rcode) {
 			case "NXDOMAIN":
 				rcode = dns.RcodeNameError
 			case "REFUSED":
