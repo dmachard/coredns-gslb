@@ -1,8 +1,4 @@
 openapi: 3.0.0
-info:
-  title: CoreDNS-GSLB API
-  version: 1.0.0
-  description: API to retrieve GSLB overview and perform bulk backend enable/disable
 servers:
   - url: http://localhost:8080
 paths:

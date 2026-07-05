@@ -39,7 +39,7 @@ You can then scrape metrics at http://localhost:9153/metrics
 
 The dashboard is available in `dashboards/gslb-observability.json`
 
-<img src="dashboard.png" alt="CoreDNS-GSLB"/>
+![CoreDNS-GSLB](dashboard.png)
 
 ## Using the Simplified Health Status Metrics
 

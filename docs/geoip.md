@@ -10,43 +10,29 @@ To use GeoIP-based routing, you must configure either `geoip_maxmind` or `geoip_
 
 CoreDNS-GSLB supports MaxMind GeoIP2 Country, City, and ASN databases to automatically detect the client's location and match it against the backend pool attributes.
 
-Download the `.mmdb` files from MaxMind and configure their paths in the `gslb` block of your Corefile:
-
-```corefile
-gslb {
-    geoip_maxmind country_db /coredns/GeoLite2-Country.mmdb
-    geoip_maxmind city_db    /coredns/GeoLite2-City.mmdb
-    geoip_maxmind asn_db     /coredns/GeoLite2-ASN.mmdb
-}
-```
-
-* **`country_db`**: Used for matching by `country` (two-letter ISO code) and `continent`.
-* **`city_db`**: Used for matching by coordinates (`latitude` and `longitude`), `city`, `subdivision`, `country`, and `continent`.
-* **`asn_db`**: Used for matching by Autonomous System Number (`asn`).
+To download the `.mmdb` files from MaxMind and configure their paths in the `gslb` block of your Corefile, please refer to the **[GeoIP Settings in the Corefile Reference](configuration.md#geoip-settings)**.
 
 ---
 
 ## Custom Location Mapping
 
-If you run an internal network or want to override public GeoIP locations for specific IP subnets, you can use a custom location mapping file.
+If you run an internal network or want to override public GeoIP locations for specific IP subnets, you can use a custom location mapping file. 
 
-1. Enable `geoip_custom` in your Corefile pointing to a YAML mapping file:
-   ```corefile
-   gslb {
-       geoip_custom location_map.yml
-   }
-   ```
+To enable this by pointing to a YAML mapping file in your Corefile, please refer to the **[GeoIP Settings in the Corefile Reference](configuration.md#geoip-settings)**.
 
-2. Create `location_map.yml` to map subnets to custom location tags:
-   ```yaml
-   subnets:
-     - subnet: "10.0.0.0/24"
-       location: ["eu-west-1"]
-     - subnet: "192.168.1.0/24" 
-       location: ["us-east-1"]
-   ```
+### Custom Mapping File (`location_map.yml`)
 
-3. GSLB will map incoming client IPs belonging to these subnets to the defined location tag and direct traffic to backends tagged with the same `location` value.
+Create a YAML file mapping subnets to custom location tags:
+
+```yaml
+subnets:
+  - subnet: "10.0.0.0/24"
+    location: ["eu-west-1"]
+  - subnet: "192.168.1.0/24" 
+    location: ["us-east-1"]
+```
+
+GSLB will map incoming client IPs belonging to these subnets to the defined location tag and direct traffic to backends tagged with the same `location` value.
 
 ---
 
@@ -74,14 +60,8 @@ Below is an example of a backend definition demonstrating all available GeoIP lo
 ```
 
 ### Location Matching Fields Reference
-* **`continent`**: The exact MaxMind continent code. Supported values are:
-  - `AF` (Africa)
-  - `AN` (Antarctica)
-  - `AS` (Asia)
-  - `EU` (Europe)
-  - `NA` (North America)
-  - `OC` (Oceania)
-  - `SA` (South America)
+
+* **`continent`**: The exact MaxMind continent code (e.g. `AF`, `AN`, `AS`, `EU`, `NA`, `OC`, `SA`).
 * **`country`**: Two-letter ISO country code (e.g., `FR`, `US`, `CN`).
 * **`subdivision`**: Subdivision ISO code (e.g., `IDF` for Île-de-France, `CA` for California).
 * **`city`**: City name (matched case-insensitively, English name returned by MaxMind database, e.g., `Paris`, `Oakland`).

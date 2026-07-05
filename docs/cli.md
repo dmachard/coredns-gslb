@@ -3,6 +3,7 @@
 The `gslbctl` command-line tool allows you to interact with the CoreDNS-GSLB.
 
 The CLI can be used:
+
 - as a **standalone binary**
 - or **embedded in a Docker image** alongside CoreDNS
 
