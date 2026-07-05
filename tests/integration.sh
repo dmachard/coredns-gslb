@@ -316,6 +316,32 @@ test_cname_backend_routing_a_query() {
 run_test "Check CNAME backend routing on A query (should resolve to CNAME some-alb.aws.com.)" test_cname_backend_routing_a_query
 
 
+# 9d. CLI Validation Integration Tests
+echo "=== Running CLI Validation Tests ==="
+
+test_cli_validate_success() {
+	$COMPOSE_CMD exec -T coredns_gslb gslbctl validate /coredns/db.app-x.gslb.example.com.yml
+}
+run_test "Check gslbctl validate with valid config" test_cli_validate_success
+
+test_cli_validate_failure() {
+	$COMPOSE_CMD exec -T coredns_gslb bash -c "echo 'records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+      - address: 1.2.3.4' > /tmp/invalid_config.yml"
+
+	if $COMPOSE_CMD exec -T coredns_gslb gslbctl validate /tmp/invalid_config.yml; then
+		echo "Error: expected gslbctl validate to fail but it succeeded"
+		return 1
+	else
+		echo "gslbctl validate failed as expected"
+		return 0
+	fi
+}
+run_test "Check gslbctl validate with invalid config" test_cli_validate_failure
+
+
 # 10. Output Statistics
 echo "=== Integration Test Suite Completed ==="
 echo "Total executed integration tests: $TESTS_RUN"
