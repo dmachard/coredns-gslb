@@ -4,7 +4,7 @@ CoreDNS-GSLB dynamically resolves and serves several DNS resource record types t
 
 ---
 
-## 1. Address Records (A & AAAA)
+## Address Records (A & AAAA)
 
 * **A** (Type 1): Resolves IPv4 addresses for healthy backends.
 * **AAAA** (Type 28): Resolves IPv6 addresses for healthy backends.
@@ -18,7 +18,7 @@ If no healthy backends of the requested type are available, the plugin applies t
 
 ---
 
-## 2. Service Binding Records (SVCB & HTTPS - RFC 9460)
+## Service Binding Records (SVCB & HTTPS - RFC 9460)
 
 Modern web browsers (like Safari and Chrome) and public resolvers (like Cloudflare `1.1.1.1` or Google `8.8.8.8`) frequently send `HTTPS` (Type 65) and `SVCB` (Type 64) queries to negotiate connection parameters (e.g., HTTP/3 ALPN, ports) before initiating a connection.
 
@@ -46,7 +46,7 @@ records:
 
 ---
 
-## 3. Service Records (SRV)
+## Service Records (SRV)
 
 For non-HTTP services (like SIP, LDAP, or directory services), CoreDNS-GSLB supports dynamic `SRV` (Type 33) records (RFC 2782) to route clients to healthy backends.
 
@@ -59,7 +59,7 @@ If multiple backends are selected by the active routing policy, CoreDNS-GSLB ret
 
 ---
 
-## 4. TXT Records (Debugging & Monitoring)
+## TXT Records (Debugging & Monitoring)
 
 By default, CoreDNS-GSLB serves TXT records summarizing the state of all configured backends. This is useful for real-time monitoring and debugging using standard tools.
 
@@ -91,7 +91,7 @@ With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to
 
 ---
 
-## 5. Wildcard Records Support
+## Wildcard Records Support
 
 CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
 If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.

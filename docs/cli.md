@@ -6,7 +6,7 @@ The CLI can be used:
 - as a **standalone binary**
 - or **embedded in a Docker image** alongside CoreDNS
 
-## 1. Installation
+## Installation
 
 ### Standalone binary
 
@@ -23,13 +23,13 @@ You can execute gslbctl directly from the container:
 docker run --rm <image> gslbctl <command> [options]
 ```
 
-## 2. Usage
+## Usage
 
 ```
 gslbctl <command> [options]
 ```
 
-## 3. Commands
+## Commands
 
 - `backends enable [--tags tag1,tag2] [--address addr] [--location loc]`  
   Enable backends by tags, address prefix, or location.
@@ -38,7 +38,7 @@ gslbctl <command> [options]
 - `status`  
   Show the current GSLB status (all records and backends).
 
-## 4. Examples
+## Examples
 
 Enable all backends with tag `prod`:
 ```

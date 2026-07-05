@@ -2,7 +2,7 @@
 
 The GSLB plugin supports the EDNS Client Subnet (ECS) option defined in **RFC 7871**. This is critical for deployments behind public resolvers (like Google Public DNS or Cloudflare) or forwarders, as it allows GSLB to route clients based on their real IP address rather than the resolver's IP address.
 
-## 1. Enabling ECS
+## Enabling ECS
 
 To enable ECS support, add the `use_edns_csubnet` option to the `gslb` block in your Corefile:
 
@@ -13,7 +13,7 @@ gslb {
 }
 ```
 
-## 2. Client IP Determination
+## Client IP Determination
 
 When `use_edns_csubnet` is enabled, CoreDNS-GSLB determines the client's IP in the following order:
 
@@ -24,7 +24,7 @@ If `use_edns_csubnet` is disabled, GSLB will always use the connection's remote 
 
 ---
 
-## 3. RFC 7871 Scope Compliance
+## RFC 7871 Scope Compliance
 
 To ensure optimal caching efficiency on recursive resolvers and to prevent cache hazards or cache poisoning, CoreDNS-GSLB carefully manages the **Source Scope** returned in the ECS response.
 

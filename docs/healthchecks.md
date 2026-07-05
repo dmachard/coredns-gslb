@@ -17,7 +17,7 @@ This feature helps optimize resource usage and backend load in large or dynamic 
 
 ---
 
-## 1. Healthcheck Profiles
+## Healthcheck Profiles
 
 You can define reusable health check profiles at the top level of your YAML configuration using the `healthcheck_profiles` key. Each profile defines a health check type and its parameters. Backends can then reference these profiles by name in their `healthchecks` list, instead of repeating the same configuration.
 
@@ -74,7 +74,7 @@ healthcheck_profiles:
 
 ---
 
-## 2. Healthcheck Types
+## Healthcheck Types
 
 ### HTTP(S)
 
@@ -179,6 +179,7 @@ healthchecks:
 Executes an embedded Lua script to determine the backend health. The script can use the helper functions http_get(url) and json_decode(str) to perform HTTP requests and parse JSON. The global variable 'backend' provides the backend's address and priority.
 
 **Available helpers:**
+
 - `http_get(url, [timeout_sec], [user], [password], [tls_verify])`: Performs an HTTP(S) GET request. Optional timeout (seconds), HTTP Basic auth (user, password), and TLS verification (default true).
 - `json_decode(str)`: Parses a JSON string and returns a Lua table (or nil on error).
 - `metric_get(url, metric_name, [timeout_sec], [tls_verify], [user], [password])`: Fetches the value of a Prometheus metric from a /metrics endpoint (returns the first value found as a number or string, or nil if not found). Optional timeout (seconds), TLS verification (default true), and HTTP Basic auth (user, password).
@@ -300,7 +301,7 @@ healthchecks:
 
 ---
 
-## 3. Rise and Fall Thresholds
+## Rise and Fall Thresholds
 
 To prevent healthcheck flapping due to transient network issues, you can configure consecutive success/failure thresholds to transition a backend's status.
 
@@ -334,7 +335,7 @@ records:
 
 ---
 
-## 4. Healthcheck Bypass
+## Healthcheck Bypass
 
 In multi-region setups, you might want to bypass health checking for remote backends (e.g. to prevent WAN/cross-region network blips from marking them as down in a local resolver). You can specify `assume_healthy: true` on any backend:
 

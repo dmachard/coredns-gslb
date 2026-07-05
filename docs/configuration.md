@@ -6,7 +6,7 @@ CoreDNS-GSLB automatically watches its configuration files and reloads them at r
 
 ---
 
-## 1. Syntax Overview
+## Syntax Overview
 
 ```corefile
 gslb {
@@ -47,7 +47,7 @@ gslb {
 
 ---
 
-## 2. Configuration Parameters
+## Configuration Parameters
 
 ### Zone Definitions
 * **`zone <fqdn> <path>`** (Required, repeatable): Maps an authoritative DNS zone (must end with a trailing dot) to its corresponding YAML configuration file containing records.
@@ -89,7 +89,7 @@ gslb {
 
 ---
 
-## 3. Zone YAML Configuration
+## Zone YAML Configuration
 
 While the Corefile configures CoreDNS startup flags, api settings, and databases, the actual GSLB DNS records and their corresponding backends are defined inside YAML files configured per-zone.
 

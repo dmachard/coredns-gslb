@@ -4,7 +4,7 @@ This guide walks you through setting up CoreDNS-GSLB for the first time, configu
 
 ---
 
-## 1. Quick Start with Docker Compose
+## Quick Start with Docker Compose
 
 The fastest way to test CoreDNS-GSLB is by running it inside a Docker container.
 
@@ -115,7 +115,7 @@ records:
    dig @localhost TXT webapp.gslb.example.com
    ```
 
-## 2. Next Steps
+## Next Steps
 
 Now that you have a running environment:
 - Explore the different [Selection Modes](modes.md) (GeoIP, IP-Hash, Weighted, etc.).

@@ -60,7 +60,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Get Started:
-      - Installation & Download: installation.md
+      - Download: download.md
+      - Installation: installation.md
       - Quick Start: getting_started.md
       - Corefile Reference: configuration.md
   - Features:

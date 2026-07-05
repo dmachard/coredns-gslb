@@ -6,7 +6,7 @@ To use GeoIP-based routing, you must configure either `geoip_maxmind` or `geoip_
 
 ---
 
-## 1. MaxMind Databases
+## MaxMind Databases
 
 CoreDNS-GSLB supports MaxMind GeoIP2 Country, City, and ASN databases to automatically detect the client's location and match it against the backend pool attributes.
 
@@ -26,7 +26,7 @@ gslb {
 
 ---
 
-## 2. Custom Location Mapping
+## Custom Location Mapping
 
 If you run an internal network or want to override public GeoIP locations for specific IP subnets, you can use a custom location mapping file.
 
@@ -50,7 +50,7 @@ If you run an internal network or want to override public GeoIP locations for sp
 
 ---
 
-## 3. Complete Backend Configuration Example
+## Complete Backend Configuration Example
 
 Below is an example of a backend definition demonstrating all available GeoIP location attributes, active healthcheck configuration, and bypass options:
 
