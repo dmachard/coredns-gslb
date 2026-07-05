@@ -126,7 +126,7 @@ Commands:
   backends enable   [--tags tag1,tag2] [--address addr] [--location loc]
   backends disable  [--tags tag1,tag2] [--address addr] [--location loc]
   status
-  validate          <config.yml> [--geoip-custom <geoip.yml>]
+  validate          <config.yml> [--strict]
 `)
 }
 
@@ -290,6 +290,7 @@ func validateCmd(args []string) {
 func runValidateCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	strict := fs.Bool("strict", false, "Fail validation on warnings")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -297,10 +298,12 @@ func runValidateCmd(args []string, stdout, stderr io.Writer) int {
 	extraArgs := fs.Args()
 	if len(extraArgs) < 1 {
 		fmt.Fprintln(stderr, "Error: missing configuration file path")
-		fmt.Fprintln(stderr, "Usage: gslbctl validate <config.yml>")
+		fmt.Fprintln(stderr, "Usage: gslbctl validate <config.yml> [--strict]")
 		return 2
 	}
 	configFile := extraArgs[0]
+
+	fmt.Fprintf(stdout, "\nValidating %s...\n", configFile)
 
 	// 1. Load the zone configuration file
 	data, err := os.ReadFile(configFile)
@@ -315,30 +318,51 @@ func runValidateCmd(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	numRecords := len(zoneCfg.Records)
+	numProfiles := len(zoneCfg.HealthcheckProfiles)
+
+	fmt.Fprintf(stdout, "✓ %d records parsed\n", numRecords)
+	fmt.Fprintf(stdout, "✓ %d healthcheck profiles loaded\n\n", numProfiles)
+
 	// 2. Perform semantic checks
 	errs, warns := zoneCfg.Validate(nil, nil)
 
-	// Print warnings
-	if len(warns) > 0 {
-		fmt.Fprintln(stdout, "Warnings:")
-		for _, w := range warns {
-			fmt.Fprintf(stdout, "  - [WARNING] %s\n", w)
-		}
+	// Print errors
+	for _, e := range errs {
+		fmt.Fprintf(stderr, "✗ ERROR  %s\n", e)
 	}
 
-	// Print errors
+	// Print warnings
+	for _, w := range warns {
+		fmt.Fprintf(stdout, "⚠ WARN   %s\n", w)
+	}
+
+	if len(errs) > 0 || len(warns) > 0 {
+		fmt.Fprintln(stdout)
+	}
+
+	// Determine success/failure and exit code
+	var failed bool
 	if len(errs) > 0 {
-		fmt.Fprintln(stderr, "Validation Errors:")
-		for _, e := range errs {
-			fmt.Fprintf(stderr, "  - [ERROR] %s\n", e)
-		}
+		failed = true
+	} else if len(warns) > 0 && *strict {
+		failed = true
+	}
+
+	errWord := "errors"
+	if len(errs) == 1 {
+		errWord = "error"
+	}
+	warnWord := "warnings"
+	if len(warns) == 1 {
+		warnWord = "warning"
+	}
+
+	if failed {
+		fmt.Fprintf(stderr, "%d %s, %d %s — validation failed\n", len(errs), errWord, len(warns), warnWord)
 		return 1
 	}
 
-	if len(warns) > 0 {
-		fmt.Fprintln(stdout, "Configuration is valid (with warnings).")
-	} else {
-		fmt.Fprintln(stdout, "Configuration is valid.")
-	}
+	fmt.Fprintf(stdout, "%d %s, %d %s — validation succeeded\n", len(errs), errWord, len(warns), warnWord)
 	return 0
 }

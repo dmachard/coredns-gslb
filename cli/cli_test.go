@@ -69,7 +69,9 @@ func TestValidateCmd(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := runValidateCmd([]string{validFile}, &stdout, &stderr)
 	assert.Equal(t, 0, code)
-	assert.Contains(t, stdout.String(), "Configuration is valid.")
+	assert.Contains(t, stdout.String(), "1 records parsed")
+	assert.Contains(t, stdout.String(), "0 healthcheck profiles loaded")
+	assert.Contains(t, stdout.String(), "0 errors, 0 warnings — validation succeeded")
 
 	// 2. Warning case (missing healthchecks & duplicate priority)
 	warnConfig := `records:
@@ -86,12 +88,21 @@ func TestValidateCmd(t *testing.T) {
 		t.Fatalf("failed to write warn config: %v", err)
 	}
 
+	// 2a. Without --strict: should succeed (exit code 0)
 	stdout.Reset()
 	stderr.Reset()
 	code = runValidateCmd([]string{warnFile}, &stdout, &stderr)
 	assert.Equal(t, 0, code)
-	assert.Contains(t, stdout.String(), "duplicate priority value '5'")
-	assert.Contains(t, stdout.String(), "configured without any healthchecks")
+	assert.Contains(t, stdout.String(), "WARN   duplicate priority value '5'")
+	assert.Contains(t, stdout.String(), "WARN   backend '1.2.3.4'")
+	assert.Contains(t, stdout.String(), "0 errors, 3 warnings — validation succeeded")
+
+	// 2b. With --strict: should fail (exit code 1)
+	stdout.Reset()
+	stderr.Reset()
+	code = runValidateCmd([]string{"--strict", warnFile}, &stdout, &stderr)
+	assert.Equal(t, 1, code)
+	assert.Contains(t, stderr.String(), "0 errors, 3 warnings — validation failed")
 
 	// 3. Validation error case (duplicate backend address)
 	invalidConfig := `records:
@@ -109,7 +120,8 @@ func TestValidateCmd(t *testing.T) {
 	stderr.Reset()
 	code = runValidateCmd([]string{invalidFile}, &stdout, &stderr)
 	assert.Equal(t, 1, code)
-	assert.Contains(t, stderr.String(), "duplicate backend address '1.2.3.4'")
+	assert.Contains(t, stderr.String(), "✗ ERROR  duplicate backend address '1.2.3.4'")
+	assert.Contains(t, stderr.String(), "1 error, 3 warnings — validation failed")
 
 	// 4. Other errors case (file not found)
 	stdout.Reset()
