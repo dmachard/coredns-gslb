@@ -18,7 +18,7 @@ If no healthy backends of the requested type are available, the plugin applies t
 
 ---
 
-## Service Binding Records (SVCB & HTTPS - RFC 9460)
+## Service Records (HTTPS & SVCB)
 
 Modern web browsers (like Safari and Chrome) and public resolvers (like Cloudflare `1.1.1.1` or Google `8.8.8.8`) frequently send `HTTPS` (Type 65) and `SVCB` (Type 64) queries to negotiate connection parameters (e.g., HTTP/3 ALPN, ports) before initiating a connection.
 
@@ -29,8 +29,8 @@ CoreDNS-GSLB natively resolves these queries dynamically:
 * **Port**: Automatically mapped to the backend's port (if specified).
 * **ALPN**: Defaults to `h3,h2` or can be customized per record.
 
-### Configuration Example
-You can configure custom ALPN parameters on your record:
+Configuration Example:
+
 ```yaml
 records:
   webapp.gslb.example.com.:
@@ -59,24 +59,24 @@ If multiple backends are selected by the active routing policy, CoreDNS-GSLB ret
 
 ---
 
-## TXT Records (Debugging & Monitoring)
+## TXT Records
 
 By default, CoreDNS-GSLB serves TXT records summarizing the state of all configured backends. This is useful for real-time monitoring and debugging using standard tools.
 
-### Example Query
+Example Query:
 
 ```bash
 dig TXT webapp.gslb.example.com @127.0.0.1
 ```
 
-### Sample Response
+Sample Response:
 
 ```text
 webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.10 | Priority: 1 | Status: healthy | Enabled: true"
 webapp.gslb.example.com. 30 IN TXT "Backend: 172.16.0.11 | Priority: 2 | Status: unhealthy | Enabled: true"
 ```
 
-### Disabling TXT Record Support
+Disabling TXT Record Support:
 
 If you wish to hide backend details for security or privacy reasons, you can disable TXT queries by adding the `disable_txt` directive to your `gslb` block in the Corefile:
 
@@ -91,12 +91,12 @@ With `disable_txt` enabled, TXT queries for GSLB-managed zones will be passed to
 
 ---
 
-## Wildcard Records Support
+## Wildcard Support
 
 CoreDNS-GSLB supports standard DNS wildcard records (`*.domain.tld`) as described in RFC 1034 §4.3.3.
 If a query does not match any exact record configured in a zone, GSLB will look for a wildcard record by replacing the leftmost label of the query name with `*` and walking up towards the zone apex.
 
-### Example Configuration
+Example Configuration:
 
 ```yaml
 records:

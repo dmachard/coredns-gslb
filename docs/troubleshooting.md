@@ -11,13 +11,7 @@ Example Corefile block:
 }
 ~~~
 
-## Unexpected SOA / NXDOMAIN Responses (Legacy Workaround)
-
-In older versions of CoreDNS-GSLB, when running behind resolvers that perform modern DNS probing (sending HTTPS/type 65 or SVCB queries), you might have seen intermittent negative caching (returning NXDOMAIN or SOA).
-
-**This is now fully supported natively** in CoreDNS-GSLB. The plugin dynamically responds to HTTPS and SVCB queries with RFC 9460-compliant resource records, echoing ALPN, ports, and selected backend IP hints.
-
-Therefore, the legacy workaround using the `template` plugin (e.g., `template IN HTTPS { rcode NOERROR }`) is **no longer required**.
+---
 
 ## Why are all backend IPs returned in the DNS response?
 
@@ -29,3 +23,5 @@ This happens when the GSLB plugin detects that **no backends are healthy**. This
 2. **Total Outage**: If all health checks for a specific record are failing simultaneously.
 
 In these cases, the plugin returns all enabled backends to ensure service continuity, assuming that trying an "unhealthy" backend is better than returning no result at all. Once at least one backend passes its health check, the plugin will resume its normal selection logic (Failover, Round-Robin, etc.).
+
+Please refer to the **[Fallback Behavior](modes.md#fallback-behavior)** section for more information.

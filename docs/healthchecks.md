@@ -310,7 +310,29 @@ To prevent healthcheck flapping due to transient network issues, you can configu
 
 These thresholds can be defined globally in a healthcheck profile, or overridden on a per-backend basis.
 
-### Example: Thresholds Configured via Profiles
+```mermaid
+graph LR
+    subgraph UP_State ["State: UP (Online)"]
+        A[Healthy] -->|"Failed check"| B(Increment failures)
+        B -->|"Failures < fall"| A
+        A -->|"Successful check"| A_Reset(Reset failure counter)
+    end
+
+    subgraph DOWN_State ["State: DOWN (Offline)"]
+        C[Unhealthy] -->|"Successful check"| D(Increment successes)
+        D -->|"Successes < rise"| C
+        C -->|"Failed check"| C_Reset(Reset success counter)
+    end
+
+    B -->|"Failures == fall (default: 3)"| C
+    D -->|"Successes == rise (default: 2)"| A
+
+    style A fill:#dcfce7,stroke:#16a34a,stroke-width:1px,color:#14532d
+    style C fill:#fee2e2,stroke:#dc2626,stroke-width:1px,color:#7f1d1d
+```
+
+**Thresholds Configured via Profiles example:**
+
 ```yaml
 healthcheck_profiles:
   http_flapping_prevented:
@@ -322,7 +344,8 @@ healthcheck_profiles:
       uri: /health
 ```
 
-### Example: Thresholds Overridden Per-Backend
+**Thresholds Overridden Per-Backend example:**
+
 ```yaml
 records:
   webapp.example.com.:

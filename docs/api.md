@@ -1,126 +1,54 @@
 # GSLB REST API
 
-## Authentication
+## Swagger UI
 
-If HTTP Basic Auth is configured (see Corefile options `api_basic_user` and `api_basic_pass`), all endpoints require authentication.
 
-## TLS/HTTPS Support
-
-You can enable HTTPS for the REST API by specifying the following options in your Corefile:
-
-- `api_tls_cert`: Path to the TLS certificate file
-- `api_tls_key`: Path to the TLS private key file
-
-Example in Corefile:
-```
-gslb {
-    api_tls_cert /etc/ssl/certs/mycert.pem
-    api_tls_key /etc/ssl/private/mykey.pem
-}
-```
-
-When enabled, the API will be served over HTTPS (default port 8080 unless changed with `api_listen_port`).
-
-**Example curl call with HTTPS:**
-```bash
-curl -k https://localhost:8080/api/overview
-```
-- The `-k` flag allows curl to connect to self-signed certificates (remove it if using a trusted CA).
-
-## Endpoints
-
-For all request/response schemas and detailed documentation, see [swagger.yaml](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
-
-### Example: GET /api/overview
-```bash
-curl http://localhost:8080/api/overview
-```
-
-Example response:
-```json
-{
-  "zone1.example.com.": [
-    {
-      "record": "webapp1.zone1.example.com.",
-      "status": "healthy",
-      "backends": [
-        {
-          "address": "172.16.0.10",
-          "alive": "healthy",
-          "last_healthcheck": "2025-07-21T13:03:29Z"
-        }
-      ]
-    }
-  ],
-  "zone2.example.com.": [
-    {
-      "record": "webapp2.zone2.example.com.",
-      "status": "unhealthy",
-      "backends": [
-        {
-          "address": "172.16.0.20",
-          "alive": "unhealthy",
-          "last_healthcheck": "2025-07-21T13:03:29Z"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Example: GET /api/overview/{zone}
-```bash
-curl http://localhost:8080/api/overview/zone1.example.com.
-```
-
-Example response:
-```json
-[
-  {
-    "record": "webapp1.zone1.example.com.",
-    "status": "healthy",
-    "backends": [
-      {
-        "address": "172.16.0.10",
-        "alive": "healthy",
-        "last_healthcheck": "2025-07-21T13:03:29Z"
-      }
-    ]
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+<style>
+  /* Ensure Swagger UI fits nicely and supports dark/light mode harmoniously */
+  .swagger-ui {
+    background-color: var(--md-card-background, #fff);
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 15px;
   }
-]
-```
+  .swagger-ui .info {
+    margin: 20px 0 !important;
+  }
+  /* Adjust swagger colors for dark mode if user is in slate theme */
+  [data-md-color-scheme="slate"] .swagger-ui {
+    filter: invert(0.9) hue-rotate(180deg);
+  }
+  [data-md-color-scheme="slate"] .swagger-ui .microlight {
+    filter: invert(1) hue-rotate(180deg);
+  }
+</style>
 
-If the zone does not exist:
-```json
-{"error": "Zone not found"}
-```
+<div id="swagger-ui-container"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+  function initSwagger() {
+    if (typeof SwaggerUIBundle !== 'undefined') {
+      SwaggerUIBundle({
+        url: '../swagger.yaml',
+        dom_id: '#swagger-ui-container',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis
+        ],
+        layout: "BaseLayout"
+      });
+    } else {
+      setTimeout(initSwagger, 100);
+    }
+  }
+  initSwagger();
+</script>
 
-### Example: Bulk Disable Backends
-```bash
-curl -X POST http://localhost:8080/api/backends/disable \
-  -H "Content-Type: application/json" \
-  -d '{"location":"eu-west-1"}'
-```
+---
 
-#### Disable by Tags
-```bash
-curl -X POST http://localhost:8080/api/backends/disable \
-  -H "Content-Type: application/json" \
-  -d '{"tags":["prod","ssd"]}'
-```
-This will disable all backends that have at least one of the specified tags.
+## Enabling the REST API
 
-### Example: Bulk Enable Backends
-```bash
-curl -X POST http://localhost:8080/api/backends/enable \
-  -H "Content-Type: application/json" \
-  -d '{"location":"eu-west-1"}'
-```
+You can enable the built-in HTTP REST API server to dynamically manage backends, view status, and integrate with external tools.
 
-#### Enable by Tags
-```bash
-curl -X POST http://localhost:8080/api/backends/enable \
-  -H "Content-Type: application/json" \
-  -d '{"tags":["prod","ssd"]}'
-```
-This will enable all backends that have at least one of the specified tags.
+To configure the API listen address, port, basic authentication, and TLS certificates, please refer to the **[Corefile Reference](configuration.md#rest-api-options)**.

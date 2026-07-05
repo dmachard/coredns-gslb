@@ -190,3 +190,15 @@
   justify-content: center;
   margin: 1.5rem auto !important;
 }
+
+/* Style body links to be clearly visible and distinct from bold text */
+.md-typeset a:not(.btn-primary):not(.btn-secondary):not(.feature-box) {
+  color: var(--md-accent-fg-color) !important;
+  border-bottom: 1px dashed rgba(6, 182, 212, 0.4);
+  transition: border-bottom-color 0.2s ease, opacity 0.2s ease;
+}
+
+.md-typeset a:not(.btn-primary):not(.btn-secondary):not(.feature-box):hover {
+  border-bottom: 1px solid var(--md-accent-fg-color);
+  opacity: 0.85;
+}

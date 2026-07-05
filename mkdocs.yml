@@ -65,12 +65,12 @@ nav:
       - Quick Start: getting_started.md
       - Corefile Reference: configuration.md
   - Features:
+      - Supported Records: records.md
       - GSLB Modes: modes.md
-      - GeoIP Routing: geoip.md
-      - EDNS Client Subnet: ecs.md
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
-      - Supported Records: records.md
+      - GeoIP Routing: geoip.md
+      - ECS Support: ecs.md
   - Operations:
       - REST API: api.md
       - CLI Tool: cli.md
