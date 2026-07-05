@@ -1,64 +1,101 @@
-# Installation & Download
+# Installation
 
-CoreDNS-GSLB can be deployed using official Docker images, precompiled binaries, or by compiling it directly from source.
+After downloading the CoreDNS-GSLB Docker image or binary, follow these steps to install and set up the service on your environment.
 
 ---
 
-## 1. Docker Images (Recommended)
+## Running with Docker
 
-The easiest and most common way to run CoreDNS-GSLB is via Docker. Official multi-architecture images are published to Docker Hub.
+You can run the CoreDNS-GSLB container by mounting your `Corefile` and configuration files:
 
-*   **Repository**: [dmachard/coredns_gslb](https://hub.docker.com/r/dmachard/coredns_gslb)
-*   **Architectures**: `amd64`, `arm64`
-
-### Pulling the Image
-
-To get the latest release:
 ```bash
-docker pull dmachard/coredns_gslb:latest
+docker run -d \
+  --name coredns-gslb \
+  -p 53:53/udp \
+  -p 53:53/tcp \
+  -p 8080:8080 \
+  -v /etc/coredns:/etc/coredns \
+  dmachard/coredns_gslb:latest -conf /etc/coredns/Corefile
 ```
 
-To pull a specific version (highly recommended for production):
+> [!TIP]
+> For a full, multi-file configuration setup using Docker Compose, check out the **[Quick Start Guide](getting_started.md)**.
+
+---
+
+## Installing the Binary (Linux & macOS)
+
+If you downloaded the precompiled binary archive, extract and install it as follows:
+
+### Step 1: Extract the Archive
+
+Extract the downloaded archive (replace the name with your downloaded archive file):
 ```bash
-docker pull dmachard/coredns_gslb:v0.21.0
+tar -zxvf coredns-gslb_linux_amd64.tar.gz
+```
+
+### Step 2: Install the Binary
+
+Move the extracted `coredns` binary to a directory in your system path (e.g., `/usr/local/bin`) and rename it to `coredns-gslb` for clarity:
+```bash
+sudo mv coredns /usr/local/bin/coredns-gslb
+```
+
+Make sure it has execution permissions:
+```bash
+sudo chmod +x /usr/local/bin/coredns-gslb
+```
+
+### Step 3: Verify the Installation
+
+Check that the binary runs and displays the correct version:
+```bash
+coredns-gslb -version
 ```
 
 ---
 
-## 2. Precompiled Binaries
+## Running as a System Service (Systemd)
 
-For bare-metal or virtual machine deployments, precompiled binaries for CoreDNS integrated with the GSLB plugin are available for download.
+To run CoreDNS-GSLB as a background service on Linux, you can configure a Systemd service unit.
 
-### GitHub Releases
-
-Go to the **[GitHub Releases Page](https://github.com/dmachard/coredns-gslb/releases)** to download the archive for your platform.
-
-Each release includes assets for:
-
-*   **Linux**: `coredns-gslb_linux_amd64.tar.gz`, `coredns-gslb_linux_arm64.tar.gz`
-*   **macOS**: `coredns-gslb_darwin_amd64.tar.gz`, `coredns-gslb_darwin_arm64.tar.gz`
-*   **Windows**: `coredns-gslb_windows_amd64.zip`
-
-### Installation Steps (Linux)
-
-1.  Download and extract the binary:
+1.  Create a dedicated system user and group (optional but recommended):
     ```bash
-    curl -L -O https://github.com/dmachard/coredns-gslb/releases/download/v0.21.0/coredns-gslb_linux_amd64.tar.gz
-    tar -zxvf coredns-gslb_linux_amd64.tar.gz
-    ```
-2.  Move the binary to your system path:
-    ```bash
-    sudo mv coredns /usr/local/bin/coredns-gslb
-    ```
-3.  Verify the installation:
-    ```bash
-    coredns-gslb -version
+    sudo groupadd --system coredns
+    sudo useradd -s /sbin/nologin --system -g coredns coredns
     ```
 
----
+2.  Create the configuration directory and place your `Corefile` and zone YAML files inside:
+    ```bash
+    sudo mkdir -p /etc/coredns
+    sudo chown -R coredns:coredns /etc/coredns
+    ```
 
-## 3. Compiling From Source
+3.  Create the service unit file at `/etc/systemd/system/coredns-gslb.service`:
+    ```ini
+    [Unit]
+    Description=CoreDNS GSLB Service
+    After=network.target
 
-If you need to build CoreDNS with GSLB along with other third-party CoreDNS plugins, you can compile it yourself from source.
+    [Service]
+    PermissionsStartOnly=true
+    LimitNOFILE=1048576
+    LimitNPROC=512
+    CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+    AmbientCapabilities=CAP_NET_BIND_SERVICE
+    Type=simple
+    User=coredns
+    Group=coredns
+    WorkingDirectory=/etc/coredns
+    ExecStart=/usr/local/bin/coredns-gslb -conf /etc/coredns/Corefile
+    Restart=on-failure
 
-Refer to the **[Binary Compilation Guide](developer/compilation.md)** in the Developer resources for step-by-step instructions on setting up `plugin.cfg` and compiling the Go binary.
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+4.  Enable and start the service:
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now coredns-gslb
+    ```

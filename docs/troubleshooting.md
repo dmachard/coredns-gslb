@@ -1,6 +1,6 @@
 # CoreDNS-GSLB: Troubleshooting
 
-## 1. Logging Health Checks
+## Logging Health Checks
 
 Example Corefile block:
 
@@ -11,7 +11,7 @@ Example Corefile block:
 }
 ~~~
 
-## 2. Unexpected SOA / NXDOMAIN Responses (Legacy Workaround)
+## Unexpected SOA / NXDOMAIN Responses (Legacy Workaround)
 
 In older versions of CoreDNS-GSLB, when running behind resolvers that perform modern DNS probing (sending HTTPS/type 65 or SVCB queries), you might have seen intermittent negative caching (returning NXDOMAIN or SOA).
 
@@ -19,7 +19,7 @@ In older versions of CoreDNS-GSLB, when running behind resolvers that perform mo
 
 Therefore, the legacy workaround using the `template` plugin (e.g., `template IN HTTPS { rcode NOERROR }`) is **no longer required**.
 
-## 3. Why are all backend IPs returned in the DNS response?
+## Why are all backend IPs returned in the DNS response?
 
 If you observe that a DNS query returns all configured backend IPs instead of a single one (or based on your selection mode), it is likely due to the **fail-safe mechanism**.
 

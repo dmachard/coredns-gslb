@@ -1,10 +1,10 @@
 # GSLB REST API
 
-## 1. Authentication
+## Authentication
 
 If HTTP Basic Auth is configured (see Corefile options `api_basic_user` and `api_basic_pass`), all endpoints require authentication.
 
-## 2. TLS/HTTPS Support
+## TLS/HTTPS Support
 
 You can enable HTTPS for the REST API by specifying the following options in your Corefile:
 
@@ -27,7 +27,7 @@ curl -k https://localhost:8080/api/overview
 ```
 - The `-k` flag allows curl to connect to self-signed certificates (remove it if using a trusted CA).
 
-## 3. Endpoints
+## Endpoints
 
 For all request/response schemas and detailed documentation, see [swagger.yaml](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/dmachard/coredns-gslb/refs/heads/main/docs/swagger.yaml).
 

@@ -2,7 +2,7 @@
 
 CoreDNS-GSLB features extensive unit and integration tests to ensure stability, proper protocol responses, and configuration parsing.
 
-## 1. Running Unit Tests
+## Running Unit Tests
 
 To run the entire unit test suite:
 ```bash
@@ -16,7 +16,7 @@ go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 
 ---
 
-## 2. Running Integration Tests
+## Running Integration Tests
 
 Integration tests validate end-to-end failover behavior, GeoIP features, and API configuration changes using real container environments:
 
@@ -24,7 +24,7 @@ Integration tests validate end-to-end failover behavior, GeoIP features, and API
 make test-integration
 ```
 
-## 3. Troubleshooting Port Conflicts
+## Troubleshooting Port Conflicts
 
 If some ports (like `8080` for the REST API or `8053` for DNS) are already in use on your host, the Docker integration stack will throw binding errors.
 

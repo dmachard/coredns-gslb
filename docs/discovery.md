@@ -2,19 +2,13 @@
 
 CoreDNS-GSLB allows you to build and manage backend pools using three distinct approaches: static configuration, dynamic management via the REST API, or dynamic Service Discovery from external catalogs and DNS endpoints.
 
----
-
-## 1. Backend Pool Options
-
-| Method | Type | Description |
-|---|---|---|
-| **Static Configuration** | File-based | Configured directly in the zone YAML files. Best for stable, fixed backend pools. |
-| **REST API** | Dynamic | Managed via HTTP REST endpoints (bulk PUT/POST operations). Best for CI/CD integrations. |
-| **Backend Discovery** | Dynamic / External | Dynamically fetched from external service registries (Consul, HTTP endpoints, or DNS SVCB/HTTPS records). |
+- **Static Configuration**: Configured directly in the zone YAML files. Best for stable, fixed backend pools.
+- **REST API**: Managed via HTTP REST endpoints (bulk PUT/POST operations). Best for CI/CD integrations.
+- **Backend Discovery**: Dynamically fetched from external service registries (Consul, HTTP endpoints, or DNS SVCB/HTTPS records).
 
 ---
 
-## 2. Static Configuration
+## Static Configuration
 
 Static configurations are defined under the `backends` block of a record in your zone files.
 
@@ -50,7 +44,7 @@ records:
 
 ---
 
-## 3. Management via REST API
+## Management via REST API
 
 You can enable the REST API server to dynamically register, update, or remove backends. This is useful for automated pipelines or external monitoring tools.
 
@@ -70,7 +64,7 @@ Endpoints
 
 ---
 
-## 4. Backend Discovery
+## Backend Discovery
 
 CoreDNS-GSLB can query external registries at a regular interval to dynamically refresh its backend pool, enabling zero-touch configuration.
 

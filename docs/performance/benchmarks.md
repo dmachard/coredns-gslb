@@ -4,7 +4,7 @@ Below is a resource usage summary (CPU, memory, goroutines) of CoreDNS-GSLB unde
 
 All benchmarks were run with a default interval configuration (`scrape_interval=10s`, `scrape_timeout=2s`, `scrape_retries=1`) under a worst-case scenario where backends do not respond (creating maximum timeout wait and connection states).
 
-## 1. HTTP Health Checks
+## HTTP Health Checks
 
 | Records | Backends/record | Total Healthchecks | CPU Usage | Memory Usage | Goroutines |
 |---------|-----------------|--------------------|-----------|--------------|------------|
@@ -15,7 +15,7 @@ All benchmarks were run with a default interval configuration (`scrape_interval=
 | 10000   | 2               | 20,000             | ~48%      | ~433 MB      | ~10,500    |
 | 10000   | 3               | 30,000             | ~60%      | ~667 MB      | ~10,700    |
 
-## 2. TCP Health Checks
+## TCP Health Checks
 
 | Records | Backends/record | Total Healthchecks | CPU Usage | Memory Usage | Goroutines |
 |---------|-----------------|--------------------|-----------|--------------|------------|
@@ -26,7 +26,7 @@ All benchmarks were run with a default interval configuration (`scrape_interval=
 | 10000   | 2               | 20,000             | ~40%      | ~460 MB      | ~10,600    |
 | 10000   | 3               | 30,000             | ~51%      | ~600 MB      | ~10,800    |
 
-## 3. Lua Health Checks
+## Lua Health Checks
 
 *Note: Lua health checks execute custom scripting per backend using an embedded Lua VM, which incurs higher resource overhead.*
 

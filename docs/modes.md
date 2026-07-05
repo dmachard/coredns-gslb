@@ -2,7 +2,7 @@
 
 The GSLB plugin supports several backend selection modes, configurable per record via the `mode` parameter in your YAML config. Each mode determines how the plugin chooses which backend(s) to return for a DNS query.
 
-## 1. Selection Modes
+## Selection Modes
 
 ### Failover
 
@@ -249,19 +249,18 @@ If no healthy backend matches the client's country or location, the plugin falls
   - Selects the backend at index `hash % number_of_healthy_backends`.
   - Ensures the client always resolves to the same backend IP address as long as the backend pool state remains unchanged.
 
-### Fail-safe behavior (Fallback)
+## Fallback Behavior
 
-For all selection modes, if **no healthy backends** are available (including during initial startup before the first health checks complete), the plugin implements a **fail-safe mechanism**:
+For all selection modes, if **no healthy backends** are available (including during initial startup before the first health checks complete), the plugin implements a **fail-safe mechanism**.
 
+By default, the plugin uses a **fail-open** policy:
 - It returns **all enabled backends** for the requested record type, regardless of their health status.
 - This ensures that a DNS response is always provided if possible, rather than returning an error (SERVFAIL) or an empty response.
 - Once at least one backend is detected as healthy, the plugin resumes its normal selection logic.
 
----
+### Customizing the Failover Policy
 
-## 2. Failover Policies (Custom Fail-safe Behavior)
-
-While the default behavior is `fail-open` (returning all enabled backends if all are unhealthy), you can customize the fail-safe behavior for each record using a `failover_policy` block.
+While the default behavior is `fail-open`, you can customize this fail-safe behavior for each record using a `failover_policy` block.
 
 ### Supported Policies
 - **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
@@ -276,7 +275,7 @@ While the default behavior is `fail-open` (returning all enabled backends if all
 
 ### Example Configurations
 
-**1. Fail-closed with NXDOMAIN**
+**Fail-closed with NXDOMAIN**
 ```yaml
 records:
   webapp.example.org.:
@@ -289,7 +288,7 @@ records:
       - address: "172.16.0.11"
 ```
 
-**2. Fail-specific with Fallback IPs**
+**Fail-specific with Fallback IPs**
 ```yaml
 records:
   api.example.org.:
@@ -302,7 +301,7 @@ records:
       - address: "172.16.0.21"
 ```
 
-**3. Fail-specific with Fallback CNAME**
+**Fail-specific with Fallback CNAME**
 ```yaml
 records:
   api.example.org.:
