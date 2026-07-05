@@ -10,8 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// FailoverPolicy represents the behavior of the record when all backends are unhealthy/disabled.
-type FailoverPolicy struct {
+// FallbackPolicy represents the behavior of the record when all backends are unhealthy/disabled.
+type FallbackPolicy struct {
 	Mode          string   `yaml:"mode"`
 	FallbackIPs   []string `yaml:"fallback_ips"`
 	FallbackCNAME string   `yaml:"fallback_cname"`
@@ -29,7 +29,7 @@ type Record struct {
 	ScrapeInterval string
 	ScrapeRetries  int
 	ScrapeTimeout  string
-	FailoverPolicy FailoverPolicy
+	FallbackPolicy FallbackPolicy
 	Discovery      *DiscoveryConfig
 	ALPN           []string
 	ticker         *time.Ticker
@@ -47,7 +47,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ScrapeRetries  int              `yaml:"scrape_retries" default:"1"`
 		ScrapeTimeout  string           `yaml:"scrape_timeout" default:"5s"`
 		Backends       []interface{}    `yaml:"backends"`
-		FailoverPolicy FailoverPolicy   `yaml:"failover_policy"`
+		FallbackPolicy FallbackPolicy   `yaml:"fallback_policy"`
 		Discovery      *DiscoveryConfig `yaml:"discovery"`
 		Alpn           []string         `yaml:"alpn"`
 	}
@@ -64,7 +64,7 @@ func (r *Record) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	r.ScrapeInterval = raw.ScrapeInterval
 	r.ScrapeRetries = raw.ScrapeRetries
 	r.ScrapeTimeout = raw.ScrapeTimeout
-	r.FailoverPolicy = raw.FailoverPolicy
+	r.FallbackPolicy = raw.FallbackPolicy
 	r.Discovery = raw.Discovery
 	r.ALPN = raw.Alpn
 
@@ -127,12 +127,12 @@ func (r *Record) updateRecord(newRecord *Record) {
 		r.ScrapeTimeout = newRecord.ScrapeTimeout
 	}
 
-	if r.FailoverPolicy.Mode != newRecord.FailoverPolicy.Mode ||
-		r.FailoverPolicy.Rcode != newRecord.FailoverPolicy.Rcode ||
-		r.FailoverPolicy.FallbackCNAME != newRecord.FailoverPolicy.FallbackCNAME ||
-		len(r.FailoverPolicy.FallbackIPs) != len(newRecord.FailoverPolicy.FallbackIPs) {
-		log.Debugf("[%s] failover policy changed", r.Fqdn)
-		r.FailoverPolicy = newRecord.FailoverPolicy
+	if r.FallbackPolicy.Mode != newRecord.FallbackPolicy.Mode ||
+		r.FallbackPolicy.Rcode != newRecord.FallbackPolicy.Rcode ||
+		r.FallbackPolicy.FallbackCNAME != newRecord.FallbackPolicy.FallbackCNAME ||
+		len(r.FallbackPolicy.FallbackIPs) != len(newRecord.FallbackPolicy.FallbackIPs) {
+		log.Debugf("[%s] fallback policy changed", r.Fqdn)
+		r.FallbackPolicy = newRecord.FallbackPolicy
 	}
 
 	if !alpnEqual(r.ALPN, newRecord.ALPN) {

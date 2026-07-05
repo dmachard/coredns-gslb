@@ -14,7 +14,7 @@ CoreDNS-GSLB dynamically resolves and serves several DNS resource record types t
 
 When a query is received, the GSLB plugin uses the configured load-balancing or routing policy (e.g., `geoip`, `round-robin`, `failover`, `weighted`, `random`) to select the best active backend(s) matching the requested address family.
 
-If no healthy backends of the requested type are available, the plugin applies the record's configured `failover_policy` (such as returning fallback IPs or a custom response code).
+If no healthy backends of the requested type are available, the plugin applies the record's configured `fallback_policy` (such as returning fallback IPs or a custom response code).
 
 ---
 

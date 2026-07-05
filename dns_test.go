@@ -505,7 +505,7 @@ func TestGSLB_WildcardRecordMatching(t *testing.T) {
 	})
 }
 
-func TestGSLB_FailoverPolicy(t *testing.T) {
+func TestGSLB_FallbackPolicy(t *testing.T) {
 	// 1. Setup mock backends that are unhealthy
 	backend1 := &MockBackend{Backend: &Backend{Address: "192.168.1.1", Enable: true}}
 	backend1.On("IsHealthy").Return(false)
@@ -531,7 +531,7 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		Mode:      "failover",
 		Backends:  []BackendInterface{backend1},
 		RecordTTL: 60,
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode:  "fail-closed",
 			Rcode: "NXDOMAIN",
 		},
@@ -543,7 +543,7 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		Mode:      "failover",
 		Backends:  []BackendInterface{backend1},
 		RecordTTL: 60,
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode:  "fail-closed",
 			Rcode: "REFUSED",
 		},
@@ -555,7 +555,7 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		Mode:      "failover",
 		Backends:  []BackendInterface{backend1},
 		RecordTTL: 60,
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode:        "fail-specific",
 			FallbackIPs: []string{"1.2.3.4", "5.6.7.8"},
 		},
@@ -567,7 +567,7 @@ func TestGSLB_FailoverPolicy(t *testing.T) {
 		Mode:      "failover",
 		Backends:  []BackendInterface{backend1},
 		RecordTTL: 60,
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode:          "fail-specific",
 			FallbackCNAME: "backup.cdn.cloudflare.net",
 		},
@@ -953,7 +953,7 @@ func TestServeDNS_SVCBAndHTTPS(t *testing.T) {
 	backend2.Alive = false
 
 	// Failover Mode: fail-closed with NXDOMAIN
-	record.FailoverPolicy = FailoverPolicy{
+	record.FallbackPolicy = FallbackPolicy{
 		Mode:  "fail-closed",
 		Rcode: "NXDOMAIN",
 	}
@@ -963,7 +963,7 @@ func TestServeDNS_SVCBAndHTTPS(t *testing.T) {
 	assert.Equal(t, dns.RcodeNameError, wFailClosed.msg.Rcode)
 
 	// Failover Mode: fail-specific with fallback IPs
-	record.FailoverPolicy = FailoverPolicy{
+	record.FallbackPolicy = FallbackPolicy{
 		Mode:        "fail-specific",
 		FallbackIPs: []string{"192.168.5.5", "2001:db8::5"},
 	}

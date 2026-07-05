@@ -24,7 +24,7 @@ scrape_timeout: "10s"
 alpn:
   - "h3"
   - "h2"
-failover_policy:
+fallback_policy:
   mode: "fail-closed"
   rcode: "NXDOMAIN"
   fallback_ips:
@@ -45,11 +45,11 @@ backends:
 	assert.Equal(t, "15s", record.ScrapeInterval)
 	assert.Equal(t, 3, record.ScrapeRetries)
 	assert.Equal(t, "10s", record.ScrapeTimeout)
-	assert.Equal(t, "fail-closed", record.FailoverPolicy.Mode)
-	assert.Equal(t, "NXDOMAIN", record.FailoverPolicy.Rcode)
-	assert.Len(t, record.FailoverPolicy.FallbackIPs, 1)
-	assert.Equal(t, "1.2.3.4", record.FailoverPolicy.FallbackIPs[0])
-	assert.Equal(t, "backup.cdn.cloudflare.net", record.FailoverPolicy.FallbackCNAME)
+	assert.Equal(t, "fail-closed", record.FallbackPolicy.Mode)
+	assert.Equal(t, "NXDOMAIN", record.FallbackPolicy.Rcode)
+	assert.Len(t, record.FallbackPolicy.FallbackIPs, 1)
+	assert.Equal(t, "1.2.3.4", record.FallbackPolicy.FallbackIPs[0])
+	assert.Equal(t, "backup.cdn.cloudflare.net", record.FallbackPolicy.FallbackCNAME)
 	assert.Len(t, record.Backends, 1)
 	assert.Equal(t, "192.168.1.1", record.Backends[0].GetAddress())
 	assert.Equal(t, []string{"h3", "h2"}, record.ALPN)
@@ -60,7 +60,7 @@ func TestRecord_UpdateRecord(t *testing.T) {
 		Fqdn:  "example.com",
 		Mode:  "failover",
 		Owner: "admin",
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode: "fail-open",
 		},
 	}
@@ -69,7 +69,7 @@ func TestRecord_UpdateRecord(t *testing.T) {
 		Fqdn:  "example.com",
 		Mode:  "round-robin",
 		Owner: "admin",
-		FailoverPolicy: FailoverPolicy{
+		FallbackPolicy: FallbackPolicy{
 			Mode:  "fail-closed",
 			Rcode: "NXDOMAIN",
 		},
@@ -78,8 +78,8 @@ func TestRecord_UpdateRecord(t *testing.T) {
 	record.updateRecord(newRecord)
 
 	assert.Equal(t, "round-robin", record.Mode)
-	assert.Equal(t, "fail-closed", record.FailoverPolicy.Mode)
-	assert.Equal(t, "NXDOMAIN", record.FailoverPolicy.Rcode)
+	assert.Equal(t, "fail-closed", record.FallbackPolicy.Mode)
+	assert.Equal(t, "NXDOMAIN", record.FallbackPolicy.Rcode)
 }
 
 func TestRecord_ScrapeInterval(t *testing.T) {
@@ -211,7 +211,7 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 		ScrapeInterval: "10s",
 		ScrapeRetries:  1,
 		ScrapeTimeout:  "5s",
-		FailoverPolicy: FailoverPolicy{Mode: "fail-open", Rcode: "NOERROR", FallbackIPs: []string{"1.1.1.1"}},
+		FallbackPolicy: FallbackPolicy{Mode: "fail-open", Rcode: "NOERROR", FallbackIPs: []string{"1.1.1.1"}},
 		Discovery:      &DiscoveryConfig{Type: "consul"},
 		ALPN:           []string{"h3"},
 		Backends:       []BackendInterface{b1, b2},
@@ -231,7 +231,7 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 		ScrapeInterval: "5s",
 		ScrapeRetries:  2,
 		ScrapeTimeout:  "3s",
-		FailoverPolicy: FailoverPolicy{Mode: "fail-closed", Rcode: "NXDOMAIN", FallbackIPs: []string{"1.1.1.1", "2.2.2.2"}},
+		FallbackPolicy: FallbackPolicy{Mode: "fail-closed", Rcode: "NXDOMAIN", FallbackIPs: []string{"1.1.1.1", "2.2.2.2"}},
 		Discovery:      &DiscoveryConfig{Type: "http"},
 		ALPN:           []string{"h3", "h2"},
 		Backends:       []BackendInterface{newB2, newB3},
@@ -246,9 +246,9 @@ func TestRecord_UpdateRecord_Full(t *testing.T) {
 	assert.Equal(t, "5s", rec.ScrapeInterval)
 	assert.Equal(t, 2, rec.ScrapeRetries)
 	assert.Equal(t, "3s", rec.ScrapeTimeout)
-	assert.Equal(t, "fail-closed", rec.FailoverPolicy.Mode)
-	assert.Equal(t, "NXDOMAIN", rec.FailoverPolicy.Rcode)
-	assert.Len(t, rec.FailoverPolicy.FallbackIPs, 2)
+	assert.Equal(t, "fail-closed", rec.FallbackPolicy.Mode)
+	assert.Equal(t, "NXDOMAIN", rec.FallbackPolicy.Rcode)
+	assert.Len(t, rec.FallbackPolicy.FallbackIPs, 2)
 	assert.Equal(t, "http", rec.Discovery.Type)
 	assert.Equal(t, []string{"h3", "h2"}, rec.ALPN)
 

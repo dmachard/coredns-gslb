@@ -258,9 +258,9 @@ By default, the plugin uses a **fail-open** policy:
 - This ensures that a DNS response is always provided if possible, rather than returning an error (SERVFAIL) or an empty response.
 - Once at least one backend is detected as healthy, the plugin resumes its normal selection logic.
 
-### Customizing the Failover Policy
+### Customizing the Fallback Policy
 
-While the default behavior is `fail-open`, you can customize this fail-safe behavior for each record using a `failover_policy` block.
+While the default behavior is `fail-open`, you can customize this fail-safe behavior for each record using a `fallback_policy` block.
 
 ### Supported Policies
 - **`fail-open`** (default): Returns all enabled backends if all are unhealthy.
@@ -280,7 +280,7 @@ While the default behavior is `fail-open`, you can customize this fail-safe beha
 records:
   webapp.example.org.:
     mode: "roundrobin"
-    failover_policy:
+    fallback_policy:
       mode: "fail-closed"
       rcode: "NXDOMAIN"
     backends:
@@ -293,7 +293,7 @@ records:
 records:
   api.example.org.:
     mode: "failover"
-    failover_policy:
+    fallback_policy:
       mode: "fail-specific"
       fallback_ips: ["1.2.3.4", "2001:db8::1"]
     backends:
@@ -306,7 +306,7 @@ records:
 records:
   api.example.org.:
     mode: "failover"
-    failover_policy:
+    fallback_policy:
       mode: "fail-specific"
       fallback_cname: "backup.cdn.cloudflare.net"
     backends:
