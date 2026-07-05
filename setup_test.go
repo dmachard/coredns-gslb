@@ -313,6 +313,108 @@ func TestSetupGSLB(t *testing.T) {
 		})
 	}
 }
+func TestSetupGSLB_ValidationErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("duplicate backend addresses error", func(t *testing.T) {
+		invalidConfig := `records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+      - address: 1.2.3.4
+`
+		filePath := filepath.Join(tmpDir, "invalid_zone.yml")
+		err := os.WriteFile(filePath, []byte(invalidConfig), 0644)
+		assert.NoError(t, err)
+
+		configStr := `gslb {
+			zone example.com ` + filePath + `
+		}`
+		c := caddy.NewTestController("dns", configStr)
+		err = setup(c)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate backend address")
+	})
+
+	t.Run("invalid custom location map CIDR error", func(t *testing.T) {
+		validZone := `records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+`
+		filePathZone := filepath.Join(tmpDir, "valid_zone.yml")
+		err := os.WriteFile(filePathZone, []byte(validZone), 0644)
+		assert.NoError(t, err)
+
+		invalidLocMap := `subnets:
+  - subnet: 192.168.0.0/99
+    location: eu-west-1
+`
+		filePathLoc := filepath.Join(tmpDir, "invalid_loc.yml")
+		err = os.WriteFile(filePathLoc, []byte(invalidLocMap), 0644)
+		assert.NoError(t, err)
+
+		configStr := `gslb {
+			zone example.com ` + filePathZone + `
+			geoip_custom ` + filePathLoc + `
+		}`
+		c := caddy.NewTestController("dns", configStr)
+		err = setup(c)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid custom location map")
+	})
+
+	t.Run("backend referencing undefined location error", func(t *testing.T) {
+		invalidConfig := `records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+        location: us-west-2
+`
+		filePathZone := filepath.Join(tmpDir, "invalid_zone_loc.yml")
+		err := os.WriteFile(filePathZone, []byte(invalidConfig), 0644)
+		assert.NoError(t, err)
+
+		locMap := `subnets:
+  - subnet: 192.168.0.0/16
+    location: eu-west-1
+`
+		filePathLoc := filepath.Join(tmpDir, "loc.yml")
+		err = os.WriteFile(filePathLoc, []byte(locMap), 0644)
+		assert.NoError(t, err)
+
+		configStr := `gslb {
+			zone example.com ` + filePathZone + `
+			geoip_custom ` + filePathLoc + `
+		}`
+		c := caddy.NewTestController("dns", configStr)
+		err = setup(c)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "references location 'us-west-2' not defined in custom location map")
+	})
+
+	t.Run("unresolved healthcheck profile error", func(t *testing.T) {
+		invalidConfig := `records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+        healthchecks:
+          - nonexistent_profile
+`
+		filePathZone := filepath.Join(tmpDir, "invalid_zone_profile.yml")
+		err := os.WriteFile(filePathZone, []byte(invalidConfig), 0644)
+		assert.NoError(t, err)
+
+		configStr := `gslb {
+			zone example.com ` + filePathZone + `
+		}`
+		c := caddy.NewTestController("dns", configStr)
+		err = setup(c)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unresolved healthcheck profile 'nonexistent_profile'")
+	})
+}
+
 func TestLoadRealConfig(t *testing.T) {
 	// Test loading the appX config file with healthcheck profiles
 	g := &GSLB{}

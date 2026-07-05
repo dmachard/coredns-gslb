@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/dmachard/coredns-gslb/pkg/config"
 )
 
 // Default Corefile path (can be overridden by CORE_DNS_COREFILE env var)
@@ -95,18 +97,22 @@ func addAuth(req *http.Request, cfg Config) {
 }
 
 func main() {
-	cfg := parseCorefile()
-	api := apiURL(cfg)
-
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(1)
 	}
+
 	switch os.Args[1] {
 	case "backends":
+		cfg := parseCorefile()
+		api := apiURL(cfg)
 		backendsCmd(os.Args[2:], api, cfg)
 	case "status":
+		cfg := parseCorefile()
+		api := apiURL(cfg)
 		statusCmd(api, cfg)
+	case "validate":
+		validateCmd(os.Args[2:])
 	default:
 		usage()
 		os.Exit(1)
@@ -120,6 +126,7 @@ Commands:
   backends enable   [--tags tag1,tag2] [--address addr] [--location loc]
   backends disable  [--tags tag1,tag2] [--address addr] [--location loc]
   status
+  validate          <config.yml> [--geoip-custom <geoip.yml>]
 `)
 }
 
@@ -274,4 +281,64 @@ func statusCmd(api string, cfg Config) {
 	} else {
 		fmt.Println(pretty.String())
 	}
+}
+
+func validateCmd(args []string) {
+	os.Exit(runValidateCmd(args, os.Stdout, os.Stderr))
+}
+
+func runValidateCmd(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	extraArgs := fs.Args()
+	if len(extraArgs) < 1 {
+		fmt.Fprintln(stderr, "Error: missing configuration file path")
+		fmt.Fprintln(stderr, "Usage: gslbctl validate <config.yml>")
+		return 2
+	}
+	configFile := extraArgs[0]
+
+	// 1. Load the zone configuration file
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		fmt.Fprintf(stderr, "Error reading configuration file: %v\n", err)
+		return 2
+	}
+
+	zoneCfg, err := config.LoadZoneConfig(data)
+	if err != nil {
+		fmt.Fprintf(stderr, "Error parsing configuration file: %v\n", err)
+		return 2
+	}
+
+	// 2. Perform semantic checks
+	errs, warns := zoneCfg.Validate(nil, nil)
+
+	// Print warnings
+	if len(warns) > 0 {
+		fmt.Fprintln(stdout, "Warnings:")
+		for _, w := range warns {
+			fmt.Fprintf(stdout, "  - [WARNING] %s\n", w)
+		}
+	}
+
+	// Print errors
+	if len(errs) > 0 {
+		fmt.Fprintln(stderr, "Validation Errors:")
+		for _, e := range errs {
+			fmt.Fprintf(stderr, "  - [ERROR] %s\n", e)
+		}
+		return 1
+	}
+
+	if len(warns) > 0 {
+		fmt.Fprintln(stdout, "Configuration is valid (with warnings).")
+	} else {
+		fmt.Fprintln(stdout, "Configuration is valid.")
+	}
+	return 0
 }

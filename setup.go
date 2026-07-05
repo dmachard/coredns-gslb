@@ -241,7 +241,9 @@ func setup(c *caddy.Controller) error {
 	})
 
 	// Initialize and load all records
-	g.initializeRecordsFromFiles(context.Background(), zoneFiles)
+	if err := g.initializeRecordsFromFiles(context.Background(), zoneFiles); err != nil {
+		return err
+	}
 
 	// All OK, return a nil error.
 	return nil
