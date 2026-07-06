@@ -36,6 +36,7 @@ type Backend struct {
 	HasCoordinates       bool                 // Indicates whether both coordinates were explicitly configured
 	LastHealthcheck      time.Time            // Last time a healthcheck was launched
 	AssumeHealthy        bool                 `yaml:"assume_healthy"` // Bypass healthchecks and assume UP
+	Passive              bool                 `yaml:"passive"`        // Passive health checking, read from Redis only
 	Rise                 int                  `yaml:"rise" default:"2"`
 	Fall                 int                  `yaml:"fall" default:"3"`
 	consecutiveSuccesses int
@@ -52,30 +53,44 @@ func (b *Backend) Unlock() {
 }
 
 func (b *Backend) GetFqdn() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Fqdn
 }
 
 func (b *Backend) SetFqdn(fqdn string) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
 	b.Fqdn = fqdn
 }
 
 func (b *Backend) GetDescription() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Description
 }
 
 func (b *Backend) GetAddress() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Address
 }
 
 func (b *Backend) GetPort() int {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Port
 }
 
 func (b *Backend) GetPriority() int {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Priority
 }
 
 func (b *Backend) GetWeight() int {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	if b.Weight <= 0 {
 		return 1
 	}
@@ -83,75 +98,139 @@ func (b *Backend) GetWeight() int {
 }
 
 func (b *Backend) IsEnabled() bool {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Enable
 }
 
 func (b *Backend) GetAssumeHealthy() bool {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.AssumeHealthy
 }
 
+func (b *Backend) IsPassive() bool {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+	return b.Passive
+}
+
 func (b *Backend) GetRise() int {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Rise
 }
 
 func (b *Backend) GetFall() int {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Fall
 }
 
 func (b *Backend) GetTags() []string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Tags
 }
 
 func (b *Backend) GetHealthChecks() []GenericHealthCheck {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.HealthChecks
 }
 
 func (b *Backend) GetTimeout() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Timeout
 }
 
 func (b *Backend) GetContinent() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Continent
 }
 
 func (b *Backend) GetCountry() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Country
 }
 
 func (b *Backend) GetSubdivision() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Subdivision
 }
 
 func (b *Backend) GetCity() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.City
 }
 
 func (b *Backend) GetASN() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.ASN
 }
 
 func (b *Backend) GetLocation() string {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Location
 }
 
 func (b *Backend) GetLongitude() float64 {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Longitude
 }
 
 func (b *Backend) GetLatitude() float64 {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.Latitude
 }
 
 func (b *Backend) GetLongitudeRad() float64 {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.LongitudeRad
 }
 
 func (b *Backend) GetLatitudeRad() float64 {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.LatitudeRad
 }
 
 func (b *Backend) HasGeoCoordinates() bool {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
 	return b.HasCoordinates
+}
+
+func (b *Backend) recomputeCoordinateRadians() {
+	if !b.HasCoordinates {
+		b.LongitudeRad = 0
+		b.LatitudeRad = 0
+		return
+	}
+	b.LongitudeRad = b.Longitude * math.Pi / 180
+	b.LatitudeRad = b.Latitude * math.Pi / 180
+}
+
+func (b *Backend) IsAlive() bool {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+	return b.Alive
+}
+
+func (b *Backend) SetAlive(alive bool) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	b.Alive = alive
 }
 
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -174,6 +253,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Longitude     *float64      `yaml:"longitude"`
 		Latitude      *float64      `yaml:"latitude"`
 		AssumeHealthy bool          `yaml:"assume_healthy" default:"false"`
+		Passive       bool          `yaml:"passive" default:"false"`
 		Rise          int           `yaml:"rise" default:"2"`
 		Fall          int           `yaml:"fall" default:"3"`
 	}
@@ -196,6 +276,7 @@ func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	b.ASN = raw.ASN
 	b.Location = raw.Location
 	b.AssumeHealthy = raw.AssumeHealthy
+	b.Passive = raw.Passive
 	b.Rise = raw.Rise
 	b.Fall = raw.Fall
 	longitudeSet := false
@@ -337,7 +418,7 @@ func (b *Backend) updateBackend(newBackend BackendInterface) {
 	}
 }
 
-func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
+func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) bool {
 	b.mutex.Lock()
 	b.LastHealthcheck = time.Now()
 	b.mutex.Unlock()
@@ -351,7 +432,7 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 		b.Alive = true
 		b.mutex.Unlock()
 		log.Debugf("[%s] health check bypassed for backend: %s (assume_healthy is true)", b.Fqdn, b.Address)
-		return
+		return true
 	}
 
 	var wg sync.WaitGroup
@@ -404,6 +485,14 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 		}
 	}
 
+	b.ApplyHealthCheckResult(alive)
+
+	// Keep old log format for log parsing
+	log.Debugf("[%s] backend status [address=%s]: healthchecks=%s alive=%v", b.Fqdn, b.Address, healthChecksList, b.IsAlive())
+	return alive
+}
+
+func (b *Backend) ApplyHealthCheckResult(alive bool) {
 	b.mutex.Lock()
 	oldAlive := b.Alive
 	rise := b.Rise
@@ -434,9 +523,6 @@ func (b *Backend) runHealthChecks(maxRetries int, scrapeTimeout time.Duration) {
 		log.Infof("[%s] backend status change [address=%s]: alive changed from %v to %v", b.Fqdn, b.Address, oldAlive, b.Alive)
 	}
 	b.mutex.Unlock()
-
-	// Keep old log format for log parsing
-	log.Debugf("[%s] backend status [address=%s]: healthchecks=%s alive=%v", b.Fqdn, b.Address, healthChecksList, b.Alive)
 }
 
 func (b *Backend) IsHealthy() bool {
@@ -459,16 +545,6 @@ func tagsEqual(t1, t2 []string) bool {
 	return true
 }
 
-func (b *Backend) recomputeCoordinateRadians() {
-	if !b.HasCoordinates {
-		b.LongitudeRad = 0
-		b.LatitudeRad = 0
-		return
-	}
-	b.LongitudeRad = b.Longitude * math.Pi / 180
-	b.LatitudeRad = b.Latitude * math.Pi / 180
-}
-
 type BackendInterface interface {
 	GetFqdn() string
 	SetFqdn(fqdn string)
@@ -479,6 +555,7 @@ type BackendInterface interface {
 	GetWeight() int
 	IsEnabled() bool
 	GetAssumeHealthy() bool
+	IsPassive() bool
 	GetRise() int
 	GetFall() int
 	GetTags() []string
@@ -496,7 +573,10 @@ type BackendInterface interface {
 	GetLatitudeRad() float64
 	HasGeoCoordinates() bool
 	IsHealthy() bool
-	runHealthChecks(retries int, timeout time.Duration)
+	IsAlive() bool
+	SetAlive(alive bool)
+	runHealthChecks(retries int, timeout time.Duration) bool
+	ApplyHealthCheckResult(alive bool)
 	removeBackend()
 	updateBackend(newBackend BackendInterface)
 	Lock()

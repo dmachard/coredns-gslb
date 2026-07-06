@@ -42,6 +42,14 @@ gslb {
 
     # Global Healthcheck Profiles Reference File
     healthcheck_profiles /etc/coredns/healthcheck_profiles.yml
+
+    # Redis Shared Health Checks Options
+    redis_enable true
+    redis_addr 127.0.0.1:6379
+    redis_password securepass
+    redis_db 0
+    redis_key_prefix gslb:
+    redis_sync_mode lock
 }
 ```
 
@@ -89,6 +97,17 @@ gslb {
 
 ### Reusable Profiles File
 * **`healthcheck_profiles <path>`**: Path to a YAML file containing global health check profiles shared across all zone files. See the [Health Checks Guide](healthchecks.md) for structure.
+
+### Redis Shared Health Checks Options
+* **`redis_enable <bool>`**: Enables or disables Redis shared health checks synchronization (default: `false`).
+* **`redis_addr <ip:port>`**: The address and port of the Redis server (default: `"127.0.0.1:6379"`).
+* **`redis_password <password>`**: Authentication password for the Redis server (default: `""`).
+* **`redis_db <number>`**: Database number to use inside the Redis server (default: `0`).
+* **`redis_key_prefix <prefix>`**: Prefix prepended to all Redis keys used by GSLB (default: `"gslb:"`).
+* **`redis_sync_mode <mode>`**: The synchronization mode to coordinate health checks (default: `"lock"`).
+  * `lock` (Distributed Lock Mode): Before executing a check, GSLB instances try to acquire a short-lived `SETNX` distributed lock on the backend. Only the instance that acquires the lock runs the physical health check, writes the result to Redis, and broadcasts a real-time update via Pub/Sub. The other instances skip the check and rely on Redis. This mode is highly recommended to minimize duplicate probing load on backends.
+  * `none` (No Lock Mode): All GSLB instances run their health checks independently on their own local schedules. However, they still write their results to Redis and publish changes to the pub/sub channel. Use this mode if you want independent probing from each instance, but still wish to maintain a unified fallback cache of check history in Redis.
+
 
 ---
 
@@ -161,4 +180,21 @@ records:
     owner: alice    # Overrides default owner
     record_ttl: 60  # Overrides default TTL
 ```
+
+### Passive Backend Monitoring
+
+When using Redis Shared Health Checks, you can mark specific backends as **passive** inside your zone YAML file:
+
+```yaml
+records:
+  api.example.org.:
+    mode: failover
+    backends:
+      - address: "192.168.1.10"
+        priority: 1
+        passive: true   # Only read state from Redis, never run checks locally!
+```
+
+* **`passive <bool>`**: When set to `true`, the GSLB instance will never execute health check probes locally for this backend and will never attempt to acquire a distributed lock. Instead, it will exclusively read the backend's status from the shared Redis cache and update its state via Pub/Sub. This is particularly useful in multi-datacenter environments where public GSLB nodes cannot directly reach backend services due to network constraints.
+
 

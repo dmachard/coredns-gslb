@@ -23,7 +23,7 @@ hide:
 <div class="grid-2-cols">
   <div class="feature-box">
     <h3>No Vendor Lock-In</h3>
-    <p>A lightweight, open-source alternative to expensive, proprietary GSLB hardware boxes. Run it on standard VMs or bare-metal without vendor lock-in.</p>
+    <p>A lightweight, open-source alternative to expensive GSLB hardware. Route users to the closest backend using GeoIP (MaxMind or custom mapping) on standard VMs and bare metal.</p>
   </div>
   <div class="feature-box">
     <h3>Not Everything Runs in Kubernetes</h3>
@@ -33,9 +33,9 @@ hide:
     <h3>Modern Health Checks</h3>
     <p>Supports HTTP/S, TCP, ICMP, MySQL, gRPC, and custom Lua scripting to instantly reroute traffic when a backend fails.</p>
   </a>
-  <a href="geoip/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>GeoIP Routing</h3>
-    <p>Uses MaxMind databases and EDNS Client Subnet (ECS) to route users to the closest geographical backend.</p>
+  <a href="observability/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Prometheus Metrics</h3>
+    <p>Monitor cluster health, active backends, latency, and routing decisions in real-time with built-in Prometheus metrics and dashboards.</p>
   </a>
   <a href="records/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
     <h3>Supported Records</h3>
@@ -44,6 +44,14 @@ hide:
   <a href="discovery/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
     <h3>Backend Discovery</h3>
     <p>Automatically discovers backend endpoints from external registries like Consul, custom HTTP JSON APIs, or upstream DNS records.</p>
+  </a>
+  <a href="ha_sync/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>HA State Synchronization</h3>
+    <p>Coordinate health checks and status updates across multiple cluster instances, utilizing distributed locks to eliminate redundant probing.</p>
+  </a>
+  <a href="deployments/ha_passive/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Passive Monitoring</h3>
+    <p>Deploy private check agents to monitor isolated subnets and propagate status back to public DNS instances without exposing private networks.</p>
   </a>
 </div>
 

@@ -329,6 +329,7 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 			return fmt.Errorf("failed to unmarshal record %s: %w", fqdn, err)
 		}
 		record.Fqdn = fqdn
+		record.Zone = zone
 		gslb.Records[zone][fqdn] = &record
 	}
 	return nil

@@ -27,6 +27,10 @@
         # Use EDNS Client Subnet
         use_edns_csubnet 
 
+        # Redis options
+        redis_enable true
+        redis_addr redis:6379
+
         # Maximum delay for staggered start
         max_stagger_start 120s
         resolution_idle_timeout 3600s # Idle timeout for resolution

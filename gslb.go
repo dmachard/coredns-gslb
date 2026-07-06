@@ -10,6 +10,7 @@ import (
 	"github.com/coredns/coredns/plugin"
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/oschwald/geoip2-golang"
+	"github.com/redis/go-redis/v9"
 )
 
 var log = clog.NewWithPlugin("gslb")
@@ -51,6 +52,17 @@ type GSLB struct {
 	APIBasicPass              string         // HTTP Basic Auth password (optional)
 	// DisableTXT disables TXT record resolution if set to true
 	DisableTXT bool
+
+	RedisEnable    bool
+	RedisAddr      string
+	RedisPassword  string
+	RedisDB        int
+	RedisKeyPrefix string
+	RedisSyncMode  string
+
+	redisClient  *redis.Client
+	redisContext context.Context
+	redisCancel  context.CancelFunc
 }
 
 func (g *GSLB) Name() string { return "gslb" }
@@ -82,6 +94,7 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 			oldRecord, exists := oldRecords[fqdn]
 			if !exists {
 				newRecord.Fqdn = fqdn
+				newRecord.Zone = zone
 				g.Records[zone][fqdn] = newRecord
 				log.Infof("Added new record for zone %s: %s", zone, fqdn)
 				newRecord.updateRecordHealthStatus()
@@ -127,6 +140,19 @@ func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[str
 				recordCtx, cancel := context.WithCancel(ctx)
 				record.cancelFunc = cancel
 				log.Debugf("[%s] Starting health checks for backends", domain)
+
+				// Initialize health status from Redis if enabled
+				if g.RedisEnable {
+					record.mutex.Lock()
+					for _, backend := range record.Backends {
+						alive, err := g.GetRedisHealth(recordCtx, record.Zone, record.Fqdn, backend.GetAddress())
+						if err == nil {
+							backend.SetAlive(alive)
+						}
+					}
+					record.mutex.Unlock()
+				}
+
 				// Initialize health status for existing record
 				record.updateRecordHealthStatus()
 				go record.scrapeBackends(recordCtx, g)

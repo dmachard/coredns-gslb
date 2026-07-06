@@ -16,6 +16,17 @@ services:
       gslb_net:
         ipv4_address: 172.16.0.40
 
+  # Redis for shared health state integration tests
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.45
+
+
   # Dedicated upstream DNS server for discovery integration tests
   coredns_discovery:
     image: coredns/coredns:1.14.4
@@ -49,6 +60,7 @@ services:
       - webapp12
       - consul
       - coredns_discovery
+      - redis
     container_name: coredns
     ports:
       - "${COREDNS_PORT_UDP:-8053}:53/udp"
@@ -65,6 +77,36 @@ services:
     networks:
       gslb_net:
         ipv4_address: 172.16.0.9
+
+  # create second coredns instance for HA simulation
+  coredns_gslb_2:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - webapp10
+      - webapp11
+      - webapp12
+      - consul
+      - coredns_discovery
+      - redis
+    container_name: coredns_2
+    ports:
+      - "${COREDNS_2_PORT_UDP:-8153}:53/udp"
+      - "${COREDNS_2_PORT_TCP:-8153}:53/tcp"
+      - "${COREDNS_2_PORT_METRICS:-9253}:9153/tcp"
+      - "${COREDNS_2_PORT_API:-8081}:8080/tcp"
+    volumes:
+      - devcerts:/certs/:ro
+      - ./tests/Corefile:/Corefile
+      - ./tests/:/coredns/
+    command: -conf /Corefile
+    environment:
+      - COREDNS_LOG_LEVEL=debug
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.19
+
 
   # create webapp to simulate web application to monitor
   webapp10:

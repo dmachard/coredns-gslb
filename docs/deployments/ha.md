@@ -50,3 +50,9 @@ flowchart TD
 *   **Load Balancing**: `dnsdist` distributes queries intelligently and caches frequent responses.
 *   **Fault Tolerance**: If one CoreDNS instance fails, other instances or backend paths continue serving workloads.
 *   **Resource Optimization**: Each instance is optimized for its specific zone workload and backend monitoring pool.
+
+## Redis Shared Health Checks
+
+For highly available architectures where you want to coordinate health checks across multiple CoreDNS-GSLB instances to reduce backend load and ensure DNS answer consistency, see the dedicated [Redis Shared Health Checks](ha_redis.md) documentation.
+
+
