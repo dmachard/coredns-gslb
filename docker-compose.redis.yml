@@ -1,0 +1,124 @@
+networks:
+  gslb_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.0.0/24
+
+volumes:
+  devcerts:
+
+services:
+  # Redis for shared health state
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis_redisha
+    ports:
+      - "6379:6379"
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.45
+
+  # generate rootca, server and client certificates
+  gen_certs:
+    build:
+      context: ./tests/gen_certs
+    container_name: gen_certs_redisha
+    volumes:
+      - devcerts:/app/certs/
+
+  # first coredns instance
+  coredns_gslb:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - redis
+      - gen_certs
+      - webapp10
+      - webapp11
+    container_name: coredns_redisha
+    ports:
+      - "${COREDNS_PORT_UDP:-8053}:53/udp"
+      - "${COREDNS_PORT_TCP:-8053}:53/tcp"
+      - "${COREDNS_PORT_METRICS:-9153}:9153/tcp"
+      - "${COREDNS_PORT_API:-8080}:8080/tcp"
+    volumes:
+      - devcerts:/certs/:ro
+      - ./tests/Corefile.redis:/Corefile
+      - ./tests/:/coredns/
+    command: -conf /Corefile
+    environment:
+      - COREDNS_LOG_LEVEL=debug
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.9
+
+  # second coredns instance
+  coredns_gslb_2:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - redis
+      - gen_certs
+      - webapp10
+      - webapp11
+    container_name: coredns_2_redisha
+    ports:
+      - "${COREDNS_2_PORT_UDP:-8153}:53/udp"
+      - "${COREDNS_2_PORT_TCP:-8153}:53/tcp"
+      - "${COREDNS_2_PORT_METRICS:-9253}:9153/tcp"
+      - "${COREDNS_2_PORT_API:-8081}:8080/tcp"
+    volumes:
+      - devcerts:/certs/:ro
+      - ./tests/Corefile.redis:/Corefile
+      - ./tests/:/coredns/
+    command: -conf /Corefile
+    environment:
+      - COREDNS_LOG_LEVEL=debug
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.19
+
+  # webapp to simulate web application to monitor
+  webapp10:
+    build:
+      context: ./tests/webapp
+      extra_hosts:
+        - "webapplication10=172.16.0.10"
+        - "cdns-gslb-server=172.16.0.10"
+        - "localhost=172.16.0.10"
+    depends_on:
+      - gen_certs
+    container_name: webapp10_redisha
+    ports:
+      - "10443:443"
+    volumes:
+      - devcerts:/app/certs/:ro
+    environment:
+      - APP_NAME=WebApplication10
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.10
+
+  # webapp to simulate a second web application to monitor
+  webapp11:
+    build:
+      context: ./tests/webapp
+      extra_hosts:
+        - "webapplication11=172.16.0.11"
+        - "cdns-gslb-server=172.16.0.11"
+        - "localhost=172.16.0.11"
+    depends_on:
+      - gen_certs
+    container_name: webapp11_redisha
+    ports:
+      - "11443:443"
+    volumes:
+      - devcerts:/app/certs/:ro
+    environment:
+      - APP_NAME=WebApplication11
+    networks:
+      gslb_net:
+        ipv4_address: 172.16.0.11

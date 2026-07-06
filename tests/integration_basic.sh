@@ -11,7 +11,7 @@ fi
 export COREDNS_PORT_UDP="${COREDNS_PORT_UDP:-8053}"
 export COREDNS_PORT_TCP="${COREDNS_PORT_TCP:-8053}"
 export COREDNS_PORT_METRICS="${COREDNS_PORT_METRICS:-9153}"
-export COREDNS_PORT_API="${COREDNS_PORT_API:-8080}"
+export COREDNS_PORT_API="${COREDNS_PORT_API:-8082}"
 
 DOCKER_COMPOSE="docker compose"
 if ! docker compose version >/dev/null 2>&1; then
@@ -341,9 +341,9 @@ test_cli_validate_failure() {
 }
 run_test "Check gslbctl validate with invalid config" test_cli_validate_failure
 
-
 # 10. Output Statistics
 echo "=== Integration Test Suite Completed ==="
 echo "Total executed integration tests: $TESTS_RUN"
 echo "Total passed integration tests: $TESTS_PASSED"
 echo "All $TESTS_PASSED integration tests passed successfully!"
+

@@ -101,6 +101,35 @@ func TestSetupGSLB(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "Valid config with Redis options",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				redis_enable true
+				redis_addr "1.2.3.4:6379"
+				redis_password "securepass"
+				redis_db 2
+				redis_key_prefix "gslb_prefix:"
+				redis_sync_mode none
+			}`,
+			expectError: false,
+		},
+		{
+			name: "Invalid redis_sync_mode value error",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				redis_sync_mode invalid
+			}`,
+			expectError: true,
+		},
+		{
+			name: "Invalid redis_db value error",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				redis_db -1
+			}`,
+			expectError: true,
+		},
+		{
 			name: "Unknown option error",
 			config: `gslb {
 				unknown_option

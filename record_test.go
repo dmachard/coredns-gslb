@@ -134,8 +134,9 @@ type callCounter struct {
 	calls int32 // use atomic for thread safety
 }
 
-func (b *callCounter) runHealthChecks(retries int, timeout time.Duration) {
+func (b *callCounter) runHealthChecks(retries int, timeout time.Duration) bool {
 	atomic.AddInt32(&b.calls, 1)
+	return true
 }
 func (b *callCounter) GetFqdn() string                           { return testFqdn }
 func (b *callCounter) SetFqdn(fqdn string)                       {}

@@ -52,9 +52,6 @@ func (g *GSLB) pickBackendWithFailover(record *Record, recordType uint16) ([]str
 
 // pickBackendWithRoundRobin returns one healthy backend in round-robin order.
 func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordType uint16) ([]string, error) {
-	g.Mutex.RLock()
-	defer g.Mutex.RUnlock()
-
 	var index int
 	value, exists := g.RoundRobinIndex.Load(domain)
 	if exists {
@@ -84,9 +81,6 @@ func (g *GSLB) pickBackendWithRoundRobin(domain string, record *Record, recordTy
 
 // pickBackendWithRandom returns all healthy backends in random order.
 func (g *GSLB) pickBackendWithRandom(record *Record, recordType uint16) ([]string, error) {
-	g.Mutex.RLock()
-	defer g.Mutex.RUnlock()
-
 	healthyBackends := []BackendInterface{}
 	for _, backend := range record.Backends {
 		if backend.IsHealthy() {

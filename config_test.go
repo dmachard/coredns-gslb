@@ -642,3 +642,31 @@ records:
 	assert.Equal(t, 8, b4.GetRise())
 	assert.Equal(t, 9, b4.GetFall())
 }
+
+func TestGSLB_LoadConfigFile_PassiveAndZone(t *testing.T) {
+	g := &GSLB{
+		Records: make(map[string]map[string]*Record),
+	}
+	zone := "example.org."
+	g.Records[zone] = make(map[string]*Record)
+
+	content := `
+records:
+  api.example.org.:
+    mode: failover
+    backends:
+      - address: "1.2.3.4"
+        passive: true
+`
+	tmpFile := writeTempYAML(t, content)
+	defer os.Remove(tmpFile)
+
+	err := loadConfigFile(g, tmpFile, zone)
+	assert.NoError(t, err)
+
+	assert.Contains(t, g.Records[zone], "api.example.org.")
+	rec := g.Records[zone]["api.example.org."]
+	assert.Equal(t, zone, rec.Zone) // verify record.Zone is set correctly!
+	assert.Len(t, rec.Backends, 1)
+	assert.True(t, rec.Backends[0].IsPassive()) // verify passive is parsed correctly!
+}

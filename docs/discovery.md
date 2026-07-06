@@ -48,7 +48,8 @@ records:
 
 CoreDNS-GSLB can query external registries at a regular interval to dynamically refresh its backend pool, enabling zero-touch configuration.
 
-> Note: CoreDNS-GSLB delegates health checking to the discovery source. Discovered endpoints are assumed to be healthy. The discovery source (e.g. Consul catalog, custom HTTP endpoint, or upstream DNS server) is responsible for performing health checks and/or only returning active nodes, which CoreDNS-GSLB picks up on the next scrape interval.
+!!! note "Delegation of Health Checking"
+    CoreDNS-GSLB delegates health checking to the discovery source. Discovered endpoints are assumed to be healthy. The discovery source (e.g. Consul catalog, custom HTTP endpoint, or upstream DNS server) is responsible for performing health checks and/or only returning active nodes, which CoreDNS-GSLB picks up on the next scrape interval.
 
 ### Consul Catalog
 

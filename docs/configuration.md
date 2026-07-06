@@ -42,6 +42,14 @@ gslb {
 
     # Global Healthcheck Profiles Reference File
     healthcheck_profiles /etc/coredns/healthcheck_profiles.yml
+
+    # Redis Shared Health Checks Options
+    redis_enable true
+    redis_addr 127.0.0.1:6379
+    redis_password securepass
+    redis_db 0
+    redis_key_prefix gslb:
+    redis_sync_mode lock
 }
 ```
 
@@ -90,75 +98,12 @@ gslb {
 ### Reusable Profiles File
 * **`healthcheck_profiles <path>`**: Path to a YAML file containing global health check profiles shared across all zone files. See the [Health Checks Guide](healthchecks.md) for structure.
 
----
-
-## Zone YAML Configuration
-
-While the Corefile configures CoreDNS startup flags, api settings, and databases, the actual GSLB DNS records and their corresponding backends are defined inside YAML files configured per-zone.
-
-### File Structure Overview
-
-A GSLB zone YAML file is composed of three main root sections:
-
-1. **`defaults`** (Optional): A block containing default parameter values inherited by all records in this zone.
-2. **`healthcheck_profiles`** (Optional): A dictionary of named health check templates that can be referenced in record backends.
-3. **`records`** (Required): A dictionary containing the actual GSLB domain names (must end with a trailing dot) and their routing policies.
-
-```yaml
-# 1. Defaults
-defaults:
-  owner: admin
-  record_ttl: 30
-  scrape_interval: 10s
-
-# 2. Healthcheck Profiles
-healthcheck_profiles:
-  http_check:
-    type: http
-    params:
-      port: 80
-      uri: "/healthz"
-
-# 3. Records
-records:
-  api.example.org.:
-    mode: failover
-    backends:
-      - address: "192.168.1.10"
-        priority: 1
-        healthchecks: [ http_check ]
-      - address: "192.168.1.11"
-        priority: 2
-        healthchecks: [ http_check ]
-```
-
-### Reusable Record Defaults
-
-Any parameter defined in the `defaults` block is automatically applied to all records under the `records` block, unless a record explicitly overrides it.
-
-Supported default fields:
-
-* **`owner`** (string): Metadata to document the owner/maintainer.
-* **`record_ttl`** (int): The DNS TTL (in seconds) returned to clients (default: `30`).
-* **`scrape_interval`** (duration): How often health check scrapers run (default: `"10s"`).
-* **`scrape_retries`** (int): Number of failures required to mark a backend down (default: `1`).
-* **`scrape_timeout`** (duration): Max time to wait for a health check probe (default: `"5s"`).
-* **`alpn`** (list of strings): List of ALPN protocols advertised in SVCB/HTTPS queries.
-
-Overriding Example:
-
-```yaml
-defaults:
-  owner: admin
-  record_ttl: 30
-
-records:
-  web1.example.org.:
-    mode: failover
-    # Inherits: owner="admin", record_ttl=30
-  web2.example.org.:
-    mode: failover
-    owner: alice    # Overrides default owner
-    record_ttl: 60  # Overrides default TTL
-```
-
+### Redis Cluster Mode Options
+* **`redis_enable <bool>`**: Enables or disables Redis shared health checks synchronization (default: `false`).
+* **`redis_addr <ip:port>`**: The address and port of the Redis server (default: `"127.0.0.1:6379"`).
+* **`redis_password <password>`**: Authentication password for the Redis server (default: `""`).
+* **`redis_db <number>`**: Database number to use inside the Redis server (default: `0`).
+* **`redis_key_prefix <prefix>`**: Prefix prepended to all Redis keys used by GSLB (default: `"gslb:"`).
+* **`redis_sync_mode <mode>`**: The synchronization mode to coordinate health checks (default: `"lock"`).
+  * `lock` (Distributed Lock Mode): Before executing a check, GSLB instances try to acquire a short-lived `SETNX` distributed lock on the backend. Only the instance that acquires the lock runs the physical health check, writes the result to Redis, and broadcasts a real-time update via Pub/Sub. The other instances skip the check and rely on Redis. This mode is highly recommended to minimize duplicate probing load on backends.
+  * `none` (No Lock Mode): All GSLB instances run their health checks independently on their own local schedules. However, they still write their results to Redis and publish changes to the pub/sub channel. Use this mode if you want independent probing from each instance, but still wish to maintain a unified fallback cache of check history in Redis.

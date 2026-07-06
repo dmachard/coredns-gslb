@@ -1,0 +1,22 @@
+. {
+    # To log healthcheck results
+    # debug
+
+    # Expose Prometheus metrics on /metrics (default port 9153)
+    prometheus :9153
+
+    # Load SOA zone from a file
+    file /coredns/db.gslb.example.com gslb.example.com
+    log
+
+    # Configure the GSLB plugin with the specified parameters
+    gslb {
+        # Zones
+        zone app-x.gslb.example.com /coredns/db.app-x.gslb.example.com.yml
+        zone app-y.gslb.example.com /coredns/db.app-y.gslb.example.com.yml
+
+        # Redis options
+        redis_enable true
+        redis_addr redis:6379
+    }
+}

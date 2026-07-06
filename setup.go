@@ -42,6 +42,12 @@ func setup(c *caddy.Controller) error {
 		APIEnable:                 true,
 		APIListenAddr:             "0.0.0.0",
 		APIListenPort:             "8080",
+		RedisEnable:               false,
+		RedisAddr:                 "127.0.0.1:6379",
+		RedisPassword:             "",
+		RedisDB:                   0,
+		RedisKeyPrefix:            "gslb:",
+		RedisSyncMode:             "lock",
 	}
 
 	zoneFiles := make(map[string]string)
@@ -218,6 +224,49 @@ func setup(c *caddy.Controller) error {
 						return c.ArgErr()
 					}
 					g.DisableTXT = true
+				case "redis_enable":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					val := c.Val()
+					if val == "true" || val == "1" {
+						g.RedisEnable = true
+					} else {
+						g.RedisEnable = false
+					}
+				case "redis_addr":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.RedisAddr = c.Val()
+				case "redis_password":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.RedisPassword = c.Val()
+				case "redis_db":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					db, err := strconv.Atoi(c.Val())
+					if err != nil || db < 0 {
+						return fmt.Errorf("invalid value for redis_db: %v", c.Val())
+					}
+					g.RedisDB = db
+				case "redis_key_prefix":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.RedisKeyPrefix = c.Val()
+				case "redis_sync_mode":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					mode := c.Val()
+					if mode != "lock" && mode != "none" {
+						return fmt.Errorf("invalid value for redis_sync_mode, expected 'lock' or 'none': %v", mode)
+					}
+					g.RedisSyncMode = mode
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
@@ -239,6 +288,23 @@ func setup(c *caddy.Controller) error {
 		g.Next = next
 		return g
 	})
+
+	if g.RedisEnable {
+		if err := g.ConnectRedis(); err != nil {
+			log.Errorf("Failed to connect to Redis: %v", err)
+		} else {
+			log.Infof("Connected to Redis at %s", g.RedisAddr)
+		}
+		c.OnShutdown(func() error {
+			if g.redisCancel != nil {
+				g.redisCancel()
+			}
+			if g.redisClient != nil {
+				_ = g.redisClient.Close()
+			}
+			return nil
+		})
+	}
 
 	// Initialize and load all records
 	if err := g.initializeRecordsFromFiles(context.Background(), zoneFiles); err != nil {

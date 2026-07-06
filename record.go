@@ -21,6 +21,7 @@ type FallbackPolicy struct {
 // Record represents a GSLB record in the YAML config.
 type Record struct {
 	Fqdn           string
+	Zone           string
 	Mode           string
 	Backends       []BackendInterface
 	Owner          string
@@ -261,13 +262,57 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 			r.mutex.RUnlock()
 
 			for _, backend := range backendsCopy {
-				backend.Lock()
 				if !backend.IsEnabled() {
-					backend.Unlock()
 					continue
 				}
-				backend.Unlock()
-				backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+
+				if backend.IsPassive() {
+					if g.RedisEnable {
+						rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
+						if err == nil {
+							backend.ApplyHealthCheckResult(rawAlive)
+						} else {
+							log.Warningf("[%s] passive backend %s: Redis unreachable, cannot retrieve health: %v", r.Fqdn, backend.GetAddress(), err)
+						}
+					} else {
+						log.Warningf("[%s] passive backend %s: Redis is disabled, passive checks will not function", r.Fqdn, backend.GetAddress())
+					}
+					continue
+				}
+
+				if g.RedisEnable {
+					if g.RedisSyncMode == "lock" {
+						lockTTL := scrapeInterval / 2
+						if lockTTL < 2*time.Second {
+							lockTTL = 2 * time.Second
+						}
+						acquired, err := g.AcquireRedisLock(ctx, r.Zone, r.Fqdn, backend.GetAddress(), lockTTL)
+						if err != nil {
+							// fallback to local check
+							acquired = true
+						}
+						if acquired {
+							rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+							_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
+						} else {
+							// read health from Redis
+							rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
+							if err == nil {
+								backend.ApplyHealthCheckResult(rawAlive)
+							} else {
+								// fallback to local check if Redis is down or key is missing
+								rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+								_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
+							}
+						}
+					} else {
+						// none mode: check locally, write to Redis
+						rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+						_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
+					}
+				} else {
+					backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+				}
 			}
 
 			// Update Prometheus gauge for active backends

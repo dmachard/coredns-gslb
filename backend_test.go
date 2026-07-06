@@ -433,3 +433,26 @@ func (hc *MockFailingHealthCheck) Equals(other GenericHealthCheck) bool {
 	_, ok := other.(*MockFailingHealthCheck)
 	return ok
 }
+
+func TestBackend_ApplyHealthCheckResult(t *testing.T) {
+	b := &Backend{
+		Address: "127.0.0.1",
+		Rise:    3,
+		Fall:    2,
+		Alive:   false, // starts DOWN
+	}
+
+	// 1. Successes transition from DOWN to UP
+	b.ApplyHealthCheckResult(true)
+	assert.False(t, b.Alive)
+	b.ApplyHealthCheckResult(true)
+	assert.False(t, b.Alive)
+	b.ApplyHealthCheckResult(true)
+	assert.True(t, b.Alive)
+
+	// 2. Failures transition from UP to DOWN
+	b.ApplyHealthCheckResult(false)
+	assert.True(t, b.Alive)
+	b.ApplyHealthCheckResult(false)
+	assert.False(t, b.Alive)
+}

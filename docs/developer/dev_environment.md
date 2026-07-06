@@ -90,9 +90,32 @@ dig -p 8053 @127.0.0.1 webapp-geoip-country.app-y.gslb.example.com +short +subne
 
 ---
 
+## Starting the HA Sync (Redis) Dev Stack
+
+If you are developing or testing the high-availability synchronization features (shared health states, locks, pub/sub propagation), you should use the dedicated HA Docker Compose configuration:
+
+1. Build the HA dev stack:
+   ```bash
+   sudo docker compose -f docker-compose.redis.yml build
+   ```
+
+2. Start the HA dev stack (Redis + 2 CoreDNS instances + webapps):
+   ```bash
+   sudo docker compose -f docker-compose.redis.yml up -d
+   ```
+
+---
+
 ## Stopping the Dev Stack
 
 To stop and remove all container resources (including volume cleanup):
-```bash
-sudo docker compose -f docker-compose.dev.yml down -v
-```
+
+*   **For the Basic Dev Stack**:
+    ```bash
+    sudo docker compose -f docker-compose.dev.yml down -v
+    ```
+
+*   **For the HA Dev Stack**:
+    ```bash
+    sudo docker compose -f docker-compose.redis.yml down -v
+    ```
