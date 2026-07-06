@@ -45,7 +45,7 @@ services:
       - "${COREDNS_PORT_API:-8080}:8080/tcp"
     volumes:
       - devcerts:/certs/:ro
-      - ./tests/Corefile:/Corefile
+      - ./tests/Corefile.redis:/Corefile
       - ./tests/:/coredns/
     command: -conf /Corefile
     environment:
@@ -72,7 +72,7 @@ services:
       - "${COREDNS_2_PORT_API:-8081}:8080/tcp"
     volumes:
       - devcerts:/certs/:ro
-      - ./tests/Corefile:/Corefile
+      - ./tests/Corefile.redis:/Corefile
       - ./tests/:/coredns/
     command: -conf /Corefile
     environment:

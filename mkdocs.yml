@@ -65,7 +65,8 @@ nav:
       - Download: download.md
       - Installation: installation.md
       - Quick Start: getting_started.md
-      - Corefile Reference: configuration.md
+      - Corefile: configuration.md
+      - Zone YAML: zone_configuration.md
   - Features:
       - Supported Records: records.md
       - GSLB Modes: modes.md

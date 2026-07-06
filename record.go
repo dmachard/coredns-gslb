@@ -262,12 +262,9 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 			r.mutex.RUnlock()
 
 			for _, backend := range backendsCopy {
-				backend.Lock()
 				if !backend.IsEnabled() {
-					backend.Unlock()
 					continue
 				}
-				backend.Unlock()
 
 				if backend.IsPassive() {
 					if g.RedisEnable {
