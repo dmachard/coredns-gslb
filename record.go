@@ -437,5 +437,3 @@ func alpnEqual(a, b []string) bool {
 	}
 	return true
 }
-	return true
-}

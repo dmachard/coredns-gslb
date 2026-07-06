@@ -18,8 +18,8 @@ docker run -d \
   dmachard/coredns_gslb:latest -conf /etc/coredns/Corefile
 ```
 
-> [!TIP]
-> For a full, multi-file configuration setup using Docker Compose, check out the **[Quick Start Guide](getting_started.md)**.
+!!! note "Tip for compose-based installation"
+    For a full, multi-file configuration setup using Docker Compose, check out the **[Quick Start Guide](getting_started.md)**.
 
 ---
 

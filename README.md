@@ -31,7 +31,7 @@ What it does:
 - **CNAME Redirection for FQDN Backends**: Support hostname/FQDN targets in backend pools, running healthchecks normally and automatically responding with CNAME records if selected
 - **Wildcard record support**: Support for standard DNS wildcard records (`*.domain.tld`)
 - **Configurable failover policies**: Choose how GSLB answers when all backends are unhealthy (fail-open, fail-closed with custom rcode, or fail-specific with fallback IPs)
-- **Distributed HA Synchronization**: Optional Redis-backed shared health checking with distributed locks (`SETNX`), passive monitoring support for restricted networks, and real-time Pub/Sub propagation to synchronize status across multiple CoreDNS instances.
+- **Distributed HA Synchronization**: Optional Redis-backed shared health checking with distributed locks (`SETNX`), offloaded probing support, and real-time Pub/Sub propagation to synchronize status across multiple CoreDNS instances.
 - **No external database**: Records are defined using a YAML file.
 - **Dynamic backend discovery**: Automatic backend pool construction via Consul, HTTP, or DNS (SVCB/HTTPS)
 

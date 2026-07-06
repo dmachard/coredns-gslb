@@ -9,6 +9,7 @@ Additionally, the GSLB plugin automatically adapts the healthcheck interval for 
 - This mechanism reduces unnecessary healthcheck traffic for rarely used records, while keeping healthchecks frequent for active records.
 
 **Example:**
+
 - `scrape_interval: 10s`, `resolution_idle_timeout: 3600s`, `healthcheck_idle_multiplier: 10`
 - If no DNS query is received for 1 hour, healthchecks run every 100s instead of every 10s.
 - When a query is received, healthchecks resume every 10s.
@@ -276,14 +277,12 @@ healthchecks:
         return false
 ```
 
-> [!WARNING]
-> **Security Warning (Remote Code Execution Risk)**
->
-> Storing plaintext passwords directly in the YAML configuration or passing them via the REST API represents a major credential exposure and remote code execution (RCE) risk.
->
-> 1. Avoid hardcoding plaintext passwords inside `ssh_exec`.
-> 2. Prefer using SSH private key files and restrict the SSH user permissions on the target server (e.g., using a restricted shell or setting a `command="..."` prefix in the destination's `authorized_keys` file).
-> 3. Secure the configuration files and the API endpoints with strict file permissions and strong basic authentication.
+!!! warning "Security Warning"
+    Storing plaintext passwords directly in the YAML configuration or passing them via the REST API represents a major credential exposure and remote code execution (RCE) risk.
+    
+    - Avoid hardcoding plaintext passwords inside `ssh_exec`.
+    - Prefer using SSH private key files and restrict the SSH user permissions on the target server (e.g., using a restricted shell or setting a `command="..."` prefix in the destination's `authorized_keys` file).
+    - Secure the configuration files and the API endpoints with strict file permissions and strong basic authentication.
 
 **Example: metric_get with HTTP Basic authentication**
 ```yaml

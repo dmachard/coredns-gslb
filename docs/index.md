@@ -49,9 +49,9 @@ hide:
     <h3>Cluster Mode</h3>
     <p>Coordinate health checks and status updates across multiple cluster instances, utilizing distributed locks to eliminate redundant probing.</p>
   </a>
-  <a href="passive_monitoring/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>Passive Monitoring</h3>
-    <p>Deploy private check agents to monitor isolated subnets and propagate status back to public DNS instances without exposing private networks.</p>
+  <a href="offloaded_probing/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Offloaded Probing</h3>
+    <p>Isolate health check execution from your critical DNS resolution path to optimize resolver resources, or deploy dedicated probers to monitor restricted subnets.</p>
   </a>
 </div>
 

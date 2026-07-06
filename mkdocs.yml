@@ -72,7 +72,7 @@ nav:
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
       - Cluster Mode: cluster_mode.md
-      - Passive Monitoring: passive_monitoring.md
+      - Offloaded Probing: offloaded_probing.md
       - GeoIP Routing: geoip.md
       - ECS Support: ecs.md
   - Operations:
@@ -81,8 +81,9 @@ nav:
       - Observability: observability.md
       - Troubleshooting: troubleshooting.md
   - Deployments:
-      - Standalone Deployments: deployments/standalone.md
-      - Cluster Deployment: deployments/clustering.md
+      - Standalone Mode: deployments/standalone.md
+      - Cluster Mode: deployments/clustering.md
+      - Offloaded Probing: deployments/offloaded.md
       - Anycast & BGP (RHI): deployments/rhi.md
       - Consul Integration: deployments/consul.md
   - Performance:

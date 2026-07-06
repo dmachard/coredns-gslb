@@ -118,6 +118,7 @@ records:
 ## Next Steps
 
 Now that you have a running environment:
+
 - Explore the different [Selection Modes](modes.md) (GeoIP, IP-Hash, Weighted, etc.).
 - Learn how to set up active [Health Checks](healthchecks.md) (HTTP, TCP, ICMP, gRPC) to automatically detect backend failures.
 - Automate backend management using the [REST API](api.md) or external [Service Discovery](discovery.md).
