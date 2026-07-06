@@ -48,16 +48,30 @@ jobs:
     - name: Bench
       run: go test -bench .
 
-  integration_tests:
+  integ_tests_basic:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose dnsutils jq
 
-      - name: Run Integration Tests
-        run: make test-integration
+      - name: Run Basic Integration Tests
+        run: make test-integ-basic
+
+  integ_tests_ha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose dnsutils jq
+
+      - name: Run HA Integration Tests
+        run: make test-integ-ha

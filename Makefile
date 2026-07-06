@@ -17,18 +17,18 @@ SHELL := /bin/bash
 lint:
 	$(GOPATH)/bin/golangci-lint run --config=.golangci.yml ./...
 
-test-integration: test-integration-core test-integration-redis
+test-integration: test-integ-basic test-integ-ha
 
-test-integration-core:
-	@chmod +x tests/integration_core.sh
-	./tests/integration_core.sh
+test-integ-basic:
+	@chmod +x tests/integration_basic.sh
+	./tests/integration_basic.sh
 
-test-integration-redis:
-	@chmod +x tests/integration_redis.sh
-	./tests/integration_redis.sh
+test-integ-ha:
+	@chmod +x tests/integration_ha.sh
+	./tests/integration_ha.sh
 
 # Runs all tests.
-tests: test-unit test-integration-core test-integration-redis
+tests: test-unit test-integ-basic test-integ-ha
 
 # Runs unit tests.
 test-unit:
