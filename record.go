@@ -262,9 +262,12 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 			r.mutex.RUnlock()
 
 			for _, backend := range backendsCopy {
+				backend.Lock()
 				if !backend.IsEnabled() {
+					backend.Unlock()
 					continue
 				}
+				backend.Unlock()
 
 				if backend.IsPassive() {
 					if g.RedisEnable {
@@ -292,11 +295,9 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 							acquired = true
 						}
 						if acquired {
-							log.Debugf("[%s] Redis lock acquired for backend %s, executing active health check", r.Fqdn, backend.GetAddress())
 							rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
 							_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
 						} else {
-							log.Debugf("[%s] Redis lock not acquired for backend %s, skipping execution and reading from Redis", r.Fqdn, backend.GetAddress())
 							// read health from Redis
 							rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
 							if err == nil {
@@ -434,5 +435,7 @@ func alpnEqual(a, b []string) bool {
 			return false
 		}
 	}
+	return true
+}
 	return true
 }

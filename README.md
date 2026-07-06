@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/go%20tests-317-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-85%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-6334-blue" alt="Lines of code"/>
-  <img src="https://img.shields.io/badge/integration%20tests-23-blue" alt="Integration tests"/>
+  <img src="https://img.shields.io/badge/integration%20tests-24-blue" alt="Integration tests"/>
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@ To get up and running quickly using Docker Compose or to compile the plugin loca
 | [Health Checks](docs/healthchecks.md) | Active health checking (HTTP/S, TCP, ICMP, MySQL, gRPC, Lua) and profiles |
 | [Backend Discovery](docs/discovery.md) | Static configs, defaults, tags, and dynamic discovery (Consul, HTTP, SVCB) |
 | [ECS Compliance](docs/ecs.md) | EDNS Client Subnet compliance and caching scope |
-| [Architecture & Deployments](docs/deployments/ha.md) | HA redundancy, Redis Shared Health Checks, Anycast/BGP (RHI), and Consul integration |
+| [Architecture & Deployments](docs/deployments/standalone.md) | Standalone and Cluster deployments, Anycast/BGP (RHI), and Consul integration |
 | [API Reference](docs/api.md) | REST API endpoints and OpenAPI schema |
 | [CLI Guide](docs/cli.md) | Command-line client tool |
 | [Observability](docs/observability.md) | Prometheus metrics |

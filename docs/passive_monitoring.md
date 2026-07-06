@@ -1,8 +1,8 @@
-# Split-Horizon Passive Monitoring
+# Segmented Passive Monitoring
 
 In segmented network architectures, GSLB instances exposed to public client DNS queries may not have direct network access to backend services running in isolated subnets, private clouds, or behind strict firewalls. 
 
-Using the **Passive Backend Monitoring** feature alongside Redis Shared Health Checks, you can deploy a dedicated, internal GSLB instance to perform active checks and publish results to a shared Redis, allowing the public GSLB instances to route traffic dynamically without ever probing the backends directly.
+Using the **Passive Backend Monitoring** feature alongside Cluster Mode, you can deploy a dedicated, internal GSLB instance to perform active checks and publish results to a shared Redis, allowing the public GSLB instances to route traffic dynamically without ever probing the backends directly.
 
 ---
 
@@ -113,7 +113,7 @@ records:
 
 ---
 
-## Benefits of Split-Horizon Monitoring
+## Benefits of Segmented Passive Monitoring
 
 1. **Security**: Public GSLB instances require no firewall rules to access private backend networks.
 2. **Bandwidth Savings**: Health check traffic is contained locally within the isolated subnet.

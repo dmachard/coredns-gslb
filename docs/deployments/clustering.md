@@ -1,8 +1,8 @@
-# Redis Shared Health Checks
+# Cluster Mode Deployment
 
 In highly available (HA) deployments with multiple CoreDNS-GSLB instances, executing health checks independently from every instance can put redundant load on backends and lead to temporary DNS answer inconsistencies.
 
-CoreDNS-GSLB features an optional **Redis-backed shared health checking mechanism** to solve this.
+CoreDNS-GSLB features a **Cluster Mode** backed by a shared Redis database to solve this.
 
 ---
 
@@ -92,9 +92,9 @@ flowchart TD
 
 ## Configuration
 
-To enable Redis Shared Health Checks, configure the Redis options inside the `gslb` block of your `Corefile`. 
+To enable Cluster Mode, configure the Redis options inside the `gslb` block of your `Corefile`. 
 
-For a comprehensive description of all configuration options, refer to the [Corefile Reference](../configuration.md#redis-shared-health-checks-options) guide.
+For a comprehensive description of all configuration options, refer to the [Corefile Reference](../configuration.md#redis-cluster-mode-options) guide.
 
 ### Corefile Example
 

@@ -32,6 +32,9 @@ Available metrics:
 | `gslb_records_total`                       | *(none)*                                         | Total number of GSLB records configured.                                               |
 | `gslb_zones_total`                       | *(none)*                                         | Total number of DNS zones configured.                                               |
 | `gslb_version_info`                        | `version`                                          | GSLB build version info (always set to 1).                                                     |
+| `gslb_redis_connected`                     | *(none)*                                           | Connection status to Redis (1 = connected, 0 = disconnected).                                  |
+| `gslb_redis_errors_total`                  | `operation`                                        | Total number of Redis errors labeled by operation.                                             |
+| `gslb_redis_operations_total`              | `operation`, `result`                              | Total number of Redis operations labeled by operation and result.                              |
 
 You can then scrape metrics at http://localhost:9153/metrics
 

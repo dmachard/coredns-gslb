@@ -1,6 +1,6 @@
 . {
     # To log healthcheck results
-    debug
+    # debug
 
     # Expose Prometheus metrics on /metrics (default port 9153)
     prometheus :9153

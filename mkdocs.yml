@@ -56,6 +56,8 @@ markdown_extensions:
   - tables
   - attr_list
   - md_in_html
+  - admonition
+  - pymdownx.details
 
 nav:
   - Home: index.md
@@ -69,7 +71,8 @@ nav:
       - GSLB Modes: modes.md
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
-      - HA Synchronization: ha_sync.md
+      - Cluster Mode: cluster_mode.md
+      - Passive Monitoring: passive_monitoring.md
       - GeoIP Routing: geoip.md
       - ECS Support: ecs.md
   - Operations:
@@ -78,9 +81,8 @@ nav:
       - Observability: observability.md
       - Troubleshooting: troubleshooting.md
   - Deployments:
-      - High Availability (HA): deployments/ha.md
-      - HA (Redis + Passive): deployments/ha_redis.md
-      - Split-Horizon Passive: deployments/ha_passive.md
+      - Standalone Deployments: deployments/standalone.md
+      - Cluster Deployment: deployments/clustering.md
       - Anycast & BGP (RHI): deployments/rhi.md
       - Consul Integration: deployments/consul.md
   - Performance:

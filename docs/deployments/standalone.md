@@ -1,8 +1,10 @@
-# High Availability & Scalability
+# Standalone Deployments
 
-For production environments requiring high availability and scalability, CoreDNS-GSLB can be deployed across multiple datacenters or nodes to ensure resilience and performance.
+For production environments, CoreDNS-GSLB can be deployed across multiple datacenters or nodes. 
 
-## Datacenter Redundancy Model
+Without a shared backend (like Redis), each GSLB instance runs as an **independent, standalone node**. Each node performs its own active health checks and maintains its own in-memory routing state independently.
+
+## Datacenter Redundancy Model (Standalone Nodes)
 
 In this model:
 
@@ -28,7 +30,7 @@ flowchart TD
     coredns2 --> backends
 ```
 
-## Per-Datacenter Scalability Model
+## Per-Datacenter Scalability Model (Standalone Nodes)
 
 To scale queries within a single datacenter, you can load-balance multiple CoreDNS-GSLB instances using a frontend DNS load balancer like `dnsdist`.
 
@@ -50,9 +52,3 @@ flowchart TD
 *   **Load Balancing**: `dnsdist` distributes queries intelligently and caches frequent responses.
 *   **Fault Tolerance**: If one CoreDNS instance fails, other instances or backend paths continue serving workloads.
 *   **Resource Optimization**: Each instance is optimized for its specific zone workload and backend monitoring pool.
-
-## Redis Shared Health Checks
-
-For highly available architectures where you want to coordinate health checks across multiple CoreDNS-GSLB instances to reduce backend load and ensure DNS answer consistency, see the dedicated [Redis Shared Health Checks](ha_redis.md) documentation.
-
-

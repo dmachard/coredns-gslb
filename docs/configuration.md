@@ -98,7 +98,7 @@ gslb {
 ### Reusable Profiles File
 * **`healthcheck_profiles <path>`**: Path to a YAML file containing global health check profiles shared across all zone files. See the [Health Checks Guide](healthchecks.md) for structure.
 
-### Redis Shared Health Checks Options
+### Redis Cluster Mode Options
 * **`redis_enable <bool>`**: Enables or disables Redis shared health checks synchronization (default: `false`).
 * **`redis_addr <ip:port>`**: The address and port of the Redis server (default: `"127.0.0.1:6379"`).
 * **`redis_password <password>`**: Authentication password for the Redis server (default: `""`).

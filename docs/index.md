@@ -45,11 +45,11 @@ hide:
     <h3>Backend Discovery</h3>
     <p>Automatically discovers backend endpoints from external registries like Consul, custom HTTP JSON APIs, or upstream DNS records.</p>
   </a>
-  <a href="ha_sync/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
-    <h3>HA State Synchronization</h3>
+  <a href="cluster_mode/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+    <h3>Cluster Mode</h3>
     <p>Coordinate health checks and status updates across multiple cluster instances, utilizing distributed locks to eliminate redundant probing.</p>
   </a>
-  <a href="deployments/ha_passive/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
+  <a href="passive_monitoring/" class="feature-box" style="text-decoration: none; color: inherit; display: block;">
     <h3>Passive Monitoring</h3>
     <p>Deploy private check agents to monitor isolated subnets and propagate status back to public DNS instances without exposing private networks.</p>
   </a>

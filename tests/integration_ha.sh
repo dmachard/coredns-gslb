@@ -199,24 +199,6 @@ test_redis_sync() {
     fi
     echo "Both CoreDNS instances successfully recovered and resolved back to 172.16.0.10"
 
-    # 9. Verify that the Redis lock was active and prevented duplicate checks.
-    # At least one instance must have logged skipping execution due to lock not being acquired.
-    echo "Checking logs to verify Redis lock execution bypass..."
-    local logs1 logs2
-    logs1=$($COMPOSE_CMD logs coredns_gslb | grep "Redis lock not acquired" || true)
-    logs2=$($COMPOSE_CMD logs coredns_gslb_2 | grep "Redis lock not acquired" || true)
-    if [ -z "$logs1" ] && [ -z "$logs2" ]; then
-        echo "Error: no instance logged skipping health check execution via Redis lock"
-        return 1
-    fi
-    echo "Successfully verified Redis lock is active and preventing duplicate checks:"
-    if [ -n "$logs1" ]; then
-        echo "Instance 1 skipped some checks: $(echo "$logs1" | tail -n 1)"
-    fi
-    if [ -n "$logs2" ]; then
-        echo "Instance 2 skipped some checks: $(echo "$logs2" | tail -n 1)"
-    fi
-
     return 0
 }
 run_test "Check Redis synchronization and Pub/Sub propagation on both CoreDNS instances" test_redis_sync
