@@ -63,6 +63,13 @@ type GSLB struct {
 	redisClient  *redis.Client
 	redisContext context.Context
 	redisCancel  context.CancelFunc
+
+	StatePersistEnable   bool
+	StatePersistPath     string
+	StatePersistInterval string
+	StateMaxAge          string
+
+	statePersistCancel context.CancelFunc
 }
 
 func (g *GSLB) Name() string { return "gslb" }
@@ -131,14 +138,40 @@ func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[str
 		}
 		log.Infof("Loaded %d records for zone %s", len(g.Records[zone]), zone)
 	}
+
+	// Load initial state from file if enabled
+	if g.StatePersistEnable && !g.RedisEnable {
+		if err := g.LoadState(); err != nil {
+			log.Errorf("Failed to load initial state: %v", err)
+		}
+	}
+
 	groups := g.batchRecords(g.BatchSizeStart)
 	for i, group := range groups {
-		go func(group []*Record, delay time.Duration) {
-			time.Sleep(delay)
-			for _, record := range group {
+		type recordContext struct {
+			record *Record
+			ctx    context.Context
+		}
+		groupCtxs := make([]recordContext, len(group))
+		for idx, record := range group {
+			recordCtx, cancel := context.WithCancel(ctx)
+			record.cancelFunc = cancel
+			groupCtxs[idx] = recordContext{record: record, ctx: recordCtx}
+		}
+
+		go func(gCtxs []recordContext, delay time.Duration) {
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return
+			}
+			for _, rCtx := range gCtxs {
+				record := rCtx.record
+				recordCtx := rCtx.ctx
+				if recordCtx.Err() != nil {
+					continue
+				}
 				domain := record.Fqdn
-				recordCtx, cancel := context.WithCancel(ctx)
-				record.cancelFunc = cancel
 				log.Debugf("[%s] Starting health checks for backends", domain)
 
 				// Initialize health status from Redis if enabled
@@ -157,7 +190,7 @@ func (g *GSLB) initializeRecordsFromFiles(ctx context.Context, zoneFiles map[str
 				record.updateRecordHealthStatus()
 				go record.scrapeBackends(recordCtx, g)
 			}
-		}(group, time.Duration(i)*g.staggerDelay(len(groups)))
+		}(groupCtxs, time.Duration(i)*g.staggerDelay(len(groups)))
 	}
 
 	// Update metrics

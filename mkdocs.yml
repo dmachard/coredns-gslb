@@ -73,6 +73,7 @@ nav:
       - Backend Discovery: discovery.md
       - Health Checks: healthchecks.md
       - Cluster Mode: cluster_mode.md
+      - State Persistence: state_persistence.md
       - Offloaded Probing: offloaded_probing.md
       - GeoIP Routing: geoip.md
       - ECS Support: ecs.md

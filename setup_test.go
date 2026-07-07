@@ -325,6 +325,81 @@ func TestSetupGSLB(t *testing.T) {
 			}`,
 			expectError: true,
 		},
+		{
+			name: "Valid state persistence configuration",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_enable true
+				state_persist_path /tmp/state.json
+				state_persist_interval 45s
+				state_max_age 120s
+			}`,
+			expectError: false,
+		},
+		{
+			name: "Valid state persistence configuration with default path and intervals",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_enable false
+			}`,
+			expectError: false,
+		},
+		{
+			name: "state_persist_enable with invalid boolean",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_enable invalid-bool
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_persist_enable missing argument",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_enable
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_persist_path missing argument",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_path
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_persist_interval with invalid duration",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_interval invalid-duration
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_persist_interval missing argument",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_persist_interval
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_max_age with invalid duration",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_max_age invalid-duration
+			}`,
+			expectError: true,
+		},
+		{
+			name: "state_max_age missing argument",
+			config: `gslb {
+				zone app-x.gslb.example.com ./tests/db.app-x.gslb.example.com.yml
+				state_max_age
+			}`,
+			expectError: true,
+		},
 	}
 
 	// Iterate over test cases

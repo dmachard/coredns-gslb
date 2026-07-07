@@ -106,6 +106,10 @@ func TestBackend_Getters(t *testing.T) {
 	assert.True(t, b.HasGeoCoordinates())
 	assert.Equal(t, "FR", b.GetCountry())
 	assert.Equal(t, "eu-west-1", b.GetLocation())
+
+	now := time.Now()
+	b.SetLastHealthcheck(now)
+	assert.Equal(t, now, b.GetLastHealthcheck())
 }
 
 func TestBackend_IsHealthy(t *testing.T) {

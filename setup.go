@@ -48,6 +48,10 @@ func setup(c *caddy.Controller) error {
 		RedisDB:                   0,
 		RedisKeyPrefix:            "gslb:",
 		RedisSyncMode:             "lock",
+		StatePersistEnable:        false,
+		StatePersistPath:          "/var/lib/coredns-gslb/state.json",
+		StatePersistInterval:      "30s",
+		StateMaxAge:               "60s",
 	}
 
 	zoneFiles := make(map[string]string)
@@ -267,6 +271,38 @@ func setup(c *caddy.Controller) error {
 						return fmt.Errorf("invalid value for redis_sync_mode, expected 'lock' or 'none': %v", mode)
 					}
 					g.RedisSyncMode = mode
+				case "state_persist_enable":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					val, err := strconv.ParseBool(c.Val())
+					if err != nil {
+						return fmt.Errorf("invalid boolean value for state_persist_enable: %v", c.Val())
+					}
+					g.StatePersistEnable = val
+				case "state_persist_path":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					g.StatePersistPath = c.Val()
+				case "state_persist_interval":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					_, err := time.ParseDuration(c.Val())
+					if err != nil {
+						return fmt.Errorf("invalid value for state_persist_interval, expected duration format: %v", c.Val())
+					}
+					g.StatePersistInterval = c.Val()
+				case "state_max_age":
+					if !c.NextArg() {
+						return c.ArgErr()
+					}
+					_, err := time.ParseDuration(c.Val())
+					if err != nil {
+						return fmt.Errorf("invalid value for state_max_age, expected duration format: %v", c.Val())
+					}
+					g.StateMaxAge = c.Val()
 				default:
 					return c.Errf("unknown option for gslb: %s", c.Val())
 				}
@@ -309,6 +345,32 @@ func setup(c *caddy.Controller) error {
 	// Initialize and load all records
 	if err := g.initializeRecordsFromFiles(context.Background(), zoneFiles); err != nil {
 		return err
+	}
+
+	c.OnShutdown(func() error {
+		g.Mutex.Lock()
+		defer g.Mutex.Unlock()
+		for _, records := range g.Records {
+			for _, record := range records {
+				if record.cancelFunc != nil {
+					record.cancelFunc()
+				}
+			}
+		}
+		return nil
+	})
+
+	if g.StatePersistEnable && !g.RedisEnable {
+		persistCtx, cancel := context.WithCancel(context.Background())
+		g.statePersistCancel = cancel
+		g.StartStatePersistLoop(persistCtx)
+
+		c.OnShutdown(func() error {
+			if g.statePersistCancel != nil {
+				g.statePersistCancel()
+			}
+			return nil
+		})
 	}
 
 	// All OK, return a nil error.

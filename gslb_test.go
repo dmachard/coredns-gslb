@@ -104,7 +104,8 @@ records:
 	defer g.redisClient.Close()
 	defer g.redisCancel()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Set backend health in Redis to true
 	err = g.SetRedisHealth(ctx, "example.org.", "api.example.org.", "192.168.1.50", true, 10*time.Second)
 	assert.NoError(t, err)
@@ -113,6 +114,59 @@ records:
 	g.initializeRecordsFromFiles(ctx, g.Zones)
 
 	// Verify that the record was loaded and the backend is alive (loaded from Redis)
+	assert.Contains(t, g.Records, "example.org.")
+	zoneRecords := g.Records["example.org."]
+	assert.Contains(t, zoneRecords, "api.example.org.")
+	rec := zoneRecords["api.example.org."]
+	assert.Len(t, rec.Backends, 1)
+	assert.True(t, rec.Backends[0].IsAlive())
+
+	// Stop any active scraper background goroutines started during initialization
+	if rec.cancelFunc != nil {
+		rec.cancelFunc()
+	}
+}
+
+func TestGSLB_InitializeRecordsFromFiles_WithStatePersist(t *testing.T) {
+	tmpDir := t.TempDir()
+	zoneFile := filepath.Join(tmpDir, "db.example.org.yml")
+	content := `
+records:
+  api.example.org.:
+    mode: failover
+    backends:
+      - address: "192.168.1.50"
+        priority: 1
+`
+	err := os.WriteFile(zoneFile, []byte(content), 0644)
+	assert.NoError(t, err)
+
+	stateFile := filepath.Join(tmpDir, "state.json")
+	stateContent := `{
+  "api.example.org.|192.168.1.50": {
+    "status": "healthy",
+    "last_check": "2026-07-07T09:00:00Z",
+    "last_resolution": "2026-07-07T09:00:00Z"
+  }
+}`
+	err = os.WriteFile(stateFile, []byte(stateContent), 0644)
+	assert.NoError(t, err)
+
+	g := &GSLB{
+		StatePersistEnable:   true,
+		StatePersistPath:     stateFile,
+		StatePersistInterval: "30s",
+		StateMaxAge:          "300s",
+		Zones:                map[string]string{"example.org.": zoneFile},
+		Records:              make(map[string]map[string]*Record),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = g.initializeRecordsFromFiles(ctx, g.Zones)
+	assert.NoError(t, err)
+
+	// Verify that the record was loaded and the backend is alive (loaded from the state file)
 	assert.Contains(t, g.Records, "example.org.")
 	zoneRecords := g.Records["example.org."]
 	assert.Contains(t, zoneRecords, "api.example.org.")
