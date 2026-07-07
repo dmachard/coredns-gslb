@@ -50,6 +50,12 @@ gslb {
     redis_db 0
     redis_key_prefix gslb:
     redis_sync_mode lock
+
+    # Standalone Local Disk State Persistence (ignored if redis_enable is true)
+    state_persist_enable true
+    state_persist_path /var/lib/coredns-gslb/state.json
+    state_persist_interval 30s
+    state_max_age 60s
 }
 ```
 
@@ -107,3 +113,13 @@ gslb {
 * **`redis_sync_mode <mode>`**: The synchronization mode to coordinate health checks (default: `"lock"`).
   * `lock` (Distributed Lock Mode): Before executing a check, GSLB instances try to acquire a short-lived `SETNX` distributed lock on the backend. Only the instance that acquires the lock runs the physical health check, writes the result to Redis, and broadcasts a real-time update via Pub/Sub. The other instances skip the check and rely on Redis. This mode is highly recommended to minimize duplicate probing load on backends.
   * `none` (No Lock Mode): All GSLB instances run their health checks independently on their own local schedules. However, they still write their results to Redis and publish changes to the pub/sub channel. Use this mode if you want independent probing from each instance, but still wish to maintain a unified fallback cache of check history in Redis.
+
+### Standalone State Persistence Options (Standalone Mode Only)
+> [!NOTE]
+> These options are only active when **`redis_enable` is set to `false`** (standalone mode). If Redis cluster mode is enabled, local disk persistence is ignored as Redis acts as the centralized state manager.
+
+* **`state_persist_enable <bool>`**: Enables or disables local state persistence on disk (default: `false`).
+* **`state_persist_path <path>`**: File path where the serialized health state JSON file is written to and read from (default: `"/var/lib/coredns-gslb/state.json"`).
+* **`state_persist_interval <duration>`**: How often the local state is periodically flushed to disk (default: `"30s"`).
+* **`state_max_age <duration>`**: The maximum allowed age for a state file to be loaded at startup. If the file on disk is older than this value, it is ignored as stale and a fresh cold start is performed (default: `"60s"`).
+

@@ -233,6 +233,18 @@ func (b *Backend) SetAlive(alive bool) {
 	b.Alive = alive
 }
 
+func (b *Backend) GetLastHealthcheck() time.Time {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+	return b.LastHealthcheck
+}
+
+func (b *Backend) SetLastHealthcheck(t time.Time) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	b.LastHealthcheck = t
+}
+
 func (b *Backend) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
 		Description   string        `yaml:"description" default:""`
@@ -575,6 +587,8 @@ type BackendInterface interface {
 	IsHealthy() bool
 	IsAlive() bool
 	SetAlive(alive bool)
+	GetLastHealthcheck() time.Time
+	SetLastHealthcheck(t time.Time)
 	runHealthChecks(retries int, timeout time.Duration) bool
 	ApplyHealthCheckResult(alive bool)
 	removeBackend()

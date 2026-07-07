@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -128,4 +132,117 @@ func TestValidateCmd(t *testing.T) {
 	stderr.Reset()
 	code = runValidateCmd([]string{"nonexistent_file.yml"}, &stdout, &stderr)
 	assert.Equal(t, 2, code)
+}
+
+func TestApiURL(t *testing.T) {
+	cfg1 := Config{TLS: true, Addr: "127.0.0.1", Port: "8443"}
+	assert.Equal(t, "https://127.0.0.1:8443", apiURL(cfg1))
+
+	cfg2 := Config{TLS: false, Addr: "localhost", Port: "8080"}
+	assert.Equal(t, "http://localhost:8080", apiURL(cfg2))
+}
+
+func TestAddAuth(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://localhost", nil)
+	cfg := Config{User: "admin", Pass: "secret"}
+	addAuth(req, cfg)
+	authHeader := req.Header.Get("Authorization")
+	assert.True(t, strings.HasPrefix(authHeader, "Basic "))
+
+	req2, _ := http.NewRequest("GET", "http://localhost", nil)
+	cfg2 := Config{}
+	addAuth(req2, cfg2)
+	assert.Empty(t, req2.Header.Get("Authorization"))
+}
+
+func TestUsage(t *testing.T) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	usage()
+
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	assert.Contains(t, buf.String(), "Usage: gslbctl")
+}
+
+func TestBackendsCmd_EnableDisable(t *testing.T) {
+	serverCalled := false
+	var requestPath string
+	var requestBody []byte
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serverCalled = true
+		requestPath = r.URL.Path
+		requestBody, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success": true, "backends": [{"record": "api.example.com.", "address": "1.2.3.4"}]}`))
+	}))
+	defer ts.Close()
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cfg := Config{User: "admin", Pass: "secret"}
+	backendsCmd([]string{"enable", "--tags", "t1,t2", "--address", "1.2.3.4", "--location", "us"}, ts.URL, cfg)
+
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	assert.True(t, serverCalled)
+	assert.Equal(t, "/api/backends/enable", requestPath)
+	assert.Contains(t, buf.String(), "api.example.com.")
+	assert.Contains(t, buf.String(), "1.2.3.4")
+
+	var parsedBody map[string]interface{}
+	err := json.Unmarshal(requestBody, &parsedBody)
+	assert.NoError(t, err)
+	assert.Equal(t, "1.2.3.4", parsedBody["address_prefix"])
+	assert.Equal(t, "us", parsedBody["location"])
+}
+
+func TestStatusCmd(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"example.com.": [
+				{
+					"record": "api.example.com.",
+					"status": "healthy",
+					"backends": [
+						{
+							"address": "1.2.3.4",
+							"alive": "true",
+							"last_healthcheck": "2026-07-07T09:00:00Z"
+						}
+					]
+				}
+			]
+		}`))
+	}))
+	defer ts.Close()
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cfg := Config{}
+	statusCmd(ts.URL, cfg)
+
+	w.Close()
+	os.Stdout = old
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	assert.Contains(t, buf.String(), "example.com.")
+	assert.Contains(t, buf.String(), "api.example.com.")
+	assert.Contains(t, buf.String(), "healthy")
+	assert.Contains(t, buf.String(), "1.2.3.4")
 }
