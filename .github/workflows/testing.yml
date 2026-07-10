@@ -48,7 +48,7 @@ jobs:
     - name: Bench
       run: go test -bench .
 
-  integ_tests_basic:
+  integ_tests_standalone:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -59,10 +59,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose dnsutils jq
 
-      - name: Run Basic Integration Tests
-        run: make test-integ-basic
+      - name: Run Standalone Integration Tests
+        run: make test-integ-standalone
 
-  integ_tests_ha:
+  integ_tests_cluster:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -73,5 +73,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose dnsutils jq
 
-      - name: Run HA Integration Tests
-        run: make test-integ-ha
+      - name: Run Cluster Integration Tests
+        run: make test-integ-cluster

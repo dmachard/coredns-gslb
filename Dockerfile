@@ -1,4 +1,4 @@
-FROM golang:1.26-bookworm AS builder
+FROM golang:1.26-alpine AS builder
 
 # Set the GOPATH and create directories for CoreDNS and the GSLB plugin
 WORKDIR /go/src
@@ -9,7 +9,8 @@ COPY . /go/src/gslb/
 # Build CoreDNS with the GSLB plugin
 ARG COREDNS_VERSION=v1.14.4
 ARG GSLB_VERSION=dev
-RUN git clone https://github.com/coredns/coredns.git /coredns && \
+RUN apk add --no-cache git && \
+    git clone https://github.com/coredns/coredns.git /coredns && \
     cd /coredns && \
     git checkout $COREDNS_VERSION && \
     sed -i '/file:file/i gslb:github.com/dmachard/coredns-gslb' plugin.cfg && \
