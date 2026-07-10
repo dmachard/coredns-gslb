@@ -18,19 +18,19 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
       
       - name: Checkout coredns
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: coredns/coredns
           ref: v${{ env.COREDNS_VERSION }}
           path: coredns
       
       - name: Checkout gslb plugin
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: coredns-gslb
 
