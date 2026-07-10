@@ -10,16 +10,19 @@ permissions:
 
 jobs:
   docker-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
-        platform: [linux/amd64, linux/386]
+        platform: [linux/amd64, linux/arm64]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
 
       - name: Build the Docker image
         run: |
-          PLATFORM=${{ matrix.platform }}  
+          PLATFORM=${{ matrix.platform }}
           TAG=$(echo "$PLATFORM" | tr '/' '-')
           docker build --platform $PLATFORM --file ./Dockerfile -t coredns_gslb:$TAG .

@@ -20,13 +20,13 @@ go test -timeout 10s -cover -v . -run TestGSLB_PickFailoverBackend
 
 Integration tests validate end-to-end failover behavior, GeoIP features, and API configuration changes using real container environments. The integration test suite is split into two parts:
 
-*   **Basic Integration Tests** (standard features like GeoIP, Failover, API, and DNS discovery):
+*   **Standalone Tests** (standard features like GeoIP, Failover, API, and DNS discovery):
     ```bash
-    make test-integ-basic
+    make test-integ-standalone
     ```
-*   **HA/Redis Integration Tests** (shared health checks, locking, and Pub/Sub propagation):
+*   **Cluster Tests** (shared health checks, locking, and Pub/Sub propagation):
     ```bash
-    make test-integ-ha
+    make test-integ-cluster
     ```
 
 To run both integration suites sequentially:
@@ -40,7 +40,7 @@ If some ports (like `8080` for the REST API or `8053` for DNS) are already in us
 
 You can override these default ports using environment variables:
 ```bash
-COREDNS_PORT_API=8082 COREDNS_PORT_TCP=8055 make test-integ-basic
+COREDNS_PORT_API=8082 COREDNS_PORT_TCP=8055 make test-integ-standalone
 ```
 
 Supported port environment variables:

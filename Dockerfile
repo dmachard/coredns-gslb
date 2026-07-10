@@ -9,9 +9,9 @@ COPY . /go/src/gslb/
 # Build CoreDNS with the GSLB plugin
 ARG COREDNS_VERSION=v1.14.4
 ARG GSLB_VERSION=dev
-RUN git clone https://github.com/coredns/coredns.git /coredns && \
+RUN mkdir -p /coredns && \
+    wget -qO- https://github.com/coredns/coredns/archive/refs/tags/${COREDNS_VERSION}.tar.gz | tar -xz -C /coredns --strip-components=1 && \
     cd /coredns && \
-    git checkout $COREDNS_VERSION && \
     sed -i '/file:file/i gslb:github.com/dmachard/coredns-gslb' plugin.cfg && \
     go mod edit -replace github.com/dmachard/coredns-gslb=/go/src/gslb && \
     go get github.com/dmachard/coredns-gslb && \
