@@ -10,7 +10,7 @@ COPY . /go/src/gslb/
 ARG COREDNS_VERSION=v1.14.4
 ARG GSLB_VERSION=dev
 RUN mkdir -p /coredns && \
-    wget -qO- https://github.com/coredns/coredns/archive/refs/tags/${COREDNS_VERSION}.tar.gz | tar -xz -C /coredns --strip-components=1 && \
+    go run /go/src/gslb/helper/download_coredns.go https://github.com/coredns/coredns/archive/refs/tags/${COREDNS_VERSION}.tar.gz /coredns && \
     cd /coredns && \
     sed -i '/file:file/i gslb:github.com/dmachard/coredns-gslb' plugin.cfg && \
     go mod edit -replace github.com/dmachard/coredns-gslb=/go/src/gslb && \
