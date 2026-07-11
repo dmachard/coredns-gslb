@@ -44,7 +44,7 @@ If you need to update CoreDNS or its DNS dependency packages:
 
 ```bash
 go mod edit -go=1.25
-go get github.com/coredns/coredns@v1.14.4
+go get github.com/coredns/coredns@v1.14.6
 go get github.com/miekg/dns@v1.1.72
 go mod tidy
 ```
