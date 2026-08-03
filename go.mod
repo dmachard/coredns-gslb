@@ -7,7 +7,7 @@ require (
 	github.com/coredns/coredns v1.14.6
 	github.com/creasty/defaults v1.8.0
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/melbahja/goph v1.5.1
+	github.com/melbahja/goph v1.5.2
 	github.com/miekg/dns v1.1.72
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/prometheus-community/pro-bing v0.9.1
@@ -40,7 +40,7 @@ require (
 	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pires/go-proxyproto v0.13.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pkg/sftp v1.13.10 // indirect
+	github.com/pkg/sftp v1.13.11 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.69.0 // indirect
