@@ -105,7 +105,9 @@ func (g *GSLB) updateRecords(ctx context.Context, newGSLB *GSLB) {
 				g.Records[zone][fqdn] = newRecord
 				log.Infof("Added new record for zone %s: %s", zone, fqdn)
 				newRecord.updateRecordHealthStatus()
-				go newRecord.scrapeBackends(ctx, g)
+				recordCtx, cancel := context.WithCancel(ctx)
+				newRecord.cancelFunc = cancel
+				go newRecord.scrapeBackends(recordCtx, g)
 			} else {
 				log.Infof("Reloading record %s in zone %s", fqdn, zone)
 				oldRecord.updateRecord(newRecord)
