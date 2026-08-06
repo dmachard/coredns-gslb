@@ -68,6 +68,37 @@ func TestGSLB_RemainingEdgeCases(t *testing.T) {
 	gUpdate.updateRecords(context.Background(), newG)
 }
 
+func TestGSLB_UpdateRecords_NewRecordGetsCancelFunc(t *testing.T) {
+	g := &GSLB{
+		Records: map[string]map[string]*Record{
+			"example.org.": {},
+		},
+	}
+
+	newG := &GSLB{
+		Records: map[string]map[string]*Record{
+			"example.org.": {
+				"new.example.org.": {
+					Mode:           "failover",
+					ScrapeInterval: "1h",
+					Backends: []BackendInterface{
+						&Backend{Address: "192.168.1.1", Enable: true},
+					},
+				},
+			},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	g.updateRecords(ctx, newG)
+
+	rec := g.Records["example.org."]["new.example.org."]
+	assert.NotNil(t, rec)
+	assert.NotNil(t, rec.cancelFunc, "new record must have a cancel func so it can be stopped on reload/shutdown")
+}
+
 func TestGSLB_InitializeRecordsFromFiles(t *testing.T) {
 	// Create a temp zone file
 	tmpDir, err := os.MkdirTemp("", "gslb_test_init_*")
