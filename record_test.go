@@ -129,6 +129,29 @@ func TestRecord_ScrapeBackends_Slowdown(t *testing.T) {
 	}
 }
 
+func TestRecord_ScrapeBackends_InitialRun(t *testing.T) {
+	g := &GSLB{}
+	rec := &Record{
+		Fqdn:           testFqdn,
+		ScrapeInterval: "10s",
+	}
+
+	backend := &callCounter{}
+	rec.Backends = []BackendInterface{backend}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rec.scrapeBackends(ctx, g)
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	if calls := atomic.LoadInt32(&backend.calls); calls != 1 {
+		t.Errorf("expected 1 initial healthcheck at t=0, got %d", calls)
+	}
+}
+
+
 type callCounter struct {
 	Backend
 	calls int32 // use atomic for thread safety
