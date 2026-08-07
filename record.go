@@ -210,127 +210,139 @@ func (r *Record) scrapeBackends(ctx context.Context, g *GSLB) {
 		backend.SetFqdn(r.Fqdn)
 	}
 
+	// Initial scrape run on startup (t=0)
+	r.performScrapeIteration(ctx, g, &scrapeInterval)
+
 	for {
 		select {
 		case <-r.ticker.C:
-			log.Debugf("[%s] Scraper ticker fired", r.Fqdn)
-			now := time.Now()
-
-			// Check if scraping should be slowed down
-			shouldSlowDown := false
-			value, exists := g.LastResolution.Load(r.Fqdn)
-			if exists {
-				lastResolution := value.(time.Time)
-				if now.Sub(lastResolution) > g.GetResolutionIdleTimeout() {
-					shouldSlowDown = true
-				}
-			}
-
-			// Adjust the scraping interval based on activity
-			newInterval := r.GetScrapeInterval()
-			if shouldSlowDown {
-				newInterval = r.GetScrapeInterval() * time.Duration(g.HealthcheckIdleMultiplier)
-			}
-
-			// If the interval changes, reset the ticker
-			if newInterval != scrapeInterval {
-				scrapeInterval = newInterval
-				r.ticker.Reset(scrapeInterval)
-				if shouldSlowDown {
-					log.Infof("[%s] Slow down scrape interval to %s", r.Fqdn, scrapeInterval)
-				} else {
-					log.Infof("[%s] Resume normal scrape interval to %s", r.Fqdn, scrapeInterval)
-				}
-			}
-
-			// Run service discovery if configured
-			if r.Discovery != nil {
-				log.Debugf("[%s] Fetching endpoints from discovery type: %s", r.Fqdn, r.Discovery.Type)
-				endpoints, err := r.Discovery.FetchEndpoints()
-				if err == nil {
-					log.Infof("[%s] Discovered endpoints: %+v", r.Fqdn, endpoints)
-					r.updateBackendsFromDiscovery(endpoints)
-				} else {
-					log.Errorf("[%s] service discovery failed: %v", r.Fqdn, err)
-				}
-			}
-
-			// Run health checks for backends
-			r.mutex.RLock()
-			backendsCopy := make([]BackendInterface, len(r.Backends))
-			copy(backendsCopy, r.Backends)
-			r.mutex.RUnlock()
-
-			for _, backend := range backendsCopy {
-				if !backend.IsEnabled() {
-					continue
-				}
-
-				if backend.IsPassive() {
-					if g.RedisEnable {
-						rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
-						if err == nil {
-							backend.ApplyHealthCheckResult(rawAlive)
-						} else {
-							log.Warningf("[%s] passive backend %s: Redis unreachable, cannot retrieve health: %v", r.Fqdn, backend.GetAddress(), err)
-						}
-					} else {
-						log.Warningf("[%s] passive backend %s: Redis is disabled, passive checks will not function", r.Fqdn, backend.GetAddress())
-					}
-					continue
-				}
-
-				if g.RedisEnable {
-					if g.RedisSyncMode == "lock" {
-						lockTTL := scrapeInterval / 2
-						if lockTTL < 2*time.Second {
-							lockTTL = 2 * time.Second
-						}
-						acquired, err := g.AcquireRedisLock(ctx, r.Zone, r.Fqdn, backend.GetAddress(), lockTTL)
-						if err != nil {
-							// fallback to local check
-							acquired = true
-						}
-						if acquired {
-							rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
-							_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
-						} else {
-							// read health from Redis
-							rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
-							if err == nil {
-								backend.ApplyHealthCheckResult(rawAlive)
-							} else {
-								// fallback to local check if Redis is down or key is missing
-								rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
-								_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
-							}
-						}
-					} else {
-						// none mode: check locally, write to Redis
-						rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
-						_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2*scrapeInterval)
-					}
-				} else {
-					backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
-				}
-			}
-
-			// Update Prometheus gauge for active backends
-			healthyCount := 0
-			for _, backend := range backendsCopy {
-				if backend.IsHealthy() {
-					healthyCount++
-				}
-			}
-			SetActiveBackends(r.Fqdn, float64(healthyCount))
-
-			// Update record health status
-			r.updateRecordHealthStatus()
+			r.performScrapeIteration(ctx, g, &scrapeInterval)
 		case <-ctx.Done():
 			log.Debugf("[%s] stopping health checks", r.Fqdn)
 			return
 		}
 	}
+}
+
+func (r *Record) performScrapeIteration(ctx context.Context, g *GSLB, scrapeInterval *time.Duration) {
+	log.Debugf("[%s] Scraper ticker fired", r.Fqdn)
+	now := time.Now()
+
+	// Check if scraping should be slowed down
+	shouldSlowDown := false
+	value, exists := g.LastResolution.Load(r.Fqdn)
+	if exists {
+		lastResolution := value.(time.Time)
+		if now.Sub(lastResolution) > g.GetResolutionIdleTimeout() {
+			shouldSlowDown = true
+		}
+	}
+
+	// Adjust the scraping interval based on activity
+	newInterval := r.GetScrapeInterval()
+	if shouldSlowDown {
+		newInterval = r.GetScrapeInterval() * time.Duration(g.GetHealthcheckIdleMultiplier())
+	}
+	if newInterval <= 0 {
+		newInterval = r.GetScrapeInterval()
+	}
+
+	// If the interval changes, reset the ticker
+	if newInterval != *scrapeInterval {
+		*scrapeInterval = newInterval
+		if r.ticker != nil && *scrapeInterval > 0 {
+			r.ticker.Reset(*scrapeInterval)
+		}
+		if shouldSlowDown {
+			log.Infof("[%s] Slow down scrape interval to %s", r.Fqdn, *scrapeInterval)
+		} else {
+			log.Infof("[%s] Resume normal scrape interval to %s", r.Fqdn, *scrapeInterval)
+		}
+	}
+
+	// Run service discovery if configured
+	if r.Discovery != nil {
+		log.Debugf("[%s] Fetching endpoints from discovery type: %s", r.Fqdn, r.Discovery.Type)
+		endpoints, err := r.Discovery.FetchEndpoints()
+		if err == nil {
+			log.Infof("[%s] Discovered endpoints: %+v", r.Fqdn, endpoints)
+			r.updateBackendsFromDiscovery(endpoints)
+		} else {
+			log.Errorf("[%s] service discovery failed: %v", r.Fqdn, err)
+		}
+	}
+
+	// Run health checks for backends
+	r.mutex.RLock()
+	backendsCopy := make([]BackendInterface, len(r.Backends))
+	copy(backendsCopy, r.Backends)
+	r.mutex.RUnlock()
+
+	for _, backend := range backendsCopy {
+		if !backend.IsEnabled() {
+			continue
+		}
+
+		if backend.IsPassive() {
+			if g.RedisEnable {
+				rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
+				if err == nil {
+					backend.ApplyHealthCheckResult(rawAlive)
+				} else {
+					log.Warningf("[%s] passive backend %s: Redis unreachable, cannot retrieve health: %v", r.Fqdn, backend.GetAddress(), err)
+				}
+			} else {
+				log.Warningf("[%s] passive backend %s: Redis is disabled, passive checks will not function", r.Fqdn, backend.GetAddress())
+			}
+			continue
+		}
+
+		if g.RedisEnable {
+			if g.RedisSyncMode == "lock" {
+				lockTTL := *scrapeInterval / 2
+				if lockTTL < 2*time.Second {
+					lockTTL = 2 * time.Second
+				}
+				acquired, err := g.AcquireRedisLock(ctx, r.Zone, r.Fqdn, backend.GetAddress(), lockTTL)
+				if err != nil {
+					// fallback to local check
+					acquired = true
+				}
+				if acquired {
+					rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+					_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2**scrapeInterval)
+				} else {
+					// read health from Redis
+					rawAlive, err := g.GetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress())
+					if err == nil {
+						backend.ApplyHealthCheckResult(rawAlive)
+					} else {
+						// fallback to local check if Redis is down or key is missing
+						rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+						_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2**scrapeInterval)
+					}
+				}
+			} else {
+				// none mode: check locally, write to Redis
+				rawAlive := backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+				_ = g.SetRedisHealth(ctx, r.Zone, r.Fqdn, backend.GetAddress(), rawAlive, 2**scrapeInterval)
+			}
+		} else {
+			backend.runHealthChecks(r.ScrapeRetries, r.GetScrapeTimeout())
+		}
+	}
+
+	// Update Prometheus gauge for active backends
+	healthyCount := 0
+	for _, backend := range backendsCopy {
+		if backend.IsHealthy() {
+			healthyCount++
+		}
+	}
+	SetActiveBackends(r.Fqdn, float64(healthyCount))
+
+	// Update record health status
+	r.updateRecordHealthStatus()
 }
 
 func parseDurationWithDefault(durationStr string, defaultStr string) time.Duration {

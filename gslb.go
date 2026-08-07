@@ -278,3 +278,10 @@ func (g *GSLB) GetResolutionIdleTimeout() time.Duration {
 	}
 	return d
 }
+
+func (g *GSLB) GetHealthcheckIdleMultiplier() int {
+	if g.HealthcheckIdleMultiplier < 1 {
+		return 1
+	}
+	return g.HealthcheckIdleMultiplier
+}
