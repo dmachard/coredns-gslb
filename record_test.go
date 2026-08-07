@@ -151,7 +151,6 @@ func TestRecord_ScrapeBackends_InitialRun(t *testing.T) {
 	}
 }
 
-
 type callCounter struct {
 	Backend
 	calls int32 // use atomic for thread safety
