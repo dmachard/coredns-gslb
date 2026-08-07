@@ -241,13 +241,16 @@ func (r *Record) performScrapeIteration(ctx context.Context, g *GSLB, scrapeInte
 	// Adjust the scraping interval based on activity
 	newInterval := r.GetScrapeInterval()
 	if shouldSlowDown {
-		newInterval = r.GetScrapeInterval() * time.Duration(g.HealthcheckIdleMultiplier)
+		newInterval = r.GetScrapeInterval() * time.Duration(g.GetHealthcheckIdleMultiplier())
+	}
+	if newInterval <= 0 {
+		newInterval = r.GetScrapeInterval()
 	}
 
 	// If the interval changes, reset the ticker
 	if newInterval != *scrapeInterval {
 		*scrapeInterval = newInterval
-		if r.ticker != nil {
+		if r.ticker != nil && *scrapeInterval > 0 {
 			r.ticker.Reset(*scrapeInterval)
 		}
 		if shouldSlowDown {
