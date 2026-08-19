@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,20 +67,33 @@ func TestZoneConfig_Validate(t *testing.T) {
 		assert.Len(t, warns, 3) // 2 for missing healthchecks, 1 for duplicate priority 0
 	})
 
-	t.Run("backend referencing undefined location", func(t *testing.T) {
+	t.Run("backend referencing unpinned location warns but does not fail", func(t *testing.T) {
 		yamlData := `records:
   test.example.com.:
     backends:
       - address: 1.2.3.4
         location: us-west-2
+      - address: 1.2.3.5
+        location: us-west-2
+      - address: 1.2.3.6
+        location: eu-west-1
 `
 		cfg, err := LoadZoneConfig([]byte(yamlData))
 		assert.NoError(t, err)
 
 		validLocations := map[string]bool{"eu-west-1": true}
-		errs, _ := cfg.Validate(validLocations, nil)
-		assert.Len(t, errs, 1)
-		assert.Contains(t, errs[0], "references location 'us-west-2' not defined in custom location map")
+		errs, warns := cfg.Validate(validLocations, nil)
+		assert.Empty(t, errs)
+
+		var locWarns []string
+		for _, w := range warns {
+			if strings.Contains(w, "not pinned to any subnet") {
+				locWarns = append(locWarns, w)
+			}
+		}
+		// One warning per distinct unpinned location, not per backend.
+		assert.Len(t, locWarns, 1)
+		assert.Contains(t, locWarns[0], "record 'test.example.com.' references location 'us-west-2'")
 	})
 
 	t.Run("duplicate priority values in failover mode", func(t *testing.T) {

@@ -468,15 +468,17 @@ func TestSetupGSLB_ValidationErrors(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid custom location map")
 	})
 
-	t.Run("backend referencing undefined location error", func(t *testing.T) {
-		invalidConfig := `records:
+	// A partial location map must not invalidate backends tagged with a location
+	// that no subnet pins to. See issue #207.
+	t.Run("backend referencing unpinned location does not block startup", func(t *testing.T) {
+		validConfig := `records:
   test.example.com.:
     backends:
       - address: 1.2.3.4
         location: us-west-2
 `
-		filePathZone := filepath.Join(tmpDir, "invalid_zone_loc.yml")
-		err := os.WriteFile(filePathZone, []byte(invalidConfig), 0644)
+		filePathZone := filepath.Join(tmpDir, "unpinned_zone_loc.yml")
+		err := os.WriteFile(filePathZone, []byte(validConfig), 0644)
 		assert.NoError(t, err)
 
 		locMap := `subnets:
@@ -493,8 +495,7 @@ func TestSetupGSLB_ValidationErrors(t *testing.T) {
 		}`
 		c := caddy.NewTestController("dns", configStr)
 		err = setup(c)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "references location 'us-west-2' not defined in custom location map")
+		assert.NoError(t, err)
 	})
 
 	t.Run("unresolved healthcheck profile error", func(t *testing.T) {

@@ -215,12 +215,19 @@ func (z *ZoneConfig) Validate(validLocations map[string]bool, globalProfiles map
 			seenAddresses[backend.Address] = true
 		}
 
-		// 2. Backends referencing location values not defined in the custom location map
+		// 2. Backends referencing location values not pinned in the custom location map.
+		// The location map only pins *specific* client subnets to a location, so it is
+		// expected to be partial: a backend location that is not a pin target stays
+		// usable through GeoIP affinity, failover and the API bulk operations. This is
+		// therefore reported as a warning (typo hint), never as a fatal error.
 		if len(validLocations) > 0 {
+			reported := make(map[string]bool)
 			for _, backend := range record.Backends {
-				if backend.Location != "" && !validLocations[backend.Location] {
-					errs = append(errs, fmt.Sprintf("backend '%s' in record '%s' references location '%s' not defined in custom location map", backend.Address, fqdn, backend.Location))
+				if backend.Location == "" || validLocations[backend.Location] || reported[backend.Location] {
+					continue
 				}
+				reported[backend.Location] = true
+				warns = append(warns, fmt.Sprintf("record '%s' references location '%s' which is not pinned to any subnet in the custom location map (subnet pinning will never select these backends)", fqdn, backend.Location))
 			}
 		}
 

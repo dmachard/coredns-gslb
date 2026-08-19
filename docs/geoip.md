@@ -27,9 +27,9 @@ Create a YAML file mapping subnets to custom location tags:
 ```yaml
 subnets:
   - subnet: "10.0.0.0/24"
-    location: ["eu-west-1"]
-  - subnet: "192.168.1.0/24" 
-    location: ["us-east-1"]
+    location: "eu-west-1"
+  - subnet: "192.168.1.0/24"
+    location: "us-east-1"
 ```
 
 GSLB will map incoming client IPs belonging to these subnets to the defined location tag and direct traffic to backends tagged with the same `location` value.
