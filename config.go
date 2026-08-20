@@ -13,8 +13,9 @@ import (
 // UnmarshalYAML implements custom YAML unmarshaling to handle healthcheck_profiles
 func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw struct {
-		Records             map[string]interface{}  `yaml:"records"`
-		HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+		Healthcheck         config.GlobalHealthcheckConfig `yaml:"healthcheck"`
+		Records             map[string]interface{}         `yaml:"records"`
+		HealthcheckProfiles map[string]*HealthCheck        `yaml:"healthcheck_profiles"`
 	}
 
 	if err := unmarshal(&raw); err != nil {
@@ -40,7 +41,7 @@ func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				return fmt.Errorf("record %s does not match zone %s", fqdn, zone)
 			}
 			// Pre-process the record data to resolve healthcheck profiles
-			processedRecordData, err := g.processRecordHealthchecks(recordData)
+			processedRecordData, err := g.processRecordHealthchecks(recordData, raw.Healthcheck)
 			if err != nil {
 				return fmt.Errorf("error processing record %s: %w", fqdn, err)
 			}
@@ -65,7 +66,7 @@ func (g *GSLB) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // processRecordHealthchecks processes a record to resolve healthcheck profile references
-func (g *GSLB) processRecordHealthchecks(recordData interface{}) (interface{}, error) {
+func (g *GSLB) processRecordHealthchecks(recordData interface{}, globalHealthcheck config.GlobalHealthcheckConfig) (interface{}, error) {
 	recordMap, ok := recordData.(map[string]interface{})
 	if !ok {
 		return recordData, nil
@@ -89,53 +90,60 @@ func (g *GSLB) processRecordHealthchecks(recordData interface{}) (interface{}, e
 		}
 
 		healthchecks, exists := backendMap["healthchecks"]
-		if !exists {
-			continue
-		}
-
-		// Also check if any profile or inline healthcheck has rise/fall
 		var profileRise, profileFall int
-		if hc, ok := healthchecks.([]interface{}); ok {
-			for _, item := range hc {
-				switch v := item.(type) {
-				case string:
-					profile, err := ResolveHealthcheckProfile(v, g.HealthcheckProfiles)
-					if err == nil {
-						if profile.Rise > 0 {
-							profileRise = profile.Rise
+		if exists {
+			// Check if any profile or inline healthcheck has rise/fall
+			if hc, ok := healthchecks.([]interface{}); ok {
+				for _, item := range hc {
+					switch v := item.(type) {
+					case string:
+						profile, err := ResolveHealthcheckProfile(v, g.HealthcheckProfiles)
+						if err == nil {
+							if profile.Rise > 0 {
+								profileRise = profile.Rise
+							}
+							if profile.Fall > 0 {
+								profileFall = profile.Fall
+							}
 						}
-						if profile.Fall > 0 {
-							profileFall = profile.Fall
+					case map[string]interface{}:
+						if r, ok := v["rise"].(int); ok && r > 0 {
+							profileRise = r
+						} else if rVal, ok := v["rise"].(int64); ok && rVal > 0 {
+							profileRise = int(rVal)
 						}
-					}
-				case map[string]interface{}:
-					if r, ok := v["rise"].(int); ok && r > 0 {
-						profileRise = r
-					} else if rVal, ok := v["rise"].(int64); ok && rVal > 0 {
-						profileRise = int(rVal)
-					}
-					if f, ok := v["fall"].(int); ok && f > 0 {
-						profileFall = f
-					} else if fVal, ok := v["fall"].(int64); ok && fVal > 0 {
-						profileFall = int(fVal)
+						if f, ok := v["fall"].(int); ok && f > 0 {
+							profileFall = f
+						} else if fVal, ok := v["fall"].(int64); ok && fVal > 0 {
+							profileFall = int(fVal)
+						}
 					}
 				}
 			}
+
+			processedHealthchecks, err := g.processHealthchecks(healthchecks)
+			if err != nil {
+				return nil, err
+			}
+			backendMap["healthchecks"] = processedHealthchecks
 		}
 
-		if _, hasRise := backendMap["rise"]; !hasRise && profileRise > 0 {
-			backendMap["rise"] = profileRise
+		// Apply precedence: backend > profile > global > built-in
+		if _, hasRise := backendMap["rise"]; !hasRise {
+			if profileRise > 0 {
+				backendMap["rise"] = profileRise
+			} else if globalHealthcheck.Rise != nil && *globalHealthcheck.Rise > 0 {
+				backendMap["rise"] = *globalHealthcheck.Rise
+			}
 		}
-		if _, hasFall := backendMap["fall"]; !hasFall && profileFall > 0 {
-			backendMap["fall"] = profileFall
+		if _, hasFall := backendMap["fall"]; !hasFall {
+			if profileFall > 0 {
+				backendMap["fall"] = profileFall
+			} else if globalHealthcheck.Fall != nil && *globalHealthcheck.Fall > 0 {
+				backendMap["fall"] = *globalHealthcheck.Fall
+			}
 		}
 
-		processedHealthchecks, err := g.processHealthchecks(healthchecks)
-		if err != nil {
-			return nil, err
-		}
-
-		backendMap["healthchecks"] = processedHealthchecks
 		backendsList[i] = backendMap
 	}
 
@@ -276,9 +284,10 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 
 	// 3. Since config is fully validated and parsed, instantiate active runtime objects
 	var raw struct {
-		Defaults            map[string]interface{}  `yaml:"defaults"`
-		Records             map[string]interface{}  `yaml:"records"`
-		HealthcheckProfiles map[string]*HealthCheck `yaml:"healthcheck_profiles"`
+		Defaults            map[string]interface{}         `yaml:"defaults"`
+		Healthcheck         config.GlobalHealthcheckConfig `yaml:"healthcheck"`
+		Records             map[string]interface{}         `yaml:"records"`
+		HealthcheckProfiles map[string]*HealthCheck        `yaml:"healthcheck_profiles"`
 	}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("failed to parse YAML configuration: %w", err)
@@ -316,7 +325,7 @@ func loadConfigFile(gslb *GSLB, fileName string, zone string) error {
 				return fmt.Errorf("record %s is not a map", fqdn)
 			}
 		}
-		processedRecordData, err := (&GSLB{HealthcheckProfiles: raw.HealthcheckProfiles}).processRecordHealthchecks(merged)
+		processedRecordData, err := (&GSLB{HealthcheckProfiles: raw.HealthcheckProfiles}).processRecordHealthchecks(merged, raw.Healthcheck)
 		if err != nil {
 			return fmt.Errorf("error processing record %s: %w", fqdn, err)
 		}

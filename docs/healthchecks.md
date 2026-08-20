@@ -307,8 +307,6 @@ To prevent healthcheck flapping due to transient network issues, you can configu
 - **`fall`** (default: `3`): The number of consecutive failed checks required to mark an active backend as offline (`DOWN`).
 - **`rise`** (default: `2`): The number of consecutive successful checks required to mark an offline backend as online (`UP`).
 
-These thresholds can be defined globally in a healthcheck profile, or overridden on a per-backend basis.
-
 ```mermaid
 graph LR
     subgraph UP_State ["State: UP (Online)"]
@@ -330,9 +328,21 @@ graph LR
     style C fill:#fee2e2,stroke:#dc2626,stroke-width:1px,color:#7f1d1d
 ```
 
-**Thresholds Configured via Profiles example:**
+### Configuration Precedence
+
+Thresholds are evaluated using the following precedence hierarchy:
+
+1. **Backend-specific configuration**: Explicit `rise` / `fall` on the backend.
+2. **Healthcheck profile configuration**: `rise` / `fall` defined in a referenced `healthcheck_profile`.
+3. **Global healthcheck defaults**: Global `healthcheck` section (`rise` / `fall`) in the zone YAML configuration file.
+4. **Built-in defaults**: `rise: 2`, `fall: 3`.
 
 ```yaml
+# Global default configuration
+healthcheck:
+  rise: 1
+  fall: 2
+
 healthcheck_profiles:
   http_flapping_prevented:
     type: http
@@ -341,19 +351,25 @@ healthcheck_profiles:
     params:
       port: 8080
       uri: /health
-```
 
-**Thresholds Overridden Per-Backend example:**
-
-```yaml
 records:
   webapp.example.com.:
     backends:
+      # Backend 1: uses global defaults (rise: 1, fall: 2)
+      - address: "10.0.0.4"
+      # Backend 2: inherits profile thresholds (rise: 4, fall: 5)
       - address: "10.0.0.5"
         healthchecks: [ http_flapping_prevented ]
-        rise: 2 # overrides the profile's rise value
-        fall: 3 # overrides the profile's fall value
+      # Backend 3: overrides profile & global thresholds (rise: 3, fall: 3)
+      - address: "10.0.0.6"
+        healthchecks: [ http_flapping_prevented ]
+        rise: 3
+        fall: 3
 ```
+
+> [!TIP]
+> **Fast Recovery During Deployments**
+> For environments running frequent redeployments and using `geoip_affinity`, setting `healthcheck.rise: 1` enables newly started backends to immediately become eligible after a single successful health check, avoiding prolonged traffic disruption while preserving `fall: 2` or `fall: 3` to guard against transient failures.
 
 ---
 

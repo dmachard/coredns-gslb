@@ -190,3 +190,43 @@ records:
 		assert.Len(t, warns, 0)
 	})
 }
+
+func TestLoadZoneConfig_GlobalHealthcheck(t *testing.T) {
+	t.Run("valid global healthcheck rise and fall", func(t *testing.T) {
+		yamlData := `
+healthcheck:
+  rise: 1
+  fall: 2
+records:
+  test.example.com.:
+    backends:
+      - address: 1.2.3.4
+`
+		cfg, err := LoadZoneConfig([]byte(yamlData))
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg.Healthcheck.Rise)
+		assert.NotNil(t, cfg.Healthcheck.Fall)
+		assert.Equal(t, 1, *cfg.Healthcheck.Rise)
+		assert.Equal(t, 2, *cfg.Healthcheck.Fall)
+	})
+
+	t.Run("invalid global healthcheck rise", func(t *testing.T) {
+		yamlData := `
+healthcheck:
+  rise: -1
+`
+		_, err := LoadZoneConfig([]byte(yamlData))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid global healthcheck rise")
+	})
+
+	t.Run("invalid global healthcheck fall", func(t *testing.T) {
+		yamlData := `
+healthcheck:
+  fall: -5
+`
+		_, err := LoadZoneConfig([]byte(yamlData))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid global healthcheck fall")
+	})
+}
