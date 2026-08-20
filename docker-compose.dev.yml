@@ -18,7 +18,7 @@ services:
 
   # Dedicated upstream DNS server for discovery integration tests
   coredns_discovery:
-    image: coredns/coredns:1.14.6
+    image: coredns/coredns:1.14.7
     container_name: coredns_discovery
     ports:
       - "8054:53/udp"

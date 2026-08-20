@@ -23,9 +23,9 @@ jobs:
         
     steps:
     - uses: actions/checkout@v7
-    - uses: actions/setup-go@v6
+    - uses: actions/setup-go@v7
 
-    - uses: actions/setup-go@v6
+    - uses: actions/setup-go@v7
       with:
         go-version: ${{ matrix.go-version }}
         # workaround: when the files to be extracted are already present, 

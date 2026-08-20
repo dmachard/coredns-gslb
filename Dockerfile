@@ -7,7 +7,7 @@ WORKDIR /go/src
 COPY . /go/src/gslb/
 
 # Build CoreDNS with the GSLB plugin
-ARG COREDNS_VERSION=v1.14.6
+ARG COREDNS_VERSION=v1.14.7
 ARG GSLB_VERSION=dev
 RUN mkdir -p /coredns && \
     wget -qO- https://github.com/coredns/coredns/archive/refs/tags/${COREDNS_VERSION}.tar.gz | tar -xz -C /coredns --strip-components=1 && \
