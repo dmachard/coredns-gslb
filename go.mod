@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/coredns/caddy v1.1.4
-	github.com/coredns/coredns v1.14.6
+	github.com/coredns/coredns v1.14.7
 	github.com/creasty/defaults v1.8.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/melbahja/goph v1.5.2
@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/crypto v0.54.0
-	google.golang.org/grpc v1.82.1
+	google.golang.org/grpc v1.83.0
 	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -38,7 +38,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
-	github.com/pires/go-proxyproto v0.13.0 // indirect
+	github.com/pires/go-proxyproto v0.15.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.11 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -46,7 +46,7 @@ require (
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.60.0 // indirect
+	github.com/quic-go/quic-go v0.61.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
@@ -58,6 +58,6 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
