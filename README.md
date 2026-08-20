@@ -1,7 +1,6 @@
 <p align="center">
-  <img src="https://goreportcard.com/badge/github.com/dmachard/coredns-gslb" alt="Go Report"/>
   <img src="https://img.shields.io/badge/go%20lint%20rules-8-green" alt="Go lint"/>
-  <img src="https://img.shields.io/badge/go%20tests-346-green" alt="Go tests"/>
+  <img src="https://img.shields.io/badge/go%20tests-354-green" alt="Go tests"/>
   <img src="https://img.shields.io/badge/go%20coverage-85%25-green" alt="Go coverage"/>
   <img src="https://img.shields.io/badge/lines%20of%20code-6616-blue" alt="Lines of code"/>
   <img src="https://img.shields.io/badge/integration%20tests-24-blue" alt="Integration tests"/>

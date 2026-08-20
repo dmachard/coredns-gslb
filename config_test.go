@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dmachard/coredns-gslb/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
@@ -148,7 +149,7 @@ records:
 	gslb.Records[zone] = make(map[string]*Record)
 
 	for fqdn, recordData := range raw.Records {
-		processedRecordData, err := gslb.processRecordHealthchecks(recordData)
+		processedRecordData, err := gslb.processRecordHealthchecks(recordData, config.GlobalHealthcheckConfig{})
 		assert.NoError(t, err)
 		recordBytes, err := yaml.Marshal(processedRecordData)
 		assert.NoError(t, err)
@@ -224,7 +225,7 @@ func TestGSLB_processRecordHealthchecks(t *testing.T) {
 		},
 	}
 
-	processedData, err := gslb.processRecordHealthchecks(recordData)
+	processedData, err := gslb.processRecordHealthchecks(recordData, config.GlobalHealthcheckConfig{})
 	assert.NoError(t, err)
 
 	processedRecord := processedData.(map[string]interface{})
@@ -641,6 +642,133 @@ records:
 	assert.Equal(t, "4.4.4.4", b4.GetAddress())
 	assert.Equal(t, 8, b4.GetRise())
 	assert.Equal(t, 9, b4.GetFall())
+}
+
+func TestGSLB_GlobalHealthcheckRiseFallPrecedence(t *testing.T) {
+	// Test 1: Global rise only (rise=1, fall=default 3)
+	contentRiseOnly := `
+healthcheck:
+  rise: 1
+
+records:
+  test.example.com.:
+    backends:
+      - address: "1.1.1.1"
+`
+	tmp1 := writeTempYAML(t, contentRiseOnly)
+	defer os.Remove(tmp1)
+
+	g1 := &GSLB{}
+	err := loadConfigFile(g1, tmp1, "example.com.")
+	assert.NoError(t, err)
+	b1 := g1.Records["example.com."]["test.example.com."].Backends[0]
+	assert.Equal(t, 1, b1.GetRise())
+	assert.Equal(t, 3, b1.GetFall())
+
+	// Test 2: Global fall only (rise=default 2, fall=4)
+	contentFallOnly := `
+healthcheck:
+  fall: 4
+
+records:
+  test.example.com.:
+    backends:
+      - address: "1.1.1.1"
+`
+	tmp2 := writeTempYAML(t, contentFallOnly)
+	defer os.Remove(tmp2)
+
+	g2 := &GSLB{}
+	err = loadConfigFile(g2, tmp2, "example.com.")
+	assert.NoError(t, err)
+	b2 := g2.Records["example.com."]["test.example.com."].Backends[0]
+	assert.Equal(t, 2, b2.GetRise())
+	assert.Equal(t, 4, b2.GetFall())
+
+	// Test 3: Precedence (Backend > Profile > Global > Built-in Default)
+	contentPrecedence := `
+healthcheck:
+  rise: 10
+  fall: 20
+
+healthcheck_profiles:
+  profile1:
+    type: http
+    rise: 11
+    fall: 21
+    params:
+      port: 80
+  profile_no_risefall:
+    type: http
+    params:
+      port: 80
+
+records:
+  test.example.com.:
+    backends:
+      # Backend 1: uses global defaults (10, 20)
+      - address: "1.1.1.1"
+      # Backend 2: profile overrides global (11, 21)
+      - address: "2.2.2.2"
+        healthchecks: [ profile1 ]
+      # Backend 3: backend overrides profile & global (12, 22)
+      - address: "3.3.3.3"
+        healthchecks: [ profile1 ]
+        rise: 12
+        fall: 22
+      # Backend 4: profile without rise/fall inherits global defaults (10, 20)
+      - address: "4.4.4.4"
+        healthchecks: [ profile_no_risefall ]
+`
+	tmp3 := writeTempYAML(t, contentPrecedence)
+	defer os.Remove(tmp3)
+
+	g3 := &GSLB{}
+	err = loadConfigFile(g3, tmp3, "example.com.")
+	assert.NoError(t, err)
+
+	backends := g3.Records["example.com."]["test.example.com."].Backends
+	assert.Len(t, backends, 4)
+
+	// Backend 1
+	assert.Equal(t, 10, backends[0].GetRise())
+	assert.Equal(t, 20, backends[0].GetFall())
+
+	// Backend 2
+	assert.Equal(t, 11, backends[1].GetRise())
+	assert.Equal(t, 21, backends[1].GetFall())
+
+	// Backend 3
+	assert.Equal(t, 12, backends[2].GetRise())
+	assert.Equal(t, 22, backends[2].GetFall())
+
+	// Backend 4
+	assert.Equal(t, 10, backends[3].GetRise())
+	assert.Equal(t, 20, backends[3].GetFall())
+}
+
+func TestConfig_InvalidGlobalHealthcheck(t *testing.T) {
+	invalidContentRise := `
+healthcheck:
+  rise: 0
+`
+	tmp1 := writeTempYAML(t, invalidContentRise)
+	defer os.Remove(tmp1)
+
+	g1 := &GSLB{}
+	err := loadConfigFile(g1, tmp1, "example.com.")
+	assert.Error(t, err)
+
+	invalidContentFall := `
+healthcheck:
+  fall: -1
+`
+	tmp2 := writeTempYAML(t, invalidContentFall)
+	defer os.Remove(tmp2)
+
+	g2 := &GSLB{}
+	err = loadConfigFile(g2, tmp2, "example.com.")
+	assert.Error(t, err)
 }
 
 func TestGSLB_LoadConfigFile_PassiveAndZone(t *testing.T) {

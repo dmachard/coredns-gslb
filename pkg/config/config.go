@@ -72,9 +72,16 @@ type HealthcheckProfile struct {
 	Fall   int                    `yaml:"fall"`
 }
 
+// GlobalHealthcheckConfig represents global default healthcheck rise / fall options.
+type GlobalHealthcheckConfig struct {
+	Rise *int `yaml:"rise"`
+	Fall *int `yaml:"fall"`
+}
+
 // ZoneConfig represents the parsed YAML structure of a zone configuration file.
 type ZoneConfig struct {
 	Defaults            map[string]interface{}        `yaml:"defaults"`
+	Healthcheck         GlobalHealthcheckConfig       `yaml:"healthcheck"`
 	Records             map[string]RecordConfig       `yaml:"records"`
 	HealthcheckProfiles map[string]HealthcheckProfile `yaml:"healthcheck_profiles"`
 }
@@ -91,6 +98,7 @@ type LocationMapConfig struct {
 func LoadZoneConfig(data []byte) (*ZoneConfig, error) {
 	var raw struct {
 		Defaults            map[string]interface{}        `yaml:"defaults"`
+		Healthcheck         GlobalHealthcheckConfig       `yaml:"healthcheck"`
 		Records             map[string]interface{}        `yaml:"records"`
 		HealthcheckProfiles map[string]HealthcheckProfile `yaml:"healthcheck_profiles"`
 	}
@@ -98,8 +106,16 @@ func LoadZoneConfig(data []byte) (*ZoneConfig, error) {
 		return nil, fmt.Errorf("failed to parse YAML configuration: %w", err)
 	}
 
+	if raw.Healthcheck.Rise != nil && *raw.Healthcheck.Rise <= 0 {
+		return nil, fmt.Errorf("invalid global healthcheck rise: %d (must be > 0)", *raw.Healthcheck.Rise)
+	}
+	if raw.Healthcheck.Fall != nil && *raw.Healthcheck.Fall <= 0 {
+		return nil, fmt.Errorf("invalid global healthcheck fall: %d (must be > 0)", *raw.Healthcheck.Fall)
+	}
+
 	cfg := &ZoneConfig{
 		Defaults:            raw.Defaults,
+		Healthcheck:         raw.Healthcheck,
 		HealthcheckProfiles: raw.HealthcheckProfiles,
 		Records:             make(map[string]RecordConfig),
 	}

@@ -8,11 +8,12 @@ CoreDNS-GSLB automatically monitors these zone files and reloads them at runtime
 
 ## File Structure Overview
 
-A GSLB zone YAML file is composed of three main root sections:
+A GSLB zone YAML file is composed of four main root sections:
 
 1. **`defaults`** (Optional): A block containing default parameter values inherited by all records in this zone.
-2. **`healthcheck_profiles`** (Optional): A dictionary of named health check templates that can be referenced by backends.
-3. **`records`** (Required): A dictionary containing the actual GSLB domain names (must end with a trailing dot) and their routing policies.
+2. **`healthcheck`** (Optional): A block configuring global default `rise` and `fall` thresholds for healthchecks.
+3. **`healthcheck_profiles`** (Optional): A dictionary of named health check templates that can be referenced by backends.
+4. **`records`** (Required): A dictionary containing the actual GSLB domain names (must end with a trailing dot) and their routing policies.
 
 ```yaml
 # 1. Defaults
@@ -22,7 +23,12 @@ defaults:
   scrape_interval: 10s
   scrape_timeout: 5s
 
-# 2. Healthcheck Profiles
+# 2. Global Healthcheck Defaults
+healthcheck:
+  rise: 1
+  fall: 2
+
+# 3. Healthcheck Profiles
 healthcheck_profiles:
   http_check:
     type: http
@@ -30,7 +36,7 @@ healthcheck_profiles:
       port: 80
       uri: "/healthz"
 
-# 3. Records
+# 4. Records
 records:
   api.example.org.:
     mode: failover
