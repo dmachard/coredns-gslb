@@ -4,13 +4,25 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+          
   - package-ecosystem: "github-actions"
     directory: ".github"
     schedule:
       interval: "monthly"
-
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+          
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      docker-dependencies:
+        patterns:
+          - "*"
