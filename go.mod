@@ -8,7 +8,7 @@ require (
 	github.com/creasty/defaults v1.8.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/melbahja/goph v1.5.2
-	github.com/miekg/dns v1.1.72
+	github.com/miekg/dns v1.1.73
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/prometheus-community/pro-bing v0.9.1
 	github.com/prometheus/client_golang v1.24.1
@@ -52,12 +52,10 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
-	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
